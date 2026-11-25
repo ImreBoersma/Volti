@@ -8,12 +8,15 @@
     <!--
         Scaled to 82% around the centre: the design reaches about 40dp from the centre (the cream circle), past the
         33dp safe zone that every launcher mask keeps. Unscaled, Samsung's mask cut into the circle.
+        Moved 1.8 right: the design's bounding box is centred 2.2 left of the canvas centre (1.8 after scaling),
+        so it looked off to the left.
     -->
     <group
         android:pivotX="54"
         android:pivotY="54"
         android:scaleX="0.82"
-        android:scaleY="0.82">
+        android:scaleY="0.82"
+        android:translateX="1.8">
 
         <!-- Cream Circle Accent -->
         <path
