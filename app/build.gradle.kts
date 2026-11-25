@@ -5,7 +5,9 @@ plugins {
 
 android {
     namespace = "nl.imreboersma.volti"
-    compileSdk = 35
+    compileSdk {
+        version = release(37) { minorApiLevel = 2 }
+    }
 
     defaultConfig {
         applicationId = "nl.imreboersma.volti"

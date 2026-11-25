@@ -31,7 +31,7 @@ fun VoltiApp() {
     val navController = rememberNavController()
     NavHost(
         navController = navController,
-        startDestination = "Bibliotheek",
+        startDestination = "library",
         modifier = Modifier.fillMaxSize(),
     ) {
         composable("library") {

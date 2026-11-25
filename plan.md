@@ -24,11 +24,11 @@ No database, no setlists, no annotations. Done when it survives one rehearsal on
 
 ### 0. Baseline
 
-- [ ] `git init` and a first commit.
+- [x] `git init` and a first commit.
 - [x] Set `android:allowBackup` to false in the manifest.
 - [x] Update the dependency versions in the version catalog (Compose BOM, lifecycle, navigation are from early 2025).
-- [ ] Run the empty app on the tablet over USB.
-- [ ] Note the tablet's Android version and security patch level here: ...
+- [x] Run the empty app on the tablet over USB.
+- [x] Note the tablet's Android version and security patch level here: Galaxy Tab S7 FE (SM-T733), Android 14 / API 34, security patch 2025-06-01, Play system update 2026 (MediaProvider 372042780).
 
 Done when: it launches on the tablet and the Merged Manifest tab shows no permissions.
 
