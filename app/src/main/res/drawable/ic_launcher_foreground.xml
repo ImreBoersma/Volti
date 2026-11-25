@@ -10,6 +10,8 @@
         33dp safe zone that every launcher mask keeps. Unscaled, Samsung's mask cut into the circle.
         Moved 1.8 right: the design's bounding box is centred 2.2 left of the canvas centre (1.8 after scaling),
         so it looked off to the left.
+        The circle is 1.7 higher than the original, for more space above the blue stroke: as far up as the safe
+        zone allows (its top-left edge now reaches 33dp from the centre).
         The folded corner is 1.5x the original, scaled away from the stroke's unfolded corner (82.69, 43.45), so
         it keeps its shape after the scaling down.
     -->
@@ -23,7 +25,7 @@
         <!-- Cream Circle Accent -->
         <path
             android:fillColor="#EFE8D8"
-            android:pathData="M 24.470000000000002,30.8 a 9.7,9.7 0 1,0 19.4,0 a 9.7,9.7 0 1,0 -19.4,0" />
+            android:pathData="M 24.47,29.1 a 9.7,9.7 0 1,0 19.4,0 a 9.7,9.7 0 1,0 -19.4,0" />
 
         <!-- Blue Left Stroke of 'V' -->
         <path

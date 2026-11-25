@@ -21,7 +21,7 @@
         <!-- Cream Circle Accent -->
         <path
             android:fillColor="#000000"
-            android:pathData="M 24.470000000000002,30.8 a 9.7,9.7 0 1,0 19.4,0 a 9.7,9.7 0 1,0 -19.4,0" />
+            android:pathData="M 24.47,29.1 a 9.7,9.7 0 1,0 19.4,0 a 9.7,9.7 0 1,0 -19.4,0" />
 
         <!-- Blue Left Stroke of 'V' (slightly translucent for tonal contrast) -->
         <path
