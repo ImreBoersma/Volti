@@ -6,11 +6,15 @@ import android.os.IBinder
 import android.os.ParcelFileDescriptor
 import android.os.Process
 import android.os.SharedMemory
+import android.system.Os
+import android.system.OsConstants
 import android.util.Log
+import nl.imreboersma.volti.BuildConfig
 import nl.imreboersma.volti.data.PasswordProtectedException
 import nl.imreboersma.volti.data.PixelSize
 import nl.imreboersma.volti.data.ScoreDocument
 import nl.imreboersma.volti.data.openPdf
+import java.io.File
 import java.util.concurrent.TimeUnit
 
 /**
@@ -23,14 +27,18 @@ import java.util.concurrent.TimeUnit
 class PdfRenderService : Service() {
     private val documents = mutableMapOf<Int, ScoreDocument>()
     private var nextId = 1
-    private val watchdog = Watchdog(TimeUnit.SECONDS.toMillis(CALL_TIMEOUT_SECONDS)) {
-        Log.w("Volti", "PDF renderer stuck for $CALL_TIMEOUT_SECONDS s; restarting it")
+    private val watchdog = Watchdog(
+        timeoutMillis = TimeUnit.SECONDS.toMillis(CALL_TIMEOUT_SECONDS),
+        memoryGrowthLimitBytes = MEMORY_GROWTH_LIMIT_BYTES,
+        memoryUsed = ::residentBytes,
+    ) { reason ->
+        Log.w("Volti", "PDF renderer $reason; stopping it")
         Process.killProcess(Process.myPid())
     }
 
     /** Runs [block] under the one lock the renderer needs, with this process killed if it takes too long. */
     private fun <T> guarded(block: () -> T): T = synchronized(this) {
-        try {
+        val result = try {
             watchdog.guard(block)
         } catch (e: PasswordProtectedException) {
             // Binder only carries a few exception types back to the app: SecurityException means a password.
@@ -39,6 +47,9 @@ class PdfRenderService : Service() {
             // Untrusted input: whatever the parser throws means the file can't be shown.
             throw IllegalStateException(e.toString())
         }
+        // Debug only, for measuring: R8 strips Log.d from release, but not a call in its argument.
+        if (BuildConfig.DEBUG) Log.d("Volti", "Renderer peak memory: ${peakResidentBytes() shr 20} MB")
+        result
     }
 
     private fun document(id: Int) = documents[id] ?: throw IllegalStateException("No document $id")
@@ -76,5 +87,24 @@ class PdfRenderService : Service() {
     companion object {
         /** Longer than any sane page render (about 100 ms for a 200 dpi scan), short enough to recover on stage. */
         const val CALL_TIMEOUT_SECONDS = 10L
+
+        /**
+         * A crafted PDF can make PDFium grow by 500 MB a second (form-bomb.pdf), squeezing the whole device: on
+         * the CI emulator it took the system down. One normal render adds far less; see plan.md. Polled every
+         * 50 ms, so a fast runaway overshoots by what it touches in that time.
+         */
+        const val MEMORY_GROWTH_LIMIT_BYTES = 300L shl 20
+
+        private val pageSize = Os.sysconf(OsConstants._SC_PAGESIZE)
+
+        /** Resident memory of this process, from /proc/self/statm: cheap enough to read every 50 ms. */
+        fun residentBytes(): Long =
+            File("/proc/self/statm").readText().split(' ')[1].toLong() * pageSize
+
+        /** The most this process has had resident, from /proc/self/status (VmHWM). */
+        fun peakResidentBytes(): Long =
+            File("/proc/self/status").useLines { lines ->
+                lines.first { it.startsWith("VmHWM:") }.filter(Char::isDigit).toLong() * 1024
+            }
     }
 }
