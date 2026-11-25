@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.Volti" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- The window behind Compose has the theme's background, so no white frame shows before the first draw. -->
+    <style name="Theme.Volti" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/volti_background</item>
+    </style>
 </resources>

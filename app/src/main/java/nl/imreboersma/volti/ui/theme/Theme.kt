@@ -1,57 +1,94 @@
 package nl.imreboersma.volti.ui.theme
 
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.graphics.Color
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+/** Cream paper with ink, the Bauhaus blue for actions, the red for what is switched on. */
+internal val LightColors = lightColorScheme(
+    primary = BauhausBlue,
+    onPrimary = CreamLight,
+    primaryContainer = BauhausBlue,
+    onPrimaryContainer = CreamLight,
+    secondary = BauhausRed,
+    onSecondary = CreamLight,
+    secondaryContainer = BauhausRed,
+    onSecondaryContainer = CreamLight,
+    tertiary = BauhausRedShadow,
+    onTertiary = CreamLight,
+    background = Cream,
+    onBackground = Ink,
+    surface = Cream,
+    onSurface = Ink,
+    surfaceVariant = CreamDim,
+    onSurfaceVariant = InkMuted,
+    surfaceContainerLowest = CreamLight,
+    surfaceContainerLow = CreamLight,
+    surfaceContainer = CreamLight,
+    surfaceContainerHigh = CreamDim,
+    surfaceContainerHighest = CreamDim,
+    outline = InkMuted,
+    outlineVariant = CreamLine,
 )
 
-private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+/** The icon itself: near-black, cream, and lighter blue and red so they read on the dark. */
+internal val DarkColors = darkColorScheme(
+    primary = BlueLight,
+    onPrimary = Ink,
+    primaryContainer = BauhausBlue,
+    onPrimaryContainer = Cream,
+    secondary = RedLight,
+    onSecondary = Ink,
+    secondaryContainer = BauhausRedShadow,
+    onSecondaryContainer = Cream,
+    tertiary = Cream,
+    onTertiary = Ink,
+    background = Ink,
+    onBackground = Cream,
+    surface = Ink,
+    onSurface = Cream,
+    surfaceVariant = InkHigh,
+    onSurfaceVariant = CreamMuted,
+    surfaceContainerLowest = Ink,
+    surfaceContainerLow = InkRaised,
+    surfaceContainer = InkRaised,
+    surfaceContainerHigh = InkHigh,
+    surfaceContainerHighest = InkHigh,
+    outline = CreamMuted,
+    outlineVariant = InkLine,
 )
 
+/**
+ * The reader's own colours. The page is white paper in both themes, so what touches it is fixed rather than
+ * taken from the scheme: around the page, white in the light theme (cream would frame each page as a white box)
+ * and ink in the dark one; the half-turn line is drawn across paper, so dark in both.
+ */
+data class ReaderColors(val surround: Color, val line: Color, val message: Color)
+
+internal val LightReader = ReaderColors(surround = Paper, line = InkMuted, message = Ink)
+internal val DarkReader = ReaderColors(surround = Ink, line = InkMuted, message = Cream)
+
+val LocalReaderColors = staticCompositionLocalOf { LightReader }
+
+/**
+ * The icon's colours, light or dark with the system. No dynamic colour: the wallpaper's colours would replace
+ * the palette that makes the app recognisable.
+ */
 @Composable
 fun VoltiTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+    CompositionLocalProvider(LocalReaderColors provides if (darkTheme) DarkReader else LightReader) {
+        MaterialTheme(
+            colorScheme = if (darkTheme) DarkColors else LightColors,
+            typography = Typography,
+            content = content,
+        )
     }
-
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content
-    )
 }

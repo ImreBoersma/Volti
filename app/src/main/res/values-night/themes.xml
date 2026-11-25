@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Dark parent: no white frame before the first draw, and light system icons. -->
+    <style name="Theme.Volti" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/volti_background</item>
+    </style>
+</resources>

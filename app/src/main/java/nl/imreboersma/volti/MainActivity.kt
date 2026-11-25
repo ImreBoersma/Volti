@@ -3,6 +3,8 @@ package nl.imreboersma.volti
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import android.graphics.Color
+import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -34,7 +36,10 @@ data class Reader(val uri: String)
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        // Transparent system bars, also in the light theme: the default light scrim would put a whitish strip over
+        // the cream. Icons still follow light or dark.
+        enableEdgeToEdge(navigationBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT))
+        window.isNavigationBarContrastEnforced = false
         setContent {
             VoltiTheme {
                 VoltiApp()

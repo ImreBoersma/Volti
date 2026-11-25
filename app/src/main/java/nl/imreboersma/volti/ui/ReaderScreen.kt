@@ -17,7 +17,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -26,6 +25,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import nl.imreboersma.volti.data.PixelSize
+import nl.imreboersma.volti.ui.theme.LocalReaderColors
 
 @Composable
 fun ReaderScreen(
@@ -36,7 +36,8 @@ fun ReaderScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.White)
+            // Around the page: white like the paper in the light theme, near-black in the dark one (less glare on stage).
+            .background(LocalReaderColors.current.surround)
             .onSizeChanged { viewModel.render(PixelSize(it.width, it.height)) }
             // Left half turns back, right half turns forward.
             .pointerInput(viewModel) {
@@ -53,7 +54,7 @@ fun ReaderScreen(
                         "This file takes too long to open. If other scores stay blank too, close and reopen Volti."
                     ReaderState.Problem.Unreadable -> "Can't open this file."
                 },
-                color = Color.Black,
+                color = LocalReaderColors.current.message,
             )
             is ReaderState.Page -> PageView(s, viewModel)
         }
@@ -75,6 +76,8 @@ private fun PageView(page: ReaderState.Page, viewModel: ReaderViewModel) {
             view.viewTreeObserver.registerFrameCommitCallback { viewModel.onPresented(emptyList()) }
         }
     }
+    val background = LocalReaderColors.current.surround
+    val line = LocalReaderColors.current.line
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -95,10 +98,10 @@ private fun PageView(page: ReaderState.Page, viewModel: ReaderViewModel) {
                     .fillMaxSize()
                     .drawWithContent {
                         clipRect(bottom = size.height / 2) {
-                            drawRect(Color.White) // Covers this page's top half, also beside a narrower next page.
+                            drawRect(background) // Covers this page's top half, also beside a narrower next page.
                             this@drawWithContent.drawContent()
                         }
-                        drawLine(Color.Gray, Offset(0f, size.height / 2), Offset(size.width, size.height / 2), strokeWidth = 3f)
+                        drawLine(line, Offset(0f, size.height / 2), Offset(size.width, size.height / 2), strokeWidth = 3f)
                     },
             ) {
                 PageImage(page.top, page.index + 1, Region.TopHalf)
@@ -126,7 +129,7 @@ private fun PageImage(bitmap: Bitmap?, index: Int, region: Region) {
                     .align(if (region == Region.BottomHalf) Alignment.BottomCenter else Alignment.TopCenter),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(text = "Can't show page ${index + 1}.", color = Color.Black)
+                Text(text = "Can't show page ${index + 1}.", color = LocalReaderColors.current.message)
             }
         }
     } else {
