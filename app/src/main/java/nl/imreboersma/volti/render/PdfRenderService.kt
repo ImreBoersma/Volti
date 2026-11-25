@@ -13,6 +13,7 @@ import nl.imreboersma.volti.BuildConfig
 import nl.imreboersma.volti.data.PasswordProtectedException
 import nl.imreboersma.volti.data.PixelSize
 import nl.imreboersma.volti.data.ScoreDocument
+import nl.imreboersma.volti.data.checkArea
 import nl.imreboersma.volti.data.openPdf
 import java.io.File
 import java.util.concurrent.TimeUnit
@@ -63,10 +64,25 @@ class PdfRenderService : Service() {
 
         override fun pageCount(doc: Int): Int = guarded { document(doc).pageCount }
 
-        override fun renderPage(doc: Int, index: Int, maxWidth: Int, maxHeight: Int, pixels: SharedMemory): IntArray =
+        override fun contentArea(doc: Int, index: Int): FloatArray = guarded {
+            document(doc).contentArea(index).let { floatArrayOf(it.left, it.top, it.right, it.bottom) }
+        }
+
+        override fun renderPage(
+            doc: Int,
+            index: Int,
+            maxWidth: Int,
+            maxHeight: Int,
+            left: Float,
+            top: Float,
+            right: Float,
+            bottom: Float,
+            pixels: SharedMemory,
+        ): IntArray =
             try {
                 guarded {
-                    val bitmap = document(doc).renderPage(index, PixelSize(maxWidth, maxHeight))
+                    val area = checkArea(floatArrayOf(left, top, right, bottom))
+                    val bitmap = document(doc).renderPage(index, PixelSize(maxWidth, maxHeight), area = area)
                     val buffer = pixels.mapReadWrite()
                     try {
                         bitmap.copyPixelsToBuffer(buffer)

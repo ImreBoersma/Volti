@@ -15,10 +15,13 @@ interface IPdfRenderer {
     int pageCount(int doc);
 
     /**
-     * Renders page [index] on white, as large as fits in maxWidth x maxHeight, into [pixels] as ARGB_8888
-     * rows. Returns {width, height}.
+     * Renders the part of page [index] between left/top/right/bottom (fractions of the page) on white, as large as
+     * fits in maxWidth x maxHeight, into [pixels] as ARGB_8888 rows. Returns {width, height}.
      */
-    int[] renderPage(int doc, int index, int maxWidth, int maxHeight, in SharedMemory pixels);
+    int[] renderPage(int doc, int index, int maxWidth, int maxHeight, float left, float top, float right, float bottom, in SharedMemory pixels);
+
+    /** The part of page [index] with content: {left, top, right, bottom}, fractions of the page. */
+    float[] contentArea(int doc, int index);
 
     void close(int doc);
 }

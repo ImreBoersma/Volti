@@ -19,12 +19,17 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import nl.imreboersma.volti.Reader
+import nl.imreboersma.volti.data.PageArea
 import nl.imreboersma.volti.data.PasswordProtectedException
 import nl.imreboersma.volti.data.PixelSize
+import nl.imreboersma.volti.data.ReaderSettings
+import nl.imreboersma.volti.data.ReaderSettingsStore
 import nl.imreboersma.volti.data.ScoreDocument
+import nl.imreboersma.volti.data.samplePages
 import nl.imreboersma.volti.render.openIsolated
 
 sealed interface ReaderState {
@@ -35,8 +40,21 @@ sealed interface ReaderState {
 
     enum class Problem { Unreadable, PasswordProtected, TooSlow }
 
-    /** Page [index] is on screen; [bitmap] is null when that one page could not be rendered. */
-    data class Page(val bitmap: Bitmap?, val index: Int, val pageCount: Int) : ReaderState
+    /**
+     * Page [index] is on screen; [bitmap] is null when that one page could not be rendered. In a [half] turn the
+     * top half of the screen already shows the next page, [top] (null if that page could not be rendered), and
+     * the bottom half still shows the end of this one.
+     */
+    data class Page(
+        val bitmap: Bitmap?,
+        val index: Int,
+        val pageCount: Int,
+        val half: Boolean = false,
+        val top: Bitmap? = null,
+    ) : ReaderState {
+        /** Everything this state puts on screen. */
+        val bitmaps get() = listOfNotNull(bitmap, top)
+    }
 }
 
 /**
@@ -50,6 +68,7 @@ class ReaderViewModel @JvmOverloads constructor(
     handle: SavedStateHandle,
     private val open: (Uri) -> ScoreDocument = { openIsolated(app, it) },
     private val openTimeoutMs: Long = 10_000,
+    private val loadSettings: suspend () -> ReaderSettings = { ReaderSettingsStore(app).settings.first() },
 ) : AndroidViewModel(app) {
     private val uri = handle.toRoute<Reader>().uri.toUri()
 
@@ -57,16 +76,31 @@ class ReaderViewModel @JvmOverloads constructor(
     private val pdfThread = Dispatchers.IO.limitedParallelism(1)
     private var document: ScoreDocument? = null
     private var size: PixelSize? = null
+    private var settings: ReaderSettings? = null
+
+    /**
+     * One crop for the whole score, so the music keeps its size and place from page to page and the pages keep one
+     * size, so their bitmaps can be reused. The union of a sample of pages, each detected in its own renderer call:
+     * a page that crashes the renderer is skipped (and marked broken), not the score. Null until detected.
+     */
+    private var scoreArea: PageArea? = null
     private var current = 0
 
-    /** Rendered pages around [current]: previous, current and next, at [size]. */
+    /** Half-page turns: the top half of the screen already shows the next page. */
+    private var half = false
+
+    /**
+     * Rendered pages around [current], at [size]: previous, current and next; with half-page turns also the one
+     * after next, which a half turn shows next.
+     */
     private val window = mutableMapOf<Int, Bitmap>()
+    private val windowRange get() = current - 1..current + if (settings?.halfPageTurns == true) 2 else 1
 
     /** Pages that threw while rendering. Not retried: a broken page stays broken. */
     private val brokenPages = mutableSetOf<Int>()
 
-    /** The bitmap last published, and bitmaps it replaced, with the time they were replaced. */
-    private var onScreen: Bitmap? = null
+    /** The bitmaps last published, and bitmaps they replaced, with the time they were replaced. */
+    private var onScreen: List<Bitmap> = emptyList()
     private val leftScreen = ArrayDeque<Pair<Bitmap, Long>>()
 
     /**
@@ -77,10 +111,10 @@ class ReaderViewModel @JvmOverloads constructor(
     private val drawnLock = Any()
 
     /**
-     * Bitmaps in recorded frames that may still be on screen, oldest first: the one presented last and any
-     * drawn since. Frames reach the screen in recording order.
+     * Recorded frames that may still be on screen, oldest first, each with the bitmaps it draws (two in a half
+     * turn): the one presented last and any drawn since. Frames reach the screen in recording order.
      */
-    private val drawn = ArrayDeque<Bitmap>()
+    private val drawn = ArrayDeque<List<Bitmap>>()
     private val stoppedDrawing = ArrayDeque<Pair<Bitmap, Long>>()
 
     /** Main thread only. */
@@ -114,10 +148,28 @@ class ReaderViewModel @JvmOverloads constructor(
                 _state.value = ReaderState.Failed(problem)
                 return@onPdfThread
             }
+            if (settings == null) settings = loadSettings()
+            if (scoreArea == null) scoreArea = detectScoreArea(doc)
             this.size = size
             window.clear()
             showCurrent(doc, since = SystemClock.uptimeMillis())
         }
+    }
+
+    private fun detectScoreArea(doc: ScoreDocument): PageArea {
+        if (settings?.cropMargins != true) return PageArea.WHOLE
+        val started = SystemClock.uptimeMillis()
+        return samplePages(doc.pageCount).mapNotNull { index ->
+            try {
+                doc.contentArea(index)
+            } catch (e: Exception) {
+                Log.w("Volti", "Can't look at page ${index + 1} of $uri", e)
+                brokenPages += index
+                null
+            }
+        }.reduceOrNull(PageArea::union).also {
+            Log.d("Volti", "Margins of ${samplePages(doc.pageCount).size} pages in ${SystemClock.uptimeMillis() - started} ms: $it")
+        } ?: PageArea.WHOLE
     }
 
     /**
@@ -134,20 +186,28 @@ class ReaderViewModel @JvmOverloads constructor(
         }
     }
 
-    /** Called by the UI when it records a frame with [bitmap]: from now on it may be on screen. */
-    fun onDrawn(bitmap: Bitmap) = synchronized(drawnLock) {
-        if (drawn.lastOrNull() !== bitmap) drawn.addLast(bitmap)
+    /**
+     * Called by the UI when it records a frame drawing [bitmaps]: from now on they may be on screen. Also for a
+     * frame without a page (empty), so a late [onPresented] for it can't release the pages drawn after it.
+     */
+    fun onDrawn(bitmaps: List<Bitmap>) = synchronized(drawnLock) {
+        if (!sameBitmaps(drawn.lastOrNull(), bitmaps)) drawn.addLast(bitmaps)
     }
 
     /**
-     * Called by the UI once the frame showing [bitmap] (null: no page) has been committed to the screen.
-     * Bitmaps from older frames have then left it; bitmaps from newer frames are still on their way.
+     * Called by the UI once the frame drawing [bitmaps] (empty: no page) has been committed to the screen.
+     * Bitmaps only in older frames have then left it; bitmaps from newer frames are still on their way. A frame
+     * that isn't known releases nothing: holding on too long is safe, letting go too early is not.
      */
-    fun onPresented(bitmap: Bitmap?) = synchronized(drawnLock) {
+    fun onPresented(bitmaps: List<Bitmap>) = synchronized(drawnLock) {
         val now = SystemClock.uptimeMillis()
-        val older = if (bitmap == null) drawn.size else drawn.indexOfFirst { it === bitmap }.coerceAtLeast(0)
-        repeat(older) { stoppedDrawing.addLast(drawn.removeFirst() to now) }
+        val older = drawn.indexOfFirst { sameBitmaps(it, bitmaps) }.coerceAtLeast(0)
+        repeat(older) {
+            drawn.removeFirst().filter { gone -> bitmaps.none { it === gone } }.forEach { stoppedDrawing.addLast(it to now) }
+        }
     }
+
+    private fun sameBitmaps(a: List<Bitmap>?, b: List<Bitmap>) = a != null && a.size == b.size && a.indices.all { a[it] === b[it] }
 
     fun next() = turn(+1)
 
@@ -158,9 +218,24 @@ class ReaderViewModel @JvmOverloads constructor(
         val tapped = SystemClock.uptimeMillis()
         onPdfThread {
             val doc = document ?: return@onPdfThread
-            if (size == null || current + delta !in 0 until doc.pageCount) return@onPdfThread
-            current += delta
-            showCurrent(doc, since = tapped)
+            if (size == null) return@onPdfThread
+            val moved = if (settings?.halfPageTurns != true) {
+                (current + delta in 0 until doc.pageCount).also { if (it) current += delta }
+            } else if (delta > 0) {
+                // Forward: first the next page's top half over this one, then the next page whole.
+                when {
+                    half -> { current += 1; half = false; true }
+                    current + 1 < doc.pageCount -> { half = true; true }
+                    else -> false
+                }
+            } else {
+                when {
+                    half -> { half = false; true }
+                    current > 0 -> { current -= 1; half = true; true }
+                    else -> false
+                }
+            }
+            if (moved) showCurrent(doc, since = tapped)
         }
     }
 
@@ -169,22 +244,23 @@ class ReaderViewModel @JvmOverloads constructor(
      * Stops before each neighbour if a newer size has arrived.
      */
     private suspend fun showCurrent(doc: ScoreDocument, since: Long) {
-        val ready = current in window || current in brokenPages
+        val shown = if (half) listOf(current, current + 1) else listOf(current)
+        val ready = shown.all { it in window || it in brokenPages }
         val bitmap = window[current] ?: renderInto(doc, current)
-        publish(ReaderState.Page(bitmap, current, doc.pageCount))
-        Log.d("Volti", "Page ${current + 1}: ${if (ready) "ready" else "rendered"} ${SystemClock.uptimeMillis() - since} ms after the tap")
-        // Next before previous: reading forward is the common case.
-        for (i in listOf(current + 1, current - 1)) {
+        val top = if (half) window[current + 1] ?: renderInto(doc, current + 1) else null
+        publish(ReaderState.Page(bitmap, current, doc.pageCount, half, top))
+        Log.d("Volti", "Page ${current + 1}${if (half) "½" else ""}: ${if (ready) "ready" else "rendered"} ${SystemClock.uptimeMillis() - since} ms after the tap")
+        // Forward first: reading forward is the common case.
+        for (i in (current + 1..windowRange.last) + (current - 1)) {
             currentCoroutineContext().ensureActive()
             if (i in 0 until doc.pageCount && i !in window) renderInto(doc, i)
         }
     }
 
     private fun publish(page: ReaderState.Page) {
-        if (page.bitmap !== onScreen) {
-            onScreen?.let { leftScreen.addLast(it to SystemClock.uptimeMillis()) }
-            onScreen = page.bitmap
-        }
+        val now = SystemClock.uptimeMillis()
+        onScreen.filter { old -> page.bitmaps.none { it === old } }.forEach { leftScreen.addLast(it to now) }
+        onScreen = page.bitmaps
         // Not over a Failed: the time limit may have given up on this file while the render ran.
         _state.update { if (it is ReaderState.Failed) it else page }
     }
@@ -195,10 +271,10 @@ class ReaderViewModel @JvmOverloads constructor(
      */
     private fun renderInto(doc: ScoreDocument, index: Int): Bitmap? {
         if (index in brokenPages) return null
-        val dropped = window.keys.filter { it !in current - 1..current + 1 }.map { window.remove(it)!! }
+        val dropped = window.keys.filter { it !in windowRange }.map { window.remove(it)!! }
         val reuse = if (dropped.isEmpty()) null else safeToDrawInto(dropped)
         return try {
-            doc.renderPage(index, size!!, reuse).also { window[index] = it }
+            doc.renderPage(index, size!!, reuse, area = scoreArea ?: PageArea.WHOLE).also { window[index] = it }
         } catch (e: Exception) {
             Log.w("Volti", "Can't render page ${index + 1} of $uri", e)
             brokenPages += index
@@ -216,9 +292,9 @@ class ReaderViewModel @JvmOverloads constructor(
         return synchronized(drawnLock) {
             while (stoppedDrawing.isNotEmpty() && now - stoppedDrawing.first().second >= REUSE_DELAY_MS) stoppedDrawing.removeFirst()
             candidates.firstOrNull { bitmap ->
-                bitmap !== onScreen &&
+                onScreen.none { it === bitmap } &&
                     leftScreen.none { it.first === bitmap } &&
-                    drawn.none { it === bitmap } &&
+                    drawn.none { frame -> frame.any { it === bitmap } } &&
                     stoppedDrawing.none { it.first === bitmap }
             }
         }

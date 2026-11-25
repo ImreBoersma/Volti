@@ -14,12 +14,15 @@ import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import nl.imreboersma.volti.data.PageArea
 import nl.imreboersma.volti.data.PixelSize
+import nl.imreboersma.volti.data.ReaderSettings
 import nl.imreboersma.volti.data.ScoreDocument
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -39,6 +42,7 @@ class ReaderViewModelTest {
     private val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext as Application
     private val events: MutableList<String> = Collections.synchronizedList(mutableListOf())
     private val reused = AtomicInteger()
+    private val cropped = AtomicInteger()
     private val closed = CountDownLatch(1)
     private val store = ViewModelStore()
     private val collector = CoroutineScope(Dispatchers.Default)
@@ -52,7 +56,7 @@ class ReaderViewModelTest {
      */
     private val screenLock = Any()
     private val states = mutableListOf<ReaderState>()
-    private var onScreen: Bitmap? = null
+    private var onScreen: List<Bitmap> = emptyList()
     private val notYetPresented = mutableListOf<Bitmap>()
     private val leftScreenAt = IdentityHashMap<Bitmap, Long>()
 
@@ -61,7 +65,10 @@ class ReaderViewModelTest {
         private val renderMillis: Long = 0,
         private val broken: Set<Int> = emptySet(),
     ) : ScoreDocument {
-        override fun renderPage(index: Int, max: PixelSize, reuse: Bitmap?): Bitmap {
+        override fun contentArea(index: Int) = PageArea(0.1f, 0.1f, 0.9f, 0.9f)
+
+        override fun renderPage(index: Int, max: PixelSize, reuse: Bitmap?, area: PageArea): Bitmap {
+            if (area != PageArea.WHOLE) cropped.incrementAndGet()
             Thread.sleep(renderMillis)
             if (index in broken) {
                 events += "broken $index"
@@ -71,10 +78,12 @@ class ReaderViewModelTest {
                 reused.incrementAndGet()
                 synchronized(screenLock) {
                     val left = leftScreenAt[reuse]
-                    if (reuse === onScreen || notYetPresented.any { it === reuse } ||
+                    if (onScreen.any { it === reuse } || notYetPresented.any { it === reuse } ||
                         (left != null && SystemClock.uptimeMillis() - left < REUSE_DELAY_MS)
                     ) {
-                        events += "drew into a bitmap on screen"
+                        val id = { b: Bitmap -> System.identityHashCode(b).toString(16) }
+                        events += "drew into a bitmap on screen: ${id(reuse)} for page $index; on screen ${onScreen.map(id)}, " +
+                            "pending ${notYetPresented.map(id)}, left ${left?.let { SystemClock.uptimeMillis() - it }} ms ago"
                     }
                 }
             }
@@ -97,36 +106,54 @@ class ReaderViewModelTest {
         openTimeoutMs: Long = 10_000,
         frameMillis: Long = 16,
         presentMillis: Long = 5,
+        settings: ReaderSettings = ReaderSettings(cropMargins = false),
+        standInUi: Boolean = true,
         open: () -> ScoreDocument,
     ): ReaderViewModel {
         // A content URI with an encoded slash, as the library passes it.
         val handle = SavedStateHandle(mapOf("uri" to "content://provider/tree/a%3AScores/document/a%3AScores%2FBolero.pdf"))
         val factory = viewModelFactory {
             initializer {
-                ReaderViewModel(app, handle, open = { events += "open $it"; open() }, openTimeoutMs = openTimeoutMs)
+                ReaderViewModel(
+                    app,
+                    handle,
+                    open = { events += "open $it"; open() },
+                    openTimeoutMs = openTimeoutMs,
+                    loadSettings = { settings },
+                )
             }
         }
         vm = ViewModelProvider.create(store, factory)[ReaderViewModel::class]
+        if (!standInUi) return vm
+        // Recorded frames, in order, for the presenter: like a real render thread, it shows them in that order.
+        val frames = Channel<Pair<List<Bitmap>, Long>>(Channel.UNLIMITED)
         collector.launch {
+            var hadPage = false
             while (true) {
                 delay(frameMillis)
                 val state = vm.state.value
-                val bitmap = (state as? ReaderState.Page)?.bitmap
+                val bitmaps = (state as? ReaderState.Page)?.bitmaps.orEmpty()
+                synchronized(screenLock) { if (states.lastOrNull() != state) states += state }
+                // As ReaderScreen: frames with pages report themselves; a frame without one only when the pages
+                // just went away (PageView disposed). Loading frames before the first page report nothing.
+                if (bitmaps.isEmpty() && !hadPage) continue
+                hadPage = bitmaps.isNotEmpty()
                 synchronized(screenLock) {
-                    if (states.lastOrNull() != state) states += state
-                    if (bitmap != null) notYetPresented += bitmap
-                    bitmap?.let(vm::onDrawn)
+                    notYetPresented += bitmaps
+                    vm.onDrawn(bitmaps)
                 }
-                launch {
-                    delay(presentMillis)
-                    synchronized(screenLock) {
-                        if (bitmap !== onScreen) {
-                            onScreen?.let { leftScreenAt[it] = SystemClock.uptimeMillis() }
-                            onScreen = bitmap
-                        }
-                        notYetPresented.removeAll { it === bitmap }
-                        vm.onPresented(bitmap)
-                    }
+                frames.send(bitmaps to SystemClock.uptimeMillis())
+            }
+        }
+        collector.launch {
+            for ((bitmaps, recordedAt) in frames) {
+                delay(recordedAt + presentMillis - SystemClock.uptimeMillis())
+                synchronized(screenLock) {
+                    val now = SystemClock.uptimeMillis()
+                    onScreen.filter { old -> bitmaps.none { it === old } }.forEach { leftScreenAt[it] = now }
+                    onScreen = bitmaps
+                    bitmaps.forEach { b -> notYetPresented.remove(notYetPresented.firstOrNull { it === b }) }
+                    vm.onPresented(bitmaps)
                 }
             }
         }
@@ -383,4 +410,108 @@ class ReaderViewModelTest {
 
     /** Taps arrive on the main thread; so do turns in these tests. */
     private fun onMain(block: () -> Unit) = InstrumentationRegistry.getInstrumentation().runOnMainSync(block)
+
+    @Test
+    fun halfPageTurnsGoThroughTheTopHalfOfTheNextPage() {
+        viewModel(settings = ReaderSettings(cropMargins = false, halfPageTurns = true)) { FakeDocument(pageCount = 3) }
+        fun at() = (vm.state.value as ReaderState.Page).let { "${it.index}${if (it.half) "½" else ""}" }
+        fun step(turn: () -> Unit, expected: String) {
+            onMain(turn)
+            awaitState { it is ReaderState.Page && "${it.index}${if (it.half) "½" else ""}" == expected }
+        }
+
+        vm.render(size)
+        awaitPage(0)
+        step(vm::next, "0½")
+        val half = vm.state.value as ReaderState.Page
+        assertTrue("the top half shows the next page", half.top != null && half.top !== half.bitmap)
+        step(vm::next, "1")
+        step(vm::next, "1½")
+        step(vm::next, "2")
+        onMain(vm::next) // The last page: nowhere further.
+        Thread.sleep(100)
+        assertEquals("2", at())
+        step(vm::previous, "1½")
+        step(vm::previous, "1")
+        step(vm::previous, "0½")
+        step(vm::previous, "0")
+        onMain(vm::previous)
+        Thread.sleep(100)
+        assertEquals("0", at())
+    }
+
+    @Test
+    fun halfPageTurnsNeverShowABlankHalfInABurst() {
+        viewModel(settings = ReaderSettings(cropMargins = false, halfPageTurns = true)) {
+            FakeDocument(pageCount = 12, renderMillis = 100)
+        }
+
+        vm.render(size)
+        awaitPage(0)
+        repeat(9) { onMain(vm::next) }
+        awaitState { it is ReaderState.Page && it.index == 4 && it.half }
+        repeat(5) { onMain(vm::previous) }
+        awaitState { it is ReaderState.Page && it.index == 2 && !it.half }
+        Thread.sleep(300)
+
+        val seen = synchronized(screenLock) { states.dropWhile { it !is ReaderState.Page } }
+        assertTrue(
+            "a blank page or half: $seen",
+            seen.all { it is ReaderState.Page && it.bitmap != null && (!it.half || it.top != null) },
+        )
+        assertEquals(listOf<String>(), events.filter { it.startsWith("drew") })
+    }
+
+    @Test
+    fun theCropSettingReachesTheRenderer() {
+        viewModel(settings = ReaderSettings(cropMargins = true)) { FakeDocument(pageCount = 3) }
+        vm.render(size)
+        awaitPage(0)
+        awaitEvents(1 + 2)
+        assertTrue(cropped.get() >= 2)
+    }
+
+    @Test
+    fun rotatingDuringAHalfTurnKeepsBothHalves() {
+        // A new size empties the window: both halves must be rendered again, not just the page underneath.
+        viewModel(settings = ReaderSettings(cropMargins = false, halfPageTurns = true)) { FakeDocument(pageCount = 4) }
+
+        vm.render(size)
+        awaitPage(0)
+        onMain(vm::next)
+        awaitState { it is ReaderState.Page && it.half }
+        vm.render(PixelSize(2560, 1500))
+        awaitEvents(events.size + 1)
+        val rotated = awaitState { it is ReaderState.Page && events.any { e -> e.endsWith("2560x1500") } } as ReaderState.Page
+        Thread.sleep(200)
+
+        val now = vm.state.value as ReaderState.Page
+        assertTrue("still a half turn: $now", now.half && now.index == 0)
+        assertTrue("the top half is there after the rotation: $now", now.top != null)
+        assertTrue(rotated.bitmap != null)
+    }
+
+    @Test
+    fun aLateFrameWithoutAPageDoesNotReleaseThePagesDrawnAfterIt() {
+        // Found by aBusyRenderThreadNeverGetsItsPageDrawnOver, in about 3 of 10 runs: the loading frame (no page)
+        // was reported presented after page 1 was drawn, and released page 1 with it. Here in a fixed order.
+        viewModel(standInUi = false) { FakeDocument(pageCount = 6) }
+        vm.render(size)
+        val first = awaitPage(0).bitmap!!
+        synchronized(screenLock) { notYetPresented += first } // Page 1 is in a frame on its way to the screen.
+        onMain {
+            vm.onDrawn(emptyList()) // The loading frame,
+            vm.onDrawn(listOf(first)) // then page 1.
+            vm.onPresented(emptyList()) // The loading frame reaches the screen late: page 1 is still coming.
+        }
+        repeat(3) {
+            Thread.sleep(REUSE_DELAY_MS + 20)
+            onMain(vm::next) // Page 1 falls out of the window; its bitmap must not be drawn into.
+            awaitPage(it + 1)
+        }
+        awaitEvents(1 + 5)
+        Thread.sleep(100)
+
+        assertEquals(listOf<String>(), events.filter { it.startsWith("drew") })
+    }
 }

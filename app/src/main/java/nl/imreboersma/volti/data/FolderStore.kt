@@ -15,7 +15,7 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 
-private val Context.dataStore by preferencesDataStore(name = "settings")
+internal val Context.dataStore by preferencesDataStore(name = "settings")
 internal val FOLDER_URI = stringPreferencesKey("folder_uri")
 
 /** The one folder the user granted through the system picker. */

@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -46,6 +47,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.currentStateAsState
 import androidx.lifecycle.viewmodel.compose.viewModel
 import nl.imreboersma.volti.data.LibraryEntry
+import nl.imreboersma.volti.data.ReaderSettings
 import nl.imreboersma.volti.data.Score
 import nl.imreboersma.volti.data.Subfolder
 import nl.imreboersma.volti.ui.theme.VoltiTheme
@@ -66,6 +68,7 @@ fun LibraryScreen(
     val query by viewModel.query.collectAsStateWithLifecycle()
     val search by viewModel.search.collectAsStateWithLifecycle()
     val refreshing by viewModel.refreshing.collectAsStateWithLifecycle()
+    val settings by viewModel.settings.collectAsStateWithLifecycle()
     // Tells Android when the library is really there, list included: logged as "Fully drawn" at cold start.
     ReportDrawnWhen { state != LibraryState.Loading }
     val picker = rememberLauncherForActivityResult(OpenLocalDocumentTree()) { uri ->
@@ -91,6 +94,9 @@ fun LibraryScreen(
         refreshing = refreshing,
         onQuery = viewModel::setQuery,
         onSearchFocus = viewModel::prepareSearch,
+        settings = settings,
+        onCropMargins = viewModel::setCropMargins,
+        onHalfPageTurns = viewModel::setHalfPageTurns,
         onRefresh = { viewModel.refresh(pulled = true) },
         onPickFolder = { picker.launch((state as? LibraryState.Ready)?.folder) },
         onOpenFolder = { subfolder -> (state as? LibraryState.Ready)?.let { viewModel.open(it, subfolder) } },
@@ -113,6 +119,9 @@ private fun LibraryContent(
     refreshing: Boolean,
     onQuery: (String) -> Unit,
     onSearchFocus: () -> Unit,
+    settings: ReaderSettings,
+    onCropMargins: (Boolean) -> Unit,
+    onHalfPageTurns: (Boolean) -> Unit,
     onRefresh: () -> Unit,
     onPickFolder: () -> Unit,
     onOpenFolder: (Subfolder) -> Unit,
@@ -144,6 +153,21 @@ private fun LibraryContent(
                 }
                 if (state is LibraryState.Ready) {
                     OutlinedButton(onClick = onPickFolder) { Text(text = "Change folder") }
+                }
+            }
+            if (state is LibraryState.Ready) {
+                // How scores open. Read when a score opens, so a change applies to the next one.
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
+                    FilterChip(
+                        selected = settings.cropMargins,
+                        onClick = { onCropMargins(!settings.cropMargins) },
+                        label = { Text("Crop margins") },
+                    )
+                    FilterChip(
+                        selected = settings.halfPageTurns,
+                        onClick = { onHalfPageTurns(!settings.halfPageTurns) },
+                        label = { Text("Half-page turns") },
+                    )
                 }
             }
             if (state is LibraryState.Ready && state.entries != null) {
@@ -268,6 +292,9 @@ fun LibraryScreenPreview() {
             refreshing = false,
             onQuery = {},
             onSearchFocus = {},
+            settings = ReaderSettings(),
+            onCropMargins = {},
+            onHalfPageTurns = {},
             onRefresh = {},
             onPickFolder = {},
             onOpenFolder = {},

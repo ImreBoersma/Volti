@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import nl.imreboersma.volti.data.PixelSize
+import nl.imreboersma.volti.data.ReaderSettings
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -49,7 +50,8 @@ class HostileInputTest {
 
     private fun open(name: String): ReaderViewModel {
         val handle = SavedStateHandle(mapOf("uri" to Uri.fromFile(fixture(name)).toString()))
-        val factory = viewModelFactory { initializer { ReaderViewModel(app, handle) } }
+        // The default reader settings, not whatever the device has: half-page turns would change what next() does.
+        val factory = viewModelFactory { initializer { ReaderViewModel(app, handle, loadSettings = { ReaderSettings() }) } }
         return ViewModelProvider.create(store, factory)[ReaderViewModel::class].also { it.render(size) }
     }
 

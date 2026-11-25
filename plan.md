@@ -188,8 +188,14 @@ Done when: a file copied into the folder shows up without restarting, and a sear
 
 ### 6. Reader: fit more music on the stand
 
-- [ ] Crop white margins, detected per page.
-- [ ] Half-page turns: the bottom half shows the next page's top half, so a turn can happen before the last line.
+- [x] Crop white margins. Detected on a 400 px render of a page: content where pixels are at least 30 levels darker than the paper (the page's 90th percentile brightness, so thin staff lines shrunk to light grey still count and off-white scan paper doesn't), rows and columns with too few dark pixels ignored as dust, at most 15% cut from a side. One crop for the whole score, the union of up to six pages spread over it, so the music keeps its size and place from page to page and pages keep one size (their bitmaps can be reused). Each sampled page is detected in its own renderer call: a page that crashes the renderer is skipped and marked broken, not the score. Areas crossing the process boundary are checked (`checkArea`). Costs about 330 ms when opening a 20-page scan, once. On by default; "Crop margins" in the library.
+- [x] Half-page turns: a forward tap first shows the next page's top half over the top of the screen, with a line under it, while the bottom half still shows the end of this page; the next tap shows the next page whole. Both halves come from pages already rendered; with half-page turns the window holds four pages. Off by default; "Half-page turns" in the library.
+
+Checked 2026-11-25 on the tablet: an A4 scan with wide margins went from 32% to 40% of the screen width and 67% to 75% of the height (staff-line span), with all staves visible; half and whole turns through the 20-page scan all came from memory in 1-4 ms, forwards and back.
+
+Fixed after review: per-page crops made the music jump in size between pages and stopped bitmap reuse; detecting the score's sample inside one render call let `bomb-on-page-2.pdf` take page 1 down with it; a broken page's message in a half turn was cut by the line (now centred in its own half). Tests cover cropping through the isolated renderer and on a page with /Rotate 90.
+
+Found on the way: the first detection used a fixed darkness threshold and missed 1-px staff lines shrunk for detection, so the page showed uncropped; and a frame without a page (loading, an error) reported as presented late released the pages drawn after it, which `aBusyRenderThreadNeverGetsItsPageDrawnOver` caught in about 3 of 10 runs. Both fixed, each with a test that fails without the fix.
 
 Done when: an A4 scan with wide margins fills the screen noticeably more, and a half-page turn never shows a blank frame.
 

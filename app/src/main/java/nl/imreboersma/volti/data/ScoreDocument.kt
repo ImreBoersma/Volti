@@ -3,6 +3,7 @@ package nl.imreboersma.volti.data
 import android.content.ContentResolver
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.graphics.Matrix
 import android.graphics.pdf.PdfRenderer
 import android.graphics.pdf.PdfRendererPreV
 import android.graphics.pdf.RenderParams
@@ -38,10 +39,14 @@ interface ScoreDocument : Closeable {
     val pageCount: Int
 
     /**
-     * Renders page [index] on white, as large as fits inside [max] with the page's aspect ratio.
-     * Draws into [reuse] instead of allocating when it has exactly the right size.
+     * Renders [area] of page [index] on white, as large as fits inside [max] with that area's aspect ratio.
+     * Draws into [reuse] instead of allocating when it has exactly the right size. A smaller area than the whole
+     * page crops the margins, so the music fills more of the view.
      */
-    fun renderPage(index: Int, max: PixelSize, reuse: Bitmap? = null): Bitmap
+    fun renderPage(index: Int, max: PixelSize, reuse: Bitmap? = null, area: PageArea = PageArea.WHOLE): Bitmap
+
+    /** The part of page [index] with content on it, from a small render of the page. */
+    fun contentArea(index: Int): PageArea
 }
 
 /**
@@ -86,26 +91,77 @@ private fun blankBitmap(size: PixelSize, reuse: Bitmap?): Bitmap {
     return bitmap.apply { eraseColor(Color.WHITE) }
 }
 
-private class PlatformDocument(private val renderer: PdfRenderer) : ScoreDocument {
+/** One open page of either renderer, with what cropping needs. */
+private interface OpenPage {
+    val width: Int
+    val height: Int
+
+    /** Draws the page into [bitmap]; [transform] maps page points to bitmap pixels, null scales it to fit. */
+    fun render(bitmap: Bitmap, transform: Matrix?)
+}
+
+/** The rendering both renderers share; they differ only in how a page is opened and drawn. */
+private abstract class PdfiumDocument : ScoreDocument {
+    protected abstract fun <T> withPage(index: Int, block: (OpenPage) -> T): T
+
+    override fun contentArea(index: Int): PageArea = withPage(index, ::detectArea)
+
+    override fun renderPage(index: Int, max: PixelSize, reuse: Bitmap?, area: PageArea): Bitmap = withPage(index) { page ->
+        val cropWidth = page.width * (area.right - area.left)
+        val cropHeight = page.height * (area.bottom - area.top)
+        val size = fitInside(cropWidth.roundToInt(), cropHeight.roundToInt(), max)
+        blankBitmap(size, reuse).also { bitmap ->
+            val scale = size.width / cropWidth
+            page.render(bitmap, Matrix().apply {
+                setScale(scale, scale)
+                preTranslate(-page.width * area.left, -page.height * area.top)
+            })
+        }
+    }
+
+    /** A small render of the whole page, scanned for content. */
+    private fun detectArea(page: OpenPage): PageArea {
+        val small = fitInside(page.width, page.height, PixelSize(DETECT_SIZE, DETECT_SIZE))
+        val bitmap = blankBitmap(small, null)
+        page.render(bitmap, null)
+        val pixels = IntArray(small.width * small.height)
+        bitmap.getPixels(pixels, 0, small.width, 0, 0, small.width, small.height)
+        bitmap.recycle()
+        return contentArea(pixels, small.width, small.height)
+    }
+
+    private companion object {
+        /** Big enough that a thin staff line keeps some contrast, small enough to cost a few ms. */
+        const val DETECT_SIZE = 400
+    }
+}
+
+private class PlatformDocument(private val renderer: PdfRenderer) : PdfiumDocument() {
     override val pageCount get() = renderer.pageCount
 
-    override fun renderPage(index: Int, max: PixelSize, reuse: Bitmap?): Bitmap = renderer.openPage(index).use { page ->
-        blankBitmap(fitInside(page.width, page.height, max), reuse).also {
-            page.render(it, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
-        }
+    override fun <T> withPage(index: Int, block: (OpenPage) -> T): T = renderer.openPage(index).use { page ->
+        block(object : OpenPage {
+            override val width = page.width
+            override val height = page.height
+            override fun render(bitmap: Bitmap, transform: Matrix?) =
+                page.render(bitmap, null, transform, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+        })
     }
 
     override fun close() = renderer.close()
 }
 
 @RequiresExtension(extension = Build.VERSION_CODES.S, version = 13)
-private class PreVDocument(private val renderer: PdfRendererPreV) : ScoreDocument {
+private class PreVDocument(private val renderer: PdfRendererPreV) : PdfiumDocument() {
     override val pageCount get() = renderer.pageCount
 
-    override fun renderPage(index: Int, max: PixelSize, reuse: Bitmap?): Bitmap = renderer.openPage(index).use { page ->
-        blankBitmap(fitInside(page.width, page.height, max), reuse).also {
-            page.render(it, null, null, RenderParams.Builder(RenderParams.RENDER_MODE_FOR_DISPLAY).build())
-        }
+    override fun <T> withPage(index: Int, block: (OpenPage) -> T): T = renderer.openPage(index).use { page ->
+        block(object : OpenPage {
+            override val width = page.width
+            override val height = page.height
+            override fun render(bitmap: Bitmap, transform: Matrix?) =
+                page.render(bitmap, null, transform, RenderParams.Builder(RenderParams.RENDER_MODE_FOR_DISPLAY).build())
+        })
     }
 
     override fun close() = renderer.close()

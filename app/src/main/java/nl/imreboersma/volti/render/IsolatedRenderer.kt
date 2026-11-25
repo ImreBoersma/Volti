@@ -12,9 +12,11 @@ import android.os.RemoteException
 import android.os.SharedMemory
 import android.util.Log
 import androidx.core.graphics.createBitmap
+import nl.imreboersma.volti.data.PageArea
 import nl.imreboersma.volti.data.PasswordProtectedException
 import nl.imreboersma.volti.data.PixelSize
 import nl.imreboersma.volti.data.ScoreDocument
+import nl.imreboersma.volti.data.checkArea
 import java.io.FileNotFoundException
 import java.io.IOException
 import java.util.concurrent.TimeUnit
@@ -96,13 +98,17 @@ private class RemoteDocument(private val context: Context, private val uri: Uri)
         }
     }
 
-    override fun renderPage(index: Int, max: PixelSize, reuse: Bitmap?): Bitmap {
+    override fun contentArea(index: Int): PageArea = checkArea(surviving { service.contentArea(id, index) })
+
+    override fun renderPage(index: Int, max: PixelSize, reuse: Bitmap?, area: PageArea): Bitmap {
         val bytes = max.width * max.height * 4
         val shared = pixels?.takeIf { it.size >= bytes } ?: SharedMemory.create("volti-page", bytes).also {
             pixels?.close()
             pixels = it
         }
-        val size = surviving { service.renderPage(id, index, max.width, max.height, shared) }
+        val size = surviving {
+            service.renderPage(id, index, max.width, max.height, area.left, area.top, area.right, area.bottom, shared)
+        }
         val (width, height) = checkRenderedSize(size, max, shared.size)
         val bitmap = reuse?.takeIf { it.isMutable && it.width == width && it.height == height }
             ?: createBitmap(width, height, Bitmap.Config.ARGB_8888)
