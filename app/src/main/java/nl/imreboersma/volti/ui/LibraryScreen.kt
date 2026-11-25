@@ -6,28 +6,31 @@ import android.net.Uri
 import android.provider.DocumentsContract
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
-import nl.imreboersma.volti.data.FolderStore
+import androidx.lifecycle.viewmodel.compose.viewModel
+import nl.imreboersma.volti.data.Score
 import nl.imreboersma.volti.ui.theme.VoltiTheme
 
 /** Folder picker that hides cloud-backed roots. */
@@ -36,38 +39,30 @@ private class OpenLocalDocumentTree : ActivityResultContracts.OpenDocumentTree()
         super.createIntent(context, input).putExtra(Intent.EXTRA_LOCAL_ONLY, true)
 }
 
-/** Null until DataStore has answered, so the picker button does not flash on start. */
-private class StoredFolder(val uri: Uri?)
-
 @Composable
 fun LibraryScreen(
     onNavigateToReader: () -> Unit,
     modifier: Modifier = Modifier,
+    viewModel: LibraryViewModel = viewModel(),
 ) {
-    val context = LocalContext.current
-    val store = remember { FolderStore(context) }
-    val stored by remember { store.folder.map(::StoredFolder) }
-        .collectAsStateWithLifecycle(initialValue = null)
-    val scope = rememberCoroutineScope()
+    val state by viewModel.state.collectAsStateWithLifecycle()
     val picker = rememberLauncherForActivityResult(OpenLocalDocumentTree()) { uri ->
-        if (uri != null) scope.launch { store.setFolder(uri) }
+        if (uri != null) viewModel.setFolder(uri)
     }
 
     LibraryContent(
-        loading = stored == null,
-        folder = stored?.uri,
-        onPickFolder = { picker.launch(stored?.uri) },
-        onNavigateToReader = onNavigateToReader,
+        state = state,
+        onPickFolder = { picker.launch((state as? LibraryState.Ready)?.folder) },
+        onOpenScore = { onNavigateToReader() },
         modifier = modifier,
     )
 }
 
 @Composable
 private fun LibraryContent(
-    loading: Boolean,
-    folder: Uri?,
+    state: LibraryState,
     onPickFolder: () -> Unit,
-    onNavigateToReader: () -> Unit,
+    onOpenScore: (Score) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(modifier = modifier.fillMaxSize()) { innerPadding ->
@@ -76,39 +71,55 @@ private fun LibraryContent(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
         ) {
-            Text(
-                text = "Library",
-                style = MaterialTheme.typography.headlineLarge,
-            )
-            if (loading) return@Column
-            if (folder == null) {
-                Button(
-                    onClick = onPickFolder,
-                    modifier = Modifier.padding(top = 16.dp),
-                ) {
-                    Text(text = "Choose folder")
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Column {
+                    Text(text = "Library", style = MaterialTheme.typography.headlineLarge)
+                    if (state is LibraryState.Ready) {
+                        Text(text = DocumentsContract.getTreeDocumentId(state.folder))
+                    }
                 }
-            } else {
-                Text(
-                    text = DocumentsContract.getTreeDocumentId(folder),
-                    modifier = Modifier.padding(top = 8.dp),
-                )
-                OutlinedButton(
-                    onClick = onPickFolder,
-                    modifier = Modifier.padding(top = 16.dp),
-                ) {
-                    Text(text = "Change folder")
-                }
-                Button(
-                    onClick = onNavigateToReader,
-                    modifier = Modifier.padding(top = 16.dp),
-                ) {
-                    Text(text = "Open Reader")
+                if (state is LibraryState.Ready) {
+                    OutlinedButton(onClick = onPickFolder) { Text(text = "Change folder") }
                 }
             }
+            when (state) {
+                LibraryState.Loading -> Unit
+                LibraryState.NoFolder -> Centered {
+                    Button(onClick = onPickFolder) { Text(text = "Choose folder") }
+                }
+                is LibraryState.Ready -> when {
+                    state.scores == null -> Centered { Text(text = "Can't read this folder.") }
+                    state.scores.isEmpty() -> Centered { Text(text = "No PDFs in this folder.") }
+                    else -> ScoreList(state.scores, onOpenScore)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun Centered(content: @Composable () -> Unit) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { content() }
+}
+
+@Composable
+private fun ScoreList(scores: List<Score>, onOpenScore: (Score) -> Unit) {
+    LazyColumn(modifier = Modifier.fillMaxSize().padding(top = 16.dp)) {
+        items(scores, key = { it.uri.toString() }) { score ->
+            Text(
+                text = score.name,
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onOpenScore(score) }
+                    .padding(vertical = 16.dp),
+            )
+            HorizontalDivider()
         }
     }
 }
@@ -118,10 +129,9 @@ private fun LibraryContent(
 fun LibraryScreenPreview() {
     VoltiTheme {
         LibraryContent(
-            loading = false,
-            folder = null,
+            state = LibraryState.NoFolder,
             onPickFolder = {},
-            onNavigateToReader = {},
+            onOpenScore = {},
         )
     }
 }

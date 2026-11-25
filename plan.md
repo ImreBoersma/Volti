@@ -45,9 +45,9 @@ This stays a manual check on the tablet. A test for it needs a real grant from t
 
 ### 2. List the PDFs
 
-- [ ] Enumerate with `DocumentFile.fromTreeUri`, off the main thread.
-- [ ] Filter on MIME type `application/pdf`, not on file extension.
-- [ ] Flat list only. Subfolders come in milestone 2.
+- [x] Enumerate with one `DocumentsContract` children query, off the main thread. Not `DocumentFile`: its `listFiles()` costs an extra provider query per `getName()` and `getType()`, about 400 for 200 files.
+- [x] Filter on MIME type `application/pdf`, not on file extension. Note: the local storage provider derives the MIME type from the extension, so a text file named `.pdf` is listed and a PDF without extension is not. Opening it is where the real check happens (step 7).
+- [x] Flat list only. Subfolders come in milestone 2.
 
 Done when: the library shows file names, and a folder with 200 files does not freeze the UI.
 
@@ -111,7 +111,7 @@ Done when: each case shows a message and none crashes.
 
 ## Later milestones (not planned yet)
 
-- Library: one folder per piece, subfolders, Room index, search.
+- Library: one folder per piece, subfolders, Room index, search, refresh after files change.
 - Setlists as references to pieces.
 - Play order and jump markers, stored alongside the PDF.
 - Import: share and open-with target for PDFs.
