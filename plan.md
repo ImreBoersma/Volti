@@ -75,9 +75,11 @@ Done when: page one is sharp, has the correct aspect ratio, and rotation does no
 
 ### 5. Page turns
 
-- [ ] Tap zones on the left and right halves (`pointerInput`, `detectTapGestures`).
-- [ ] Keep three bitmaps: previous, current, next.
-- [ ] After each turn, render the new neighbour in the background and reuse the dropped bitmap.
+- [x] Tap zones on the left and right halves (`pointerInput`, `detectTapGestures`).
+- [x] Keep three bitmaps: previous, current, next.
+- [x] After each turn, render the new neighbour in the background and reuse the dropped bitmap.
+
+Measured 2026-11-25, release build, 20-page 200 dpi scan: a page renders in about 100 ms. Turning at a normal pace, the next page is ready 1 ms after the tap. In a burst of taps about 100 ms apart, every page was still ready; the tap waits up to 43 ms behind the prefetch.
 
 Done when: turning through a 20-page scan never shows a blank frame.
 
@@ -94,6 +96,7 @@ Done when: the screen stays on in the reader and dims normally in the library.
 - [ ] Corrupt or non-PDF file with a `.pdf` name (`IOException`).
 - [ ] Absurd page dimensions: cap the bitmap size. (Done in step 4: the bitmap never exceeds the view.)
 - [ ] A PDF with zero pages, or a page of 0 x 0.
+- [ ] One broken page in a good score: shows "Can't show page N.", the other pages stay readable. (Built in step 5, tested with a fake; not yet seen with a real corrupt page.)
 - [ ] A provider that hands out a non-seekable descriptor (a pipe): `IllegalArgumentException`.
 - [ ] Folder deleted or permission revoked: check `persistedUriPermissions` at start, fall back to the picker.
 

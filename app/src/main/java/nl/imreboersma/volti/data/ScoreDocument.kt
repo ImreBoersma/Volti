@@ -33,8 +33,11 @@ internal fun fitInside(pageWidth: Int, pageHeight: Int, max: PixelSize): PixelSi
 interface ScoreDocument : Closeable {
     val pageCount: Int
 
-    /** Renders page [index] on white, as large as fits inside [max] with the page's aspect ratio. */
-    fun renderPage(index: Int, max: PixelSize): Bitmap
+    /**
+     * Renders page [index] on white, as large as fits inside [max] with the page's aspect ratio.
+     * Draws into [reuse] instead of allocating when it has exactly the right size.
+     */
+    fun renderPage(index: Int, max: PixelSize, reuse: Bitmap? = null): Bitmap
 }
 
 /**
@@ -64,14 +67,17 @@ fun openScore(resolver: ContentResolver, uri: Uri): ScoreDocument {
     return doc
 }
 
-private fun blankBitmap(size: PixelSize): Bitmap =
-    createBitmap(size.width, size.height, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.WHITE) }
+private fun blankBitmap(size: PixelSize, reuse: Bitmap?): Bitmap {
+    val bitmap = reuse?.takeIf { it.isMutable && it.width == size.width && it.height == size.height }
+        ?: createBitmap(size.width, size.height, Bitmap.Config.ARGB_8888)
+    return bitmap.apply { eraseColor(Color.WHITE) }
+}
 
 private class PlatformDocument(private val renderer: PdfRenderer) : ScoreDocument {
     override val pageCount get() = renderer.pageCount
 
-    override fun renderPage(index: Int, max: PixelSize): Bitmap = renderer.openPage(index).use { page ->
-        blankBitmap(fitInside(page.width, page.height, max)).also {
+    override fun renderPage(index: Int, max: PixelSize, reuse: Bitmap?): Bitmap = renderer.openPage(index).use { page ->
+        blankBitmap(fitInside(page.width, page.height, max), reuse).also {
             page.render(it, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
         }
     }
@@ -83,8 +89,8 @@ private class PlatformDocument(private val renderer: PdfRenderer) : ScoreDocumen
 private class PreVDocument(private val renderer: PdfRendererPreV) : ScoreDocument {
     override val pageCount get() = renderer.pageCount
 
-    override fun renderPage(index: Int, max: PixelSize): Bitmap = renderer.openPage(index).use { page ->
-        blankBitmap(fitInside(page.width, page.height, max)).also {
+    override fun renderPage(index: Int, max: PixelSize, reuse: Bitmap?): Bitmap = renderer.openPage(index).use { page ->
+        blankBitmap(fitInside(page.width, page.height, max), reuse).also {
             page.render(it, null, null, RenderParams.Builder(RenderParams.RENDER_MODE_FOR_DISPLAY).build())
         }
     }

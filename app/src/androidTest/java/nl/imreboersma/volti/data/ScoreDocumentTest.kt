@@ -9,6 +9,8 @@ import android.os.ext.SdkExtensions
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotSame
+import org.junit.Assert.assertSame
 import org.junit.Assume.assumeTrue
 import org.junit.Rule
 import org.junit.Test
@@ -48,6 +50,19 @@ class ScoreDocumentTest {
             assertEquals(PixelSize(424, 600), PixelSize(bitmap.width, bitmap.height))
             assertEquals(Color.BLACK, bitmap.getPixel(100, 300))
             assertEquals(Color.WHITE, bitmap.getPixel(320, 300))
+        }
+    }
+
+    @Test
+    fun drawsIntoAReusedBitmapOfTheRightSize() {
+        openScore(resolver, Uri.fromFile(writePdf())).use { doc ->
+            val first = doc.renderPage(0, PixelSize(600, 600))
+
+            val second = doc.renderPage(1, PixelSize(600, 600), reuse = first)
+
+            assertSame(first, second)
+            assertEquals(Color.WHITE, second.getPixel(100, 300)) // Page 1's black block is gone.
+            assertNotSame(first, doc.renderPage(1, PixelSize(300, 300), reuse = first))
         }
     }
 

@@ -2,6 +2,7 @@ package nl.imreboersma.volti.ui
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.systemBarsPadding
@@ -12,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -29,7 +31,11 @@ fun ReaderScreen(
             .fillMaxSize()
             .background(Color.White)
             .systemBarsPadding()
-            .onSizeChanged { viewModel.render(PixelSize(it.width, it.height)) },
+            .onSizeChanged { viewModel.render(PixelSize(it.width, it.height)) }
+            // Left half turns back, right half turns forward.
+            .pointerInput(viewModel) {
+                detectTapGestures { tap -> if (tap.x < size.width / 2) viewModel.previous() else viewModel.next() }
+            },
         contentAlignment = Alignment.Center,
     ) {
         when (val s = state) {
@@ -37,11 +43,15 @@ fun ReaderScreen(
             ReaderState.Failed -> Text(text = "Can't open this file.", color = Color.Black)
             // The bitmap is rendered to fit this box, so Fit draws it 1:1. During a rotation,
             // Fit shrinks the old page until the new render lands, instead of clipping it.
-            is ReaderState.Page -> Image(
-                bitmap = s.bitmap.asImageBitmap(),
-                contentDescription = null,
-                contentScale = ContentScale.Fit,
-            )
+            is ReaderState.Page -> if (s.bitmap == null) {
+                Text(text = "Can't show page ${s.index + 1}.", color = Color.Black)
+            } else {
+                Image(
+                    bitmap = s.bitmap.asImageBitmap(),
+                    contentDescription = null,
+                    contentScale = ContentScale.Fit,
+                )
+            }
         }
     }
 }
