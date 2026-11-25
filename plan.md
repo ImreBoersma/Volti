@@ -20,6 +20,8 @@ A sheet music reader for Android tablets. Offline, fast, low battery use.
 
 ## Milestone 1: a reader for one folder
 
+Closed 2026-11-25. Everything below is built and checked on the tablet; the rehearsal moved to milestone 2.
+
 No database, no setlists, no annotations. Done when it survives one rehearsal on a stand.
 
 ### 0. Baseline
@@ -120,7 +122,7 @@ Done when: each case shows a message and none crashes.
 - [x] No backup at all: `data_extraction_rules.xml` excludes everything from cloud backup and from device-to-device transfer. `allowBackup="false"` alone does not stop the latter on Android 12+.
 - [x] Process death in the release build: app killed in the background and reopened comes back in the reader, no crash. It restarts at page 1; the page is not saved.
 - [x] Time cold start and page turns on the tablet, release build. 2026-11-25, minified: first frame 189-262 ms, library with its list of 205 files 361-474 ms ("Fully drawn", via `ReportDrawnWhen`). Page turns on the 20-page scan: 2 ms after the tap at reading pace, at most 50 ms in a burst.
-- [ ] Use it at one rehearsal. Write down what annoyed you.
+- [ ] ~~Use it at one rehearsal.~~ Moved to milestone 2, step 0.
 
 The tablet's release build is signed with the debug key (`-Pandroid.injected.signing.*`, see below). Good enough for one tablet; a real release key is needed before anyone else installs it. Changing the key later means uninstalling, which drops the folder grant.
 
@@ -139,7 +141,17 @@ Install the rehearsal build:
 - ~~On Android 15 and up, `PdfRenderer` is believed to be updated through Google Play system updates.~~ Confirmed 2026-11-25: the tablet's firmware patch is 2025-06-01 (no longer patched), but the MediaProvider module with `PdfRendererPreV` and its own PDFium is on the 2026 Play train. Hence `PdfRendererPreV` on Android 14.
 - ~~The Jetpack `androidx.pdf` library.~~ Decided: not used. It is a viewer on top of the same module, so no security gain, and its UI does not fit three-bitmap page turns.
 
-## Milestone 2, first step: isolated renderer
+## Milestone 2: a better library and reader
+
+Improvements to the two things the app does: finding a score and reading it. Same priorities, same way of working. New kinds of features (setlists, annotations, import) wait for a later milestone.
+
+### 0. Rehearsal
+
+- [ ] Use the milestone 1 release build at one rehearsal. Write down what annoyed you; it may reorder the steps below.
+
+### 1. Isolated renderer
+
+PDFium in the app's process is the one accepted security limit of milestone 1: `form-bomb.pdf` (6.7 KB) crashes the app.
 
 - [ ] Render in a service with `android:isolatedProcess="true"`: no permissions, no folder grant, only the file descriptor it is handed.
 - [ ] Bitmaps back over `SharedMemory`; the service reports page count and errors over AIDL.
@@ -147,17 +159,55 @@ Install the rehearsal build:
 
 Done when: a PDF that crashes or hangs PDFium leaves the app running and other scores readable. Test case: `form-bomb.pdf` from `make_hostile_pdfs.py`.
 
+### 2. Reader: remember the page
+
+- [ ] Store the last page per score, keyed by document URI, in DataStore.
+- [ ] Reopening a score, or the app coming back after process death, shows that page.
+
+Done when: kill the app on page 7, reopen the score, page 7 is there without a visible jump from page 1.
+
+### 3. Reader: page-turner pedal
+
+- [ ] Bluetooth page turners are keyboards: Page Down, Right arrow, Down arrow and Space turn forward; Page Up, Left arrow and Up arrow turn back.
+- [ ] Taps keep working alongside.
+
+Done when: a pedal (or a Bluetooth keyboard) turns pages, with the same latency as a tap.
+
+### 4. Library: subfolders and names
+
+- [ ] One folder per piece: subfolders show as entries, tapping one opens it, back goes up. Still one query per folder.
+- [ ] Show the folder's real name, not `primary:Documents/...`.
+- [ ] Natural sort: "Mars 2" before "Mars 10".
+
+Done when: a folder tree of pieces with parts inside is browsable, and nothing outside the granted folder is reachable.
+
+### 5. Library: refresh and search
+
+- [ ] Pull to refresh, and a refresh when the app comes back to the foreground.
+- [ ] Search by name within the current folder and its subfolders.
+
+Done when: a file copied into the folder shows up without restarting, and a search across 200 files answers while typing.
+
+### 6. Reader: fit more music on the stand
+
+- [ ] Crop white margins, detected per page.
+- [ ] Half-page turns: the bottom half shows the next page's top half, so a turn can happen before the last line.
+
+Done when: an A4 scan with wide margins fills the screen noticeably more, and a half-page turn never shows a blank frame.
+
+### 7. Tests against the release build
+
+- [ ] Run the instrumented tests against a minified build type, so R8 problems show up in tests instead of on the stand.
+
 ## Later milestones (not planned yet)
 
-- Run the instrumented tests against a minified build type, so R8 problems show up in tests instead of on the stand.
-- Remember the current page across process death and reopening a score.
-- Library: one folder per piece, subfolders, Room index, search, refresh after files change.
 - Setlists as references to pieces.
 - Play order and jump markers, stored alongside the PDF.
 - Import: share and open-with target for PDFs.
 - Annotations as a separate layer.
-- Margin cropping, half-page turns, system-by-system view.
+- System-by-system view.
 - MusicXML as a second document type.
+- Room index, if folder queries get too slow for a large library.
 
 ## Out of scope
 
