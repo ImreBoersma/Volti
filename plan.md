@@ -85,8 +85,10 @@ Done when: turning through a 20-page scan never shows a blank frame.
 
 ### 6. Stage mode
 
-- [ ] Keep the screen on in the reader only (`FLAG_KEEP_SCREEN_ON`, set and cleared in a `DisposableEffect`).
-- [ ] Hide the system bars with `WindowInsetsControllerCompat`.
+- [x] Keep the screen on in the reader only (`FLAG_KEEP_SCREEN_ON`, set and cleared in a `DisposableEffect`).
+- [x] Hide the system bars with `WindowInsetsControllerCompat`. A swipe from the edge shows them briefly.
+
+Checked 2026-11-25 with a 15 s screen timeout: still awake after 25 s in the reader, dozing 25 s after returning to the library. Stage mode follows the current destination, so reopening a score during the 700 ms crossfade keeps it on. A file that can't be opened does not keep the screen on. In Samsung split screen the system places the window below the status bar, so the page is not covered.
 
 Done when: the screen stays on in the reader and dims normally in the library.
 

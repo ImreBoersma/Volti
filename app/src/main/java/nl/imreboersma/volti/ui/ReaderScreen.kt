@@ -5,7 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -30,7 +29,6 @@ fun ReaderScreen(
         modifier = modifier
             .fillMaxSize()
             .background(Color.White)
-            .systemBarsPadding()
             .onSizeChanged { viewModel.render(PixelSize(it.width, it.height)) }
             // Left half turns back, right half turns forward.
             .pointerInput(viewModel) {

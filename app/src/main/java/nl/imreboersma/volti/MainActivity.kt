@@ -6,13 +6,22 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavDestination.Companion.hasRoute
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import kotlinx.serialization.Serializable
 import nl.imreboersma.volti.ui.LibraryScreen
 import nl.imreboersma.volti.ui.ReaderScreen
+import nl.imreboersma.volti.ui.ReaderState
+import nl.imreboersma.volti.ui.ReaderViewModel
+import nl.imreboersma.volti.ui.StageMode
 import nl.imreboersma.volti.ui.theme.VoltiTheme
 
 @Serializable
@@ -35,8 +44,17 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun VoltiApp() {
-    val navController = rememberNavController()
+fun VoltiApp(navController: NavHostController = rememberNavController()) {
+    // Stage mode follows the current destination, not the reader screen's own lifetime: the outgoing
+    // screen lives on through the 700 ms crossfade, and its cleanup would switch off the next reader.
+    val entry by navController.currentBackStackEntryAsState()
+    if (entry?.destination?.hasRoute<Reader>() == true) {
+        // The same ViewModel instance ReaderScreen uses: scoped to this back stack entry.
+        val reader = viewModel<ReaderViewModel>(viewModelStoreOwner = entry!!)
+        val state by reader.state.collectAsStateWithLifecycle()
+        // A file that can't be opened doesn't need the screen on.
+        if (state != ReaderState.Failed) StageMode()
+    }
     NavHost(
         navController = navController,
         startDestination = Library,
