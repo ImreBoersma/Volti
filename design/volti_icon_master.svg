@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <style>
+      .bg-dark { fill: #0F0F0F; }
+      .bauhaus-blue { fill: #2568BA; }
+      .bauhaus-red { fill: #C83823; }
+      .bauhaus-red-shadow { fill: #9D2918; }
+      .bauhaus-cream { fill: #EFE8D8; }
+    </style>
+  </defs>
+
+  <g id="layer-background">
+    <rect class="bg-dark" x="0" y="0" width="512" height="512" />
+  </g>
+
+  <g id="layer-foreground">
+    <circle id="circle-accent" class="bauhaus-cream" cx="162" cy="146" r="46" />
+    <polygon id="v-stroke-left" class="bauhaus-blue" points="120,206 204,206 298,410 214,410" />
+    <polygon id="v-stroke-right" class="bauhaus-red" points="308,206 352,206 375.3,242.3 298,410 214,410" />
+    <polygon id="page-fold-shadow" class="bauhaus-red-shadow" points="352,206 375.3,242.3 342,252" />
+    <polygon id="page-fold-corner" class="bauhaus-cream" points="352,206 375.3,242.3 345.4,242.4" />
+  </g>
+</svg>

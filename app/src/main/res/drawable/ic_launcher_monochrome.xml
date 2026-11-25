@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!--
+        Scaled to 82% around the centre: the design reaches about 40dp from the centre (the cream circle), past the
+        33dp safe zone that every launcher mask keeps. Unscaled, Samsung's mask cut into the circle.
+    -->
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:scaleX="0.82"
+        android:scaleY="0.82">
+
+        <!-- Cream Circle Accent -->
+        <path
+            android:fillColor="#000000"
+            android:pathData="M 24.470000000000002,30.8 a 9.7,9.7 0 1,0 19.4,0 a 9.7,9.7 0 1,0 -19.4,0" />
+
+        <!-- Blue Left Stroke of 'V' (slightly translucent for tonal contrast) -->
+        <path
+            android:fillColor="#000000"
+            android:fillAlpha="0.65"
+            android:pathData="M25.31,43.45 L43.03,43.45 L62.86,86.48 L45.14,86.48 Z" />
+
+        <!-- Red Right Stroke of 'V' -->
+        <path
+            android:fillColor="#000000"
+            android:pathData="M64.97,43.45 L74.25,43.45 L79.16,51.11 L62.86,86.48 L45.14,86.48 Z" />
+
+        <!-- Cream Folded Page Corner cutout look -->
+        <path
+            android:fillColor="#000000"
+            android:fillAlpha="0.35"
+            android:pathData="M74.25,43.45 L79.16,51.11 L72.86,51.13 Z" />
+    </group>
+</vector>
