@@ -165,9 +165,13 @@ Checked 2026-11-25: `form-bomb.pdf` shows "Can't show page 1." (it opens; render
 
 ### 4. Library: subfolders and names
 
-- [ ] One folder per piece: subfolders show as entries, tapping one opens it, back goes up. Still one query per folder.
-- [ ] Show the folder's real name, not `primary:Documents/...`.
-- [ ] Natural sort: "Mars 2" before "Mars 10".
+- [x] One folder per piece: subfolders show as entries (folders first, in bold with a trailing slash), tapping one opens it, back goes up. Still one query per folder. The path shows under the title.
+- [x] Show the folder's real name, not `primary:Documents/...`: one extra query for the granted folder's display name; subfolder names come with their parent's listing.
+- [x] Natural sort: "Mars 2" before "Mars 10". Digit runs compare by value without parsing (no overflow), text by the locale's collator.
+
+Checked 2026-11-25 on the tablet with a tree of pieces and parts. `GrantedTreeTest` lists a subfolder through the real provider and checks that the parent, the storage root, `Download`, a sibling whose name starts with the granted folder's (`Documents/VoltiTest2`, which exists on the tablet) and `..` paths are all refused ("is not a descendant"). It uses the debug build's own grant; on CI it skips, on the tablet it runs with `-Pandroid.testInstrumentationRunnerArguments.requireGrant=true` and fails without a grant.
+
+The open subfolder is kept in `SavedStateHandle`, tied to the granted folder it belongs to, so it survives process death and can't be applied to a different folder after "Change folder". Back only goes up a folder while the library is the resumed screen. Natural order treats only ASCII digits as numbers, so names with fullwidth or Arabic-Indic digits can't make the order inconsistent; a fuzz test checks every triple with Dutch collation, on the JVM and on the device.
 
 Done when: a folder tree of pieces with parts inside is browsable, and nothing outside the granted folder is reachable.
 
@@ -213,6 +217,5 @@ Per step:
 1. Claude writes the code and checks the step's "Done when" on the tablet.
 2. Claude writes tests for the step's logic and runs them on the tablet. Unit tests for pure logic, instrumented tests for anything touching Android (DataStore, ContentResolver, `PdfRenderer`). No tests that drive the system folder picker.
 3. A separate agent reviews the change and names the three most serious issues, without rewrites. It also checks that the tests cover the step's "Done when".
-4. The issues go to me. I decide which get fixed.
-5. Claude fixes the chosen issues.
-6. Commit and push to `main`.
+4. Claude fixes every issue the review finds, without asking first (since 2026-11-25), and reports what was fixed and how.
+5. Commit and push to `main`.
