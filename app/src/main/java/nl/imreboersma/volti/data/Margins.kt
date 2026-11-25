@@ -80,3 +80,35 @@ fun checkArea(values: FloatArray?): PageArea {
     val fits = left in 0f..1f && top in 0f..1f && right in 0f..1f && bottom in 0f..1f
     return if (fits && right - left >= 0.1f && bottom - top >= 0.1f) PageArea(left, top, right, bottom) else PageArea.WHOLE
 }
+
+/** What a small render of a page shows: where the music is, and the colour of its paper (RGB, opaque). */
+data class PageScan(val area: PageArea, val paper: Int)
+
+/**
+ * The colour of a page's paper, from a small render of it ([pixels], ARGB): the average of the pixels as bright
+ * as the paper, its 90th percentile brightness, give or take [tolerance]. A yellowed scan gives its yellow.
+ */
+fun paperColor(pixels: IntArray, tolerance: Int = 6): Int {
+    fun luminance(c: Int) = (((c shr 16) and 0xff) * 299 + ((c shr 8) and 0xff) * 587 + (c and 0xff) * 114) / 1000
+    val histogram = IntArray(256).also { h -> pixels.forEach { h[luminance(it)]++ } }
+    var seen = 0
+    val paper = histogram.indices.first { seen += histogram[it]; seen * 10 >= pixels.size * 9 }
+    var r = 0L; var g = 0L; var b = 0L; var n = 0L
+    for (c in pixels) {
+        if (kotlin.math.abs(luminance(c) - paper) <= tolerance) {
+            r += (c shr 16) and 0xff; g += (c shr 8) and 0xff; b += c and 0xff; n++
+        }
+    }
+    return (0xff shl 24) or ((r / n).toInt() shl 16) or ((g / n).toInt() shl 8) or (b / n).toInt()
+}
+
+/**
+ * A page scan that came over binder from the renderer: {left, top, right, bottom, red, green, blue}. The area is
+ * checked as [checkArea]; the colour clamped to 0-255, white if it isn't there.
+ */
+fun checkScan(values: FloatArray?): PageScan {
+    val area = checkArea(values?.copyOfRange(0, minOf(4, values.size)))
+    val rgb = values?.drop(4)?.takeIf { it.size == 3 && it.none(Float::isNaN) }?.map { it.toInt().coerceIn(0, 255) }
+    val paper = if (rgb == null) 0xffffffff.toInt() else (0xff shl 24) or (rgb[0] shl 16) or (rgb[1] shl 8) or rgb[2]
+    return PageScan(area, paper)
+}

@@ -11,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.dropUnlessResumed
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
@@ -71,7 +72,9 @@ fun VoltiApp(navController: NavHostController = rememberNavController()) {
             )
         }
         composable<Reader> {
-            ReaderScreen()
+            // Only while the reader is the resumed screen: a second tap during the crossfade would also pop the
+            // library and leave nothing on screen.
+            ReaderScreen(onBack = dropUnlessResumed { navController.popBackStack() })
         }
     }
 }

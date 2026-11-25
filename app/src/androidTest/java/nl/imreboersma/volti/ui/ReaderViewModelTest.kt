@@ -21,6 +21,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import nl.imreboersma.volti.data.PageArea
+import nl.imreboersma.volti.data.PageScan
 import nl.imreboersma.volti.data.PixelSize
 import nl.imreboersma.volti.data.ReaderSettings
 import nl.imreboersma.volti.data.ScoreDocument
@@ -65,7 +66,7 @@ class ReaderViewModelTest {
         private val renderMillis: Long = 0,
         private val broken: Set<Int> = emptySet(),
     ) : ScoreDocument {
-        override fun contentArea(index: Int) = PageArea(0.1f, 0.1f, 0.9f, 0.9f)
+        override fun scanPage(index: Int) = PageScan(PageArea(0.1f, 0.1f, 0.9f, 0.9f), 0xffeee2be.toInt())
 
         override fun renderPage(index: Int, max: PixelSize, reuse: Bitmap?, area: PageArea): Bitmap {
             if (area != PageArea.WHOLE) cropped.incrementAndGet()
@@ -469,6 +470,7 @@ class ReaderViewModelTest {
         awaitPage(0)
         awaitEvents(1 + 2)
         assertTrue(cropped.get() >= 2)
+        assertEquals("the paper colour reaches the reader", 0xffeee2be.toInt(), vm.paper.value)
     }
 
     @Test

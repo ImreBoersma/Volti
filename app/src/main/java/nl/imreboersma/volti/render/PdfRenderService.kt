@@ -64,8 +64,10 @@ class PdfRenderService : Service() {
 
         override fun pageCount(doc: Int): Int = guarded { document(doc).pageCount }
 
-        override fun contentArea(doc: Int, index: Int): FloatArray = guarded {
-            document(doc).contentArea(index).let { floatArrayOf(it.left, it.top, it.right, it.bottom) }
+        override fun scanPage(doc: Int, index: Int): FloatArray = guarded {
+            document(doc).scanPage(index).let { (a, c) ->
+                floatArrayOf(a.left, a.top, a.right, a.bottom, ((c shr 16) and 0xff).toFloat(), ((c shr 8) and 0xff).toFloat(), (c and 0xff).toFloat())
+            }
         }
 
         override fun renderPage(

@@ -114,7 +114,7 @@ class ScoreDocumentTest {
                 return pixels.count { it == Color.BLACK } / (600.0 * 600.0) // Share of the view, not of the bitmap.
             }
             val whole = blackShare(doc.renderPage(0, PixelSize(600, 600)))
-            val cropped = blackShare(doc.renderPage(0, PixelSize(600, 600), area = doc.contentArea(0)))
+            val cropped = blackShare(doc.renderPage(0, PixelSize(600, 600), area = doc.scanPage(0).area))
             // The cap is 15% a side, so the content can grow by up to about 1.4x in each direction.
             assertTrue("whole $whole, cropped $cropped", cropped > whole * 1.5)
         }
@@ -148,7 +148,7 @@ class ScoreDocumentTest {
     fun croppingWorksOnARotatedPage() {
         openScore(resolver, Uri.fromFile(marginsPdf(rotate = 90))).use { doc ->
             val whole = doc.renderPage(0, PixelSize(600, 600))
-            val cropped = doc.renderPage(0, PixelSize(600, 600), area = doc.contentArea(0))
+            val cropped = doc.renderPage(0, PixelSize(600, 600), area = doc.scanPage(0).area)
             assertTrue("a rotated A4 page is landscape: ${whole.width}x${whole.height}", whole.width > whole.height)
             assertTrue("whole ${blackShareOfView(whole)}, cropped ${blackShareOfView(cropped)}", blackShareOfView(cropped) > blackShareOfView(whole) * 1.5)
         }
@@ -159,8 +159,28 @@ class ScoreDocumentTest {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         nl.imreboersma.volti.render.openIsolated(context, Uri.fromFile(marginsPdf())).use { doc ->
             val whole = blackShareOfView(doc.renderPage(0, PixelSize(600, 600)))
-            val cropped = blackShareOfView(doc.renderPage(0, PixelSize(600, 600), area = doc.contentArea(0)))
+            val cropped = blackShareOfView(doc.renderPage(0, PixelSize(600, 600), area = doc.scanPage(0).area))
             assertTrue("whole $whole, cropped $cropped", cropped > whole * 1.5)
+        }
+    }
+
+    @Test
+    fun theIsolatedRendererReadsAYellowedPagesPaperColour() {
+        // A page filled with yellowed paper and a black block, through the isolated renderer like the app.
+        val file = File(tmp.root, "yellowed.pdf")
+        val pdf = PdfDocument()
+        val page = pdf.startPage(PdfDocument.PageInfo.Builder(595, 842, 1).create())
+        page.canvas.drawColor(0xffeee2be.toInt())
+        page.canvas.drawRect(119f, 168f, 476f, 300f, Paint().apply { color = Color.BLACK })
+        pdf.finishPage(page)
+        file.outputStream().use(pdf::writeTo)
+        pdf.close()
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        nl.imreboersma.volti.render.openIsolated(context, Uri.fromFile(file)).use { doc ->
+            val paper = doc.scanPage(0).paper
+            for ((shift, expected) in listOf(16 to 0xee, 8 to 0xe2, 0 to 0xbe)) {
+                assertTrue("paper #%06X".format(paper and 0xffffff), kotlin.math.abs((paper shr shift and 0xff) - expected) <= 3)
+            }
         }
     }
 }

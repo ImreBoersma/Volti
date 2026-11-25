@@ -735,7 +735,14 @@
 -keep class androidx.navigation.NavController {
     void navigate$default(androidx.navigation.NavController, java.lang.Object, androidx.navigation.NavOptions, androidx.navigation.Navigator$Extras, int, java.lang.Object);
 }
+-keep class androidx.navigation.NavDestination$Companion {
+    boolean hasRoute(androidx.navigation.NavDestination, kotlin.reflect.KClass);
+}
+-keep class androidx.navigation.NavDestination {
+    androidx.navigation.NavDestination$Companion Companion;
+}
 -keep class androidx.navigation.NavHostController {
+    androidx.navigation.NavDestination getCurrentDestination();
     boolean popBackStack();
 }
 -keep class androidx.navigation.NavOptions
@@ -1253,6 +1260,7 @@
     <init>(kotlin.coroutines.CoroutineContext);
     java.lang.Object doSelect(kotlin.coroutines.Continuation);
 }
+-keep class nl.imreboersma.volti.Library
 -keep class nl.imreboersma.volti.MainActivityKt {
     void VoltiApp(androidx.navigation.NavHostController, androidx.compose.runtime.Composer, int, int);
 }
@@ -1286,6 +1294,11 @@
     <init>(float, float, float, float);
     nl.imreboersma.volti.data.PageArea$Companion Companion;
 }
+-keep class nl.imreboersma.volti.data.PageScan {
+    <init>(nl.imreboersma.volti.data.PageArea, int);
+    nl.imreboersma.volti.data.PageArea getArea();
+    int getPaper();
+}
 -keep class nl.imreboersma.volti.data.PixelSize {
     <init>(int, int);
     int getHeight();
@@ -1294,6 +1307,12 @@
 -keep class nl.imreboersma.volti.data.ReaderSettings {
     <init>(boolean, boolean);
     <init>(boolean, boolean, int, kotlin.jvm.internal.DefaultConstructorMarker);
+    boolean getHalfPageTurns();
+}
+-keep class nl.imreboersma.volti.data.ReaderSettingsStore {
+    <init>(android.content.Context);
+    kotlinx.coroutines.flow.Flow getSettings();
+    java.lang.Object setHalfPageTurns(boolean, kotlin.coroutines.Continuation);
 }
 -keep class nl.imreboersma.volti.data.ScoreDocument { *; }
 -keep class nl.imreboersma.volti.data.ScoreDocumentKt {
@@ -1333,6 +1352,7 @@
 -keep class nl.imreboersma.volti.ui.ReaderViewModel {
     <init>(android.app.Application, androidx.lifecycle.SavedStateHandle, kotlin.jvm.functions.Function1, long, kotlin.jvm.functions.Function1);
     <init>(android.app.Application, androidx.lifecycle.SavedStateHandle, kotlin.jvm.functions.Function1, long, kotlin.jvm.functions.Function1, int, kotlin.jvm.internal.DefaultConstructorMarker);
+    kotlinx.coroutines.flow.StateFlow getPaper();
     kotlinx.coroutines.flow.StateFlow getState();
     void next();
     void onDrawn(java.util.List);

@@ -124,6 +124,10 @@ class ReaderViewModel @JvmOverloads constructor(
     private val _state = MutableStateFlow<ReaderState>(ReaderState.Loading)
     val state: StateFlow<ReaderState> = _state
 
+    /** The colour of the score's paper (ARGB), for around the page. Null until the score has been looked at. */
+    private val _paper = MutableStateFlow<Int?>(null)
+    val paper: StateFlow<Int?> = _paper
+
     /**
      * Renders the current page and its neighbours at [size]. Called again on rotation; the file stays open.
      * Skips empty and unchanged sizes, and gives up for good once the file failed.
@@ -149,27 +153,34 @@ class ReaderViewModel @JvmOverloads constructor(
                 return@onPdfThread
             }
             if (settings == null) settings = loadSettings()
-            if (scoreArea == null) scoreArea = detectScoreArea(doc)
+            if (scoreArea == null) scanScore(doc)
             this.size = size
             window.clear()
             showCurrent(doc, since = SystemClock.uptimeMillis())
         }
     }
 
-    private fun detectScoreArea(doc: ScoreDocument): PageArea {
-        if (settings?.cropMargins != true) return PageArea.WHOLE
+    /**
+     * Looks at a sample of pages once, for the crop ([scoreArea], only with crop margins on) and the paper colour
+     * ([paper], always): the median of the sampled pages, so one odd page doesn't decide it.
+     */
+    private fun scanScore(doc: ScoreDocument) {
         val started = SystemClock.uptimeMillis()
-        return samplePages(doc.pageCount).mapNotNull { index ->
+        // The crop needs the whole sample; the paper colour alone is fine from the first page (about 55 ms, not 330).
+        val sample = if (settings?.cropMargins == true) samplePages(doc.pageCount) else listOf(0)
+        val scans = sample.mapNotNull { index ->
             try {
-                doc.contentArea(index)
+                doc.scanPage(index)
             } catch (e: Exception) {
                 Log.w("Volti", "Can't look at page ${index + 1} of $uri", e)
                 brokenPages += index
                 null
             }
-        }.reduceOrNull(PageArea::union).also {
-            Log.d("Volti", "Margins of ${samplePages(doc.pageCount).size} pages in ${SystemClock.uptimeMillis() - started} ms: $it")
-        } ?: PageArea.WHOLE
+        }
+        scoreArea = if (settings?.cropMargins == true) scans.map { it.area }.reduceOrNull(PageArea::union) ?: PageArea.WHOLE else PageArea.WHOLE
+        _paper.value = scans.map { it.paper }.sortedBy { (it shr 16 and 0xff) + (it shr 8 and 0xff) + (it and 0xff) }
+            .getOrNull(scans.size / 2)
+        Log.d("Volti", "Scanned ${scans.size} pages in ${SystemClock.uptimeMillis() - started} ms: $scoreArea, paper ${_paper.value?.let { "#%06X".format(it and 0xffffff) }}")
     }
 
     /**

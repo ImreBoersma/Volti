@@ -60,4 +60,24 @@ class ThemeContrastTest {
         assertTrue(contrast(BauhausBlue, Ink) < 4.5)
         assertTrue(contrast(BauhausRed, Ink) < 4.5)
     }
+
+    @Test
+    fun readerTextIsReadableOnTheScoresOwnPaper() {
+        // White, cream, yellowed, grey and dark (inverted) scans: text at 4.5:1.
+        val papers = listOf(0xFFFFFFFF, 0xFFEFE8D8, 0xFFEEE2BE, 0xFFD9D9D9, 0xFF9A9A9A, 0xFF202020, 0xFF000000)
+        for (paper in papers.map { Color(it) }) {
+            val colors = readerColorsOn(paper)
+            val text = contrast(colors.message, paper)
+            assertTrue("text on paper ${paper}: %.2f".format(text), text >= 4.5)
+            assertTrue("the half-turn line on paper ${paper}", contrast(colors.line, paper) >= 3.0)
+        }
+        // Mid-grey, where ink and cream contrast equally (and least): neither reaches 4.5:1 there, but text, line
+        // and the back button's arrow stay at least 3:1. A compromised renderer could pick any grey.
+        for (grey in 0x60..0x90 step 4) {
+            val paper = Color(0xFF000000 or (grey.toLong() * 0x010101))
+            val colors = readerColorsOn(paper)
+            assertTrue("text on grey #%02X: %.2f".format(grey, contrast(colors.message, paper)), contrast(colors.message, paper) >= 3.0)
+            assertTrue("line on grey #%02X".format(grey), contrast(colors.line, paper) >= 3.0)
+        }
+    }
 }

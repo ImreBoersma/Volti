@@ -20,8 +20,11 @@ interface IPdfRenderer {
      */
     int[] renderPage(int doc, int index, int maxWidth, int maxHeight, float left, float top, float right, float bottom, in SharedMemory pixels);
 
-    /** The part of page [index] with content: {left, top, right, bottom}, fractions of the page. */
-    float[] contentArea(int doc, int index);
+    /**
+     * Where the music is on page [index] and the colour of its paper: {left, top, right, bottom} as fractions of
+     * the page, then {red, green, blue} as 0-255.
+     */
+    float[] scanPage(int doc, int index);
 
     void close(int doc);
 }

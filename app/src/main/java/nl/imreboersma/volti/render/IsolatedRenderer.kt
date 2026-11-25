@@ -13,10 +13,11 @@ import android.os.SharedMemory
 import android.util.Log
 import androidx.core.graphics.createBitmap
 import nl.imreboersma.volti.data.PageArea
+import nl.imreboersma.volti.data.PageScan
 import nl.imreboersma.volti.data.PasswordProtectedException
 import nl.imreboersma.volti.data.PixelSize
 import nl.imreboersma.volti.data.ScoreDocument
-import nl.imreboersma.volti.data.checkArea
+import nl.imreboersma.volti.data.checkScan
 import java.io.FileNotFoundException
 import java.io.IOException
 import java.util.concurrent.TimeUnit
@@ -98,7 +99,7 @@ private class RemoteDocument(private val context: Context, private val uri: Uri)
         }
     }
 
-    override fun contentArea(index: Int): PageArea = checkArea(surviving { service.contentArea(id, index) })
+    override fun scanPage(index: Int): PageScan = checkScan(surviving { service.scanPage(id, index) })
 
     override fun renderPage(index: Int, max: PixelSize, reuse: Bitmap?, area: PageArea): Bitmap {
         val bytes = max.width * max.height * 4

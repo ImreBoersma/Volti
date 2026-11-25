@@ -108,4 +108,22 @@ class MarginsTest {
             floatArrayOf(0f, 0f, Float.NaN, 1f),
         )) assertEquals(PageArea.WHOLE, checkArea(bad))
     }
+
+    @Test
+    fun thePaperColourIsThePapersNotTheInks() {
+        val white = page { it.block(10, 12, 90, 88) } // Lots of ink: the paper is still white.
+        assertEquals(this.white, paperColor(white))
+        val yellowed = 0xffeee2be.toInt()
+        val scan = IntArray(100 * 100) { yellowed }.also { it.block(20, 20, 80, 30) }
+        assertEquals(yellowed, paperColor(scan))
+    }
+
+    @Test
+    fun aScanFromTheOtherProcessIsChecked() {
+        assertEquals(PageScan(PageArea(0.1f, 0.1f, 0.9f, 0.9f), 0xffeee2be.toInt()), checkScan(floatArrayOf(0.1f, 0.1f, 0.9f, 0.9f, 238f, 226f, 190f)))
+        assertEquals(PageScan(PageArea.WHOLE, white), checkScan(null))
+        // No colour: the area stands, the paper falls back to white.
+        assertEquals(PageScan(PageArea(0.1f, 0.1f, 0.9f, 0.9f), white), checkScan(floatArrayOf(0.1f, 0.1f, 0.9f, 0.9f)))
+        assertEquals(0xff00ff00.toInt(), checkScan(floatArrayOf(0f, 0f, 1f, 1f, -40f, 999f, 0f)).paper) // Clamped.
+    }
 }

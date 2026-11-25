@@ -207,15 +207,17 @@ How close it is to release: `minified` is not debuggable, because R8 only optimi
 
 ### 8. Reader: a back button
 
-- [ ] A small, quiet button in the top-left corner of the reader that goes back to the library. That corner doesn't turn pages back.
-- [ ] Back by gesture keeps working.
+- [x] A small button in the top-left corner of the reader that goes back to the library: 48dp, an arrow in the reader's text colour on a disc of the paper, with a ring. It shows for 3 s when a score opens and then hides, because on a cropped score the clef and key signature sit in that corner; a tap in the corner brings it back. The corner takes its own taps, so it never turns the page back. Back only while the reader is the resumed screen: a second tap during the crossfade would also have popped the library and left a blank screen.
+- [x] Back by gesture keeps working. `ReaderBackButtonTest` covers the button, a double tap, a tap on the left beside it still turning back, and the hiding; the reader tells accessibility services which page shows ("Page 2 of 3").
 
 Done when: a score can be left without the back gesture, and a tap anywhere else on the left still turns back.
 
 ### 9. Reader: the page's own background colour
 
-- [ ] Around the page, the colour of the score's paper instead of white or black: measured from the same small render that finds the margins (its 90th percentile), per score.
-- [ ] In both themes: a cream or yellowed scan then fills the screen without a frame.
+- [x] Around the page, the colour of the score's paper instead of white or black: measured from the same small render that finds the margins (the average of the pixels at its 90th percentile brightness), the median of the sampled pages, per score. The sample is now looked at with crop margins off too.
+- [x] In both themes: a cream or yellowed scan then fills the screen without a frame. Text, the half-turn line and the back button take ink or cream, whichever contrasts more with that paper: at least 4.5:1 on real paper colours, at least 3:1 even on the mid-grey where neither does well. With crop margins off only the first page is looked at (about 55 ms); with it on, the six-page sample the crop needs (about 330 ms).
+
+Checked 2026-11-25 on the tablet: a yellowed scan shows no edge between page and surround, in the light and the dark theme.
 
 Done when: a scan on off-white paper shows no visible edge between page and surround.
 

@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 
 /** Cream paper with ink, the Bauhaus blue for actions, the red for what is switched on. */
 internal val LightColors = lightColorScheme(
@@ -74,6 +75,17 @@ internal val LightReader = ReaderColors(surround = Paper, line = InkMuted, messa
 internal val DarkReader = ReaderColors(surround = Ink, line = InkMuted, message = Cream)
 
 val LocalReaderColors = staticCompositionLocalOf { LightReader }
+
+/**
+ * The reader's colours around a score whose paper is [paper]: the paper's own colour, so page and surround are one,
+ * with ink or cream on it, whichever contrasts more with that paper, whatever the theme.
+ */
+fun readerColorsOn(paper: Color): ReaderColors {
+    fun contrast(a: Color) = (maxOf(a.luminance(), paper.luminance()) + 0.05f) / (minOf(a.luminance(), paper.luminance()) + 0.05f)
+    // The line too: on mid-grey paper a muted line all but disappears.
+    val ink = if (contrast(Ink) >= contrast(Cream)) Ink else Cream
+    return ReaderColors(surround = paper, line = ink, message = ink)
+}
 
 /**
  * The icon's colours, light or dark with the system. No dynamic colour: the wallpaper's colours would replace

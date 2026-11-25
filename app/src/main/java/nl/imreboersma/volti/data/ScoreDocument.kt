@@ -45,8 +45,8 @@ interface ScoreDocument : Closeable {
      */
     fun renderPage(index: Int, max: PixelSize, reuse: Bitmap? = null, area: PageArea = PageArea.WHOLE): Bitmap
 
-    /** The part of page [index] with content on it, from a small render of the page. */
-    fun contentArea(index: Int): PageArea
+    /** Where the music is on page [index], and the colour of its paper, from one small render of the page. */
+    fun scanPage(index: Int): PageScan
 }
 
 /**
@@ -104,7 +104,7 @@ private interface OpenPage {
 private abstract class PdfiumDocument : ScoreDocument {
     protected abstract fun <T> withPage(index: Int, block: (OpenPage) -> T): T
 
-    override fun contentArea(index: Int): PageArea = withPage(index, ::detectArea)
+    override fun scanPage(index: Int): PageScan = withPage(index, ::scan)
 
     override fun renderPage(index: Int, max: PixelSize, reuse: Bitmap?, area: PageArea): Bitmap = withPage(index) { page ->
         val cropWidth = page.width * (area.right - area.left)
@@ -119,15 +119,15 @@ private abstract class PdfiumDocument : ScoreDocument {
         }
     }
 
-    /** A small render of the whole page, scanned for content. */
-    private fun detectArea(page: OpenPage): PageArea {
+    /** A small render of the whole page, scanned for content and paper colour. */
+    private fun scan(page: OpenPage): PageScan {
         val small = fitInside(page.width, page.height, PixelSize(DETECT_SIZE, DETECT_SIZE))
         val bitmap = blankBitmap(small, null)
         page.render(bitmap, null)
         val pixels = IntArray(small.width * small.height)
         bitmap.getPixels(pixels, 0, small.width, 0, 0, small.width, small.height)
         bitmap.recycle()
-        return contentArea(pixels, small.width, small.height)
+        return PageScan(contentArea(pixels, small.width, small.height), paperColor(pixels))
     }
 
     private companion object {
