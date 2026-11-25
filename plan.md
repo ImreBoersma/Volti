@@ -34,10 +34,10 @@ Done when: it launches on the tablet and the Merged Manifest tab shows no permis
 
 ### 1. Folder grant
 
-- [ ] Launch the picker with `ActivityResultContracts.OpenDocumentTree`.
-- [ ] Persist access with `takePersistableUriPermission`, read-only.
-- [ ] Pass `EXTRA_LOCAL_ONLY` so cloud-backed folders are excluded.
-- [ ] Store the tree URI in `DataStore` (Preferences).
+- [x] Launch the picker with `ActivityResultContracts.OpenDocumentTree`.
+- [x] Persist access with `takePersistableUriPermission`, read-only.
+- [x] Pass `EXTRA_LOCAL_ONLY` so cloud-backed folders are excluded.
+- [x] Store the tree URI in `DataStore` (Preferences).
 
 Done when: pick the folder once, kill the app, reopen, access is still there.
 
@@ -124,4 +124,4 @@ Done when: each case shows a message and none crashes.
 
 ## Way of working
 
-I write every line. After each step: commit, then a review that names the three most serious issues, without rewrites.
+After each step: commit, then a review that names the three most serious issues, without rewrites.
