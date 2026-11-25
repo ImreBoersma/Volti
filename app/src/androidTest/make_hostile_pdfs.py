@@ -77,6 +77,25 @@ def encrypted(user_password, owner_password):
     return pdf(objects, encrypt_ref)
 
 
+def bomb_on_page_two(depth=40):
+    """Three pages; the middle one draws a form bomb, the others are normal. Tests that a crash on one page
+    leaves the rest of the score readable."""
+    objects = [b"<</Type/Catalog/Pages 2 0 R>>", b"<</Type/Pages/Kids[4 0 R 6 0 R 8 0 R]/Count 3>>",
+               b"<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>"]
+    for i in range(3):
+        xobject = b"/XObject<</F 10 0 R>>" if i == 1 else b""
+        objects.append(b"<</Type/Page/Parent 2 0 R/MediaBox[0 0 595 842]/Contents %d 0 R/Resources<</Font<</F1 3 0 R>>%s>>>>"
+                       % (5 + 2 * i, xobject))
+        objects.append(stream(b"/F Do" if i == 1 else CONTENT))
+    form = b"/Type/XObject/Subtype/Form/BBox[0 0 595 842]"
+    for k in range(depth):
+        if k < depth - 1:
+            objects.append(b"<<%s/Resources<</XObject<</F %d 0 R>>>>/Length 11>>stream\n/F Do /F Do\nendstream" % (form, 11 + k))
+        else:
+            objects.append(b"<<%s/Length 16>>stream\n0 g 0 0 1 1 re f\nendstream" % form)
+    return pdf(objects)
+
+
 def form_bomb(depth=40):
     """Each form draws the next one twice: 2^depth draws from a few KB. Crashes PDFium in-process (native abort).
     Not used by HostileInputTest, it would kill the test process: it is the test case for the isolated renderer."""
@@ -104,6 +123,7 @@ def main():
         "zero-size-page.pdf": pdf(pages([b"0 0 0 0"])),
         "huge-page.pdf": pdf(pages([b"0 0 1000000000 1"])),
         "form-bomb.pdf": form_bomb(),
+        "bomb-on-page-2.pdf": bomb_on_page_two(),
         "broken-page.pdf": pdf(pages([b"0 0 595 842"] * 3, [CONTENT, b"BT /F9 Tf ( q Q ] >> 1 0 obj", CONTENT])),
     }
     for name, data in files.items():

@@ -115,4 +115,31 @@ class HostileInputTest {
         assertNotNull((second as ReaderState.Page).bitmap)
         assertNotNull((third as ReaderState.Page).bitmap)
     }
+
+    @Test
+    fun aFileThatCrashesPdfiumLeavesTheAppAndOtherScoresWorking() {
+        // form-bomb.pdf opens fine; rendering its page makes PDFium abort. In the isolated renderer that kills
+        // only the service process: the page shows as "Can't show page 1." and the test process lives on.
+        val bomb = open("form-bomb.pdf").settled()
+        assertEquals(ReaderState.Page(bitmap = null, index = 0, pageCount = 1), bomb)
+
+        store.clear()
+        val next = open("huge-page.pdf").settled()
+        assertTrue("the next score did not open: $next", next is ReaderState.Page && next.bitmap != null)
+    }
+
+    @Test
+    fun aPageThatCrashesPdfiumLeavesTheOtherPagesOfTheScoreReadable() {
+        // Page 2 aborts PDFium, every time. The document is reopened in a fresh renderer after each crash.
+        val vm = open("bomb-on-page-2.pdf")
+        assertNotNull((vm.settled() as ReaderState.Page).bitmap)
+
+        InstrumentationRegistry.getInstrumentation().runOnMainSync { vm.next() }
+        val second = runBlocking { withTimeout(60_000) { vm.state.first { it is ReaderState.Page && it.index == 1 } } }
+        assertEquals("page 2 should show as unreadable", null, (second as ReaderState.Page).bitmap)
+
+        InstrumentationRegistry.getInstrumentation().runOnMainSync { vm.next() }
+        val third = runBlocking { withTimeout(60_000) { vm.state.first { it is ReaderState.Page && it.index == 2 } } }
+        assertNotNull("page 3 should render in a fresh renderer", (third as ReaderState.Page).bitmap)
+    }
 }

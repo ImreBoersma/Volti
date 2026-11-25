@@ -111,7 +111,7 @@ Test files are in `app/src/androidTest/assets/hostile/`, made by `make_hostile_p
 - [x] Listing the folder throws anything (any provider, not just a lost grant): "Can't read this folder." Before this, an unexpected exception crashed on every start, because the folder is stored.
 - [x] A file that hangs the renderer: after 10 s without a first page, "This file takes too long to open." and the screen may sleep again. Tested with a fake. Tried on the tablet: a self-drawing form renders in 48 ms (PDFium detects it), a 20000 x 20000 compressed image in 1.2 s. No real PDF hung it.
 
-Limit, accepted for milestone 1: PDFium runs inside the app's process. A native crash or a decompression bomb kills the app, no catch can stop that, and an exploit would run with the app's folder grant. Shown on the tablet on 2026-11-25: `form-bomb.pdf` (6.7 KB, 40 nested forms that each draw the next twice) makes PDFium abort within seconds, a native crash. The app restarts in the library, so there is no crash loop, but on stage the app is gone. A hanging file also holds the renderer's process-wide lock, so other scores stay blank until the app restarts. The fix is the isolated renderer below, first after milestone 1. Acceptable for now: the files are my own, and the app has no network permission.
+Limit, accepted for milestone 1, fixed in milestone 2 step 1: PDFium runs inside the app's process. A native crash or a decompression bomb kills the app, no catch can stop that, and an exploit would run with the app's folder grant. Shown on the tablet on 2026-11-25: `form-bomb.pdf` (6.7 KB, 40 nested forms that each draw the next twice) makes PDFium abort within seconds, a native crash. The app restarts in the library, so there is no crash loop, but on stage the app is gone. A hanging file also holds the renderer's process-wide lock, so other scores stay blank until the app restarts. The fix is the isolated renderer below, first after milestone 1. Acceptable for now: the files are my own, and the app has no network permission.
 
 Done when: each case shows a message and none crashes.
 
@@ -153,25 +153,15 @@ Improvements to the two things the app does: finding a score and reading it. Sam
 
 PDFium in the app's process is the one accepted security limit of milestone 1: `form-bomb.pdf` (6.7 KB) crashes the app.
 
-- [ ] Render in a service with `android:isolatedProcess="true"`: no permissions, no folder grant, only the file descriptor it is handed.
-- [ ] Bitmaps back over `SharedMemory`; the service reports page count and errors over AIDL.
-- [ ] A native crash or hang kills only the service: show the message, restart it for the next score.
+- [x] Render in a service with `android:isolatedProcess="true"`: no permissions, no folder grant, only the file descriptor it is handed. On the tablet it runs as an isolated user (`u0_i…`), the app as `u0_a…`.
+- [x] Bitmaps back over `SharedMemory`; the service reports page count and errors over AIDL (`IPdfRenderer.aidl`). Binder only carries a few exception types, so a password comes back as `SecurityException` and anything else as `IllegalStateException`.
+- [x] A native crash or hang kills only the service: show the message, restart it for the next score. A watchdog in the service kills its own process after 10 s in one call (`Watchdog`, unit-tested). After a crash the app unbinds and binds again: the system's own restart was delayed 19 s by the memory pressure the crash left. The decision to rebind is taken on the dead binder, not on `onServiceDisconnected`, which arrives later.
+- [x] An open score survives its renderer dying: if the renderer is already dead before a call (an earlier page crashed it, or Android reclaimed the idle process), the document is reopened in a fresh one first. The page that kills the renderer during its own call is marked broken and not tried again, so a bad page costs one crash, not two.
+- [x] The app does not trust the renderer's answers: a size that doesn't fit the view or the shared memory is rejected before anything is allocated (`checkRenderedSize`, unit-tested). A compromised renderer can't make the app allocate itself to death.
 
 Done when: a PDF that crashes or hangs PDFium leaves the app running and other scores readable. Test case: `form-bomb.pdf` from `make_hostile_pdfs.py`.
 
-### 2. Reader: remember the page
-
-- [ ] Store the last page per score, keyed by document URI, in DataStore.
-- [ ] Reopening a score, or the app coming back after process death, shows that page.
-
-Done when: kill the app on page 7, reopen the score, page 7 is there without a visible jump from page 1.
-
-### 3. Reader: page-turner pedal
-
-- [ ] Bluetooth page turners are keyboards: Page Down, Right arrow, Down arrow and Space turn forward; Page Up, Left arrow and Up arrow turn back.
-- [ ] Taps keep working alongside.
-
-Done when: a pedal (or a Bluetooth keyboard) turns pages, with the same latency as a tap.
+Checked 2026-11-25: `form-bomb.pdf` shows "Can't show page 1." (it opens; rendering aborts PDFium), the app keeps its process, and the next score opens at once, also twice in a row and in the release build. `bomb-on-page-2.pdf`: page 2 shows "Can't show page 2.", pages 1 and 3 render. `HostileInputTest` covers both. A turn at reading pace still takes 2-3 ms; in a burst up to 82 ms (was 50), from the extra copy through shared memory. The watchdog itself is unit-tested, but not on a real hang: no PDF that hangs PDFium could be made.
 
 ### 4. Library: subfolders and names
 
@@ -201,6 +191,8 @@ Done when: an A4 scan with wide margins fills the screen noticeably more, and a 
 
 ## Later milestones (not planned yet)
 
+- Remember the page per score, also across process death. (Was milestone 2, step 2; not wanted now.)
+- Page-turner pedal: Bluetooth page turners send key presses. (Was milestone 2, step 3; not wanted now.)
 - Setlists as references to pieces.
 - Play order and jump markers, stored alongside the PDF.
 - Import: share and open-with target for PDFs.

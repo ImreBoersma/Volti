@@ -22,6 +22,17 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!--
+            PDFium parses untrusted files. It runs here, in its own process with no permissions and no access
+            to the folder grant: it only gets the file descriptor the app hands it. A crash or hang kills this
+            process, not the app.
+        -->
+        <service
+            android:name=".render.PdfRenderService"
+            android:exported="false"
+            android:isolatedProcess="true"
+            android:process=":pdf" />
     </application>
 
 </manifest>

@@ -25,7 +25,7 @@ import nl.imreboersma.volti.Reader
 import nl.imreboersma.volti.data.PasswordProtectedException
 import nl.imreboersma.volti.data.PixelSize
 import nl.imreboersma.volti.data.ScoreDocument
-import nl.imreboersma.volti.data.openScore
+import nl.imreboersma.volti.render.openIsolated
 
 sealed interface ReaderState {
     data object Loading : ReaderState
@@ -48,7 +48,7 @@ internal const val REUSE_DELAY_MS = 50L
 class ReaderViewModel @JvmOverloads constructor(
     app: Application,
     handle: SavedStateHandle,
-    private val open: (Uri) -> ScoreDocument = { openScore(app.contentResolver, it) },
+    private val open: (Uri) -> ScoreDocument = { openIsolated(app, it) },
     private val openTimeoutMs: Long = 10_000,
 ) : AndroidViewModel(app) {
     private val uri = handle.toRoute<Reader>().uri.toUri()

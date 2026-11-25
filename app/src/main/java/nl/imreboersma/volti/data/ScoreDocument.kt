@@ -8,6 +8,7 @@ import android.graphics.pdf.PdfRendererPreV
 import android.graphics.pdf.RenderParams
 import android.net.Uri
 import android.os.Build
+import android.os.ParcelFileDescriptor
 import android.os.ext.SdkExtensions
 import androidx.annotation.RequiresExtension
 import androidx.core.graphics.createBitmap
@@ -30,7 +31,7 @@ internal fun fitInside(pageWidth: Int, pageHeight: Int, max: PixelSize): PixelSi
 }
 
 /** The PDF needs a password. The renderers throw SecurityException for that, as does a lost folder grant. */
-class PasswordProtectedException(cause: SecurityException) : IOException("Password-protected PDF", cause)
+class PasswordProtectedException(cause: Throwable) : IOException("Password-protected PDF", cause)
 
 /** An open PDF. Not thread-safe, and only one page may be open at a time: use from one thread. */
 interface ScoreDocument : Closeable {
@@ -44,13 +45,19 @@ interface ScoreDocument : Closeable {
 }
 
 /**
- * Opens [uri] read-only. On Android 14 this uses [PdfRendererPreV] when available: it lives in the
+ * Opens [uri] read-only, in this process. The app itself renders through the isolated
+ * PdfRenderService instead; this is what that service runs, and what the renderer tests use.
+ */
+fun openScore(resolver: ContentResolver, uri: Uri): ScoreDocument =
+    openPdf(resolver.openFileDescriptor(uri, "r") ?: throw FileNotFoundException(uri.toString()))
+
+/**
+ * Opens [fd], taking it over. On Android 14 this uses [PdfRendererPreV] when available: it lives in the
  * MediaProvider module, which Google Play keeps patched. The platform [PdfRenderer] on Android 14
  * uses the system PDFium, which only firmware updates patch. From Android 15 the platform class
  * comes from that same module.
  */
-fun openScore(resolver: ContentResolver, uri: Uri): ScoreDocument {
-    val fd = resolver.openFileDescriptor(uri, "r") ?: throw FileNotFoundException(uri.toString())
+fun openPdf(fd: ParcelFileDescriptor): ScoreDocument {
     val doc = try {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM &&
             SdkExtensions.getExtensionVersion(Build.VERSION_CODES.S) >= 13
@@ -68,7 +75,7 @@ fun openScore(resolver: ContentResolver, uri: Uri): ScoreDocument {
     }
     if (doc.pageCount == 0) {
         doc.close()
-        throw IOException("No pages: $uri")
+        throw IOException("No pages")
     }
     return doc
 }
