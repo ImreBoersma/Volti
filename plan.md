@@ -124,4 +124,10 @@ Done when: each case shows a message and none crashes.
 
 ## Way of working
 
-After each step: commit, then a review that names the three most serious issues, without rewrites.
+Per step:
+
+1. Claude writes the code and checks the step's "Done when" on the tablet.
+2. A separate agent reviews the change and names the three most serious issues, without rewrites.
+3. The issues go to me. I decide which get fixed.
+4. Claude fixes the chosen issues.
+5. Commit and push to `main`.
