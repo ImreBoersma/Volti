@@ -4,6 +4,7 @@ import android.net.Uri
 import android.provider.DocumentsContract
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertThrows
@@ -66,5 +67,23 @@ class GrantedTreeTest {
                 e is SecurityException || (e is IllegalArgumentException && "Missing file" in e.message.orEmpty()),
             )
         }
+    }
+
+    @Test
+    fun walkingFindsNestedEntriesWithTheirFolders() {
+        val top = listFolder(resolver, tree)!!
+        val all = walkFolder(resolver, tree)
+        // Everything at the top, and more below it.
+        assertTrue(top.all { entry -> all.any { it.entry == entry && it.parents.isEmpty() } })
+        val nested = all.firstOrNull { it.parents.isNotEmpty() }
+        assumeTrue("the granted folder has no subfolders", nested != null)
+        // The parents are a real chain: listing the last one contains the entry.
+        assertTrue(nested!!.entry in listFolder(resolver, tree, nested!!.parents.last().documentId)!!)
+    }
+
+    @Test
+    fun walkingStopsAtTheLimit() {
+        assumeTrue("the granted folder has fewer than 4 entries", walkFolder(resolver, tree).size > 3)
+        assertEquals(3, walkFolder(resolver, tree, limit = 3).size)
     }
 }

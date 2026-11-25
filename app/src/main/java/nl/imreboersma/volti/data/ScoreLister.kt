@@ -8,6 +8,7 @@ import android.provider.DocumentsContract.buildChildDocumentsUriUsingTree
 import android.provider.DocumentsContract.buildDocumentUriUsingTree
 import android.provider.DocumentsContract.getTreeDocumentId
 import java.text.Collator
+import java.text.Normalizer
 
 /** Something the library lists: a score to open, or a folder to go into. */
 sealed interface LibraryEntry {
@@ -105,3 +106,58 @@ fun folderName(resolver: ContentResolver, tree: Uri): String? {
         if (it.moveToFirst()) it.getString(0) else null
     }
 }
+
+/** Most entries a search walks. Breadth first, so what is left out is the deepest. */
+const val WALK_LIMIT = 5_000
+
+/** An entry found below a folder, with the subfolders between that folder and it, outermost first. */
+data class FoundEntry(val entry: LibraryEntry, val parents: List<Subfolder>)
+
+/**
+ * Everything below [folderId] in [tree]: one query per folder, breadth first, at most [limit] entries.
+ * A subfolder that can't be read is skipped, not fatal. Blocking: call off the main thread.
+ */
+fun walkFolder(
+    resolver: ContentResolver,
+    tree: Uri,
+    folderId: String = getTreeDocumentId(tree),
+    limit: Int = WALK_LIMIT,
+    stopped: () -> Boolean = { false },
+): List<FoundEntry> {
+    val found = mutableListOf<FoundEntry>()
+    val queue = ArrayDeque(listOf(folderId to emptyList<Subfolder>()))
+    while (queue.isNotEmpty() && found.size < limit && !stopped()) {
+        val (id, parents) = queue.removeFirst()
+        val entries = try {
+            listFolder(resolver, tree, id)
+        } catch (e: Exception) {
+            null
+        } ?: continue
+        for (entry in entries) {
+            if (found.size >= limit) break
+            found += FoundEntry(entry, parents)
+            if (entry is Subfolder) queue.addLast(entry.documentId to parents + entry)
+        }
+    }
+    return found
+}
+
+/** Lower case, accents removed: "Händel" and "handel" are the same to someone typing on a stand. */
+internal fun searchable(text: String): String =
+    Normalizer.normalize(text, Normalizer.Form.NFD).replace(Regex("\\p{Mn}+"), "").lowercase()
+
+/** The words of a search, made [searchable]. */
+internal fun searchWords(query: String): List<String> = searchable(query).split(' ').filter { it.isNotBlank() }
+
+/** The names a found entry can be found by: each folder on its way and its own, made [searchable]. */
+internal fun searchableNames(found: FoundEntry): List<String> =
+    (found.parents.map { it.name } + found.entry.name).map(::searchable)
+
+/**
+ * Every word appears in the entry's name or in a folder on its way: "bach viool" finds Bach/Viool 1.pdf.
+ * Each name on its own: nothing matches the separator between them.
+ */
+internal fun matchesWords(words: List<String>, names: List<String>): Boolean =
+    words.isNotEmpty() && words.all { word -> names.any { word in it } }
+
+internal fun matches(query: String, found: FoundEntry): Boolean = matchesWords(searchWords(query), searchableNames(found))
