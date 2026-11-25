@@ -17,6 +17,6 @@ class ExampleInstrumentedTest {
     fun useAppContext() {
         // Context of the app under test.
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-        assertEquals("nl.imreboersma.volti", appContext.packageName)
+        assertEquals("nl.imreboersma.volti.debug", appContext.packageName)
     }
 }

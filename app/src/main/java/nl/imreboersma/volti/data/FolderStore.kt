@@ -3,6 +3,8 @@ package nl.imreboersma.volti.data
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -14,14 +16,17 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 
 private val Context.dataStore by preferencesDataStore(name = "settings")
-private val FOLDER_URI = stringPreferencesKey("folder_uri")
+internal val FOLDER_URI = stringPreferencesKey("folder_uri")
 
 /** The one folder the user granted through the system picker. */
-class FolderStore(context: Context) {
+class FolderStore(
+    context: Context,
+    private val store: DataStore<Preferences> = context.applicationContext.dataStore,
+) {
     private val appContext = context.applicationContext
 
     /** The stored folder, or null if none is stored or its read grant is gone. */
-    val folder: Flow<Uri?> = appContext.dataStore.data
+    val folder: Flow<Uri?> = store.data
         .map { prefs -> prefs[FOLDER_URI]?.let(Uri::parse)?.takeIf(::canRead) }
         .flowOn(Dispatchers.IO)
 
@@ -38,7 +43,7 @@ class FolderStore(context: Context) {
         } catch (e: SecurityException) {
             return@withContext
         }
-        appContext.dataStore.edit { it[FOLDER_URI] = uri.toString() }
+        store.edit { it[FOLDER_URI] = uri.toString() }
         resolver.persistedUriPermissions
             .filter { it.uri != uri }
             .forEach {

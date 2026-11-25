@@ -20,6 +20,10 @@ android {
     }
 
     buildTypes {
+        // Separate app ID, so debug builds and tests never touch the rehearsal build's folder grant.
+        debug {
+            applicationIdSuffix = ".debug"
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(

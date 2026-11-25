@@ -41,6 +41,8 @@ Done when: it launches on the tablet and the Merged Manifest tab shows no permis
 
 Done when: pick the folder once, kill the app, reopen, access is still there.
 
+This stays a manual check on the tablet. A test for it needs a real grant from the system picker; the instrumented tests cover the failure paths only.
+
 ### 2. List the PDFs
 
 - [ ] Enumerate with `DocumentFile.fromTreeUri`, off the main thread.
@@ -127,7 +129,8 @@ Done when: each case shows a message and none crashes.
 Per step:
 
 1. Claude writes the code and checks the step's "Done when" on the tablet.
-2. A separate agent reviews the change and names the three most serious issues, without rewrites.
-3. The issues go to me. I decide which get fixed.
-4. Claude fixes the chosen issues.
-5. Commit and push to `main`.
+2. Claude writes tests for the step's logic and runs them on the tablet. Unit tests for pure logic, instrumented tests for anything touching Android (DataStore, ContentResolver, `PdfRenderer`). No tests that drive the system folder picker.
+3. A separate agent reviews the change and names the three most serious issues, without rewrites. It also checks that the tests cover the step's "Done when".
+4. The issues go to me. I decide which get fixed.
+5. Claude fixes the chosen issues.
+6. Commit and push to `main`.
