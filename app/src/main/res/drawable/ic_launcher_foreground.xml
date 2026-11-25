@@ -10,6 +10,8 @@
         33dp safe zone that every launcher mask keeps. Unscaled, Samsung's mask cut into the circle.
         Moved 1.8 right: the design's bounding box is centred 2.2 left of the canvas centre (1.8 after scaling),
         so it looked off to the left.
+        The folded corner is 1.5x the original, scaled away from the stroke's unfolded corner (82.69, 43.45), so
+        it keeps its shape after the scaling down.
     -->
     <group
         android:pivotX="54"
@@ -31,16 +33,16 @@
         <!-- Red Right Stroke of 'V' -->
         <path
             android:fillColor="#C83823"
-            android:pathData="M64.97,43.45 L74.25,43.45 L79.16,51.11 L62.86,86.48 L45.14,86.48 Z" />
+            android:pathData="M64.97,43.45 L70.03,43.45 L77.39,54.94 L62.86,86.48 L45.14,86.48 Z" />
 
         <!-- Fold Shadow -->
         <path
             android:fillColor="#9D2918"
-            android:pathData="M74.25,43.45 L79.16,51.11 L72.14,53.16 Z" />
+            android:pathData="M70.03,43.45 L77.39,54.94 L66.86,58.01 Z" />
 
         <!-- Cream Folded Page Corner -->
         <path
             android:fillColor="#EFE8D8"
-            android:pathData="M74.25,43.45 L79.16,51.11 L72.86,51.13 Z" />
+            android:pathData="M70.03,43.45 L77.39,54.94 L67.94,54.97 Z" />
     </group>
 </vector>

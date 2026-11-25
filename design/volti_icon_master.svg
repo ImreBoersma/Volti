@@ -16,8 +16,8 @@
   <g id="layer-foreground">
     <circle id="circle-accent" class="bauhaus-cream" cx="162" cy="146" r="46" />
     <polygon id="v-stroke-left" class="bauhaus-blue" points="120,206 204,206 298,410 214,410" />
-    <polygon id="v-stroke-right" class="bauhaus-red" points="308,206 352,206 375.3,242.3 298,410 214,410" />
-    <polygon id="page-fold-shadow" class="bauhaus-red-shadow" points="352,206 375.3,242.3 342,252" />
-    <polygon id="page-fold-corner" class="bauhaus-cream" points="352,206 375.3,242.3 345.4,242.4" />
+    <polygon id="v-stroke-right" class="bauhaus-red" points="308,206 331.98,206 366.93,260.45 298,410 214,410" />
+    <polygon id="page-fold-shadow" class="bauhaus-red-shadow" points="331.98,206 366.93,260.45 316.98,275" />
+    <polygon id="page-fold-corner" class="bauhaus-cream" points="331.98,206 366.93,260.45 322.08,260.6" />
   </g>
 </svg>

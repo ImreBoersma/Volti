@@ -32,12 +32,12 @@
         <!-- Red Right Stroke of 'V' -->
         <path
             android:fillColor="#000000"
-            android:pathData="M64.97,43.45 L74.25,43.45 L79.16,51.11 L62.86,86.48 L45.14,86.48 Z" />
+            android:pathData="M64.97,43.45 L70.03,43.45 L77.39,54.94 L62.86,86.48 L45.14,86.48 Z" />
 
         <!-- Cream Folded Page Corner cutout look -->
         <path
             android:fillColor="#000000"
             android:fillAlpha="0.35"
-            android:pathData="M74.25,43.45 L79.16,51.11 L72.86,51.13 Z" />
+            android:pathData="M70.03,43.45 L77.39,54.94 L67.94,54.97 Z" />
     </group>
 </vector>
