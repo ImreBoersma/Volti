@@ -1,12 +1,14 @@
-# Add project specific R8 rules here.
-# AGP will combine all keep rule files in src/main/keepRules to pass to R8
-#
-# For more details, see
-#   https://d.android.com/r/tools/r8/keep-rules
+# Project R8 rules. AGP combines every file in src/main/keepRules and passes it to R8.
+# See https://d.android.com/r/tools/r8/keep-rules
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# Keep names readable: a stack trace from the stand must be readable without the mapping file of
+# that exact build. Shrinking and optimisation stay on; renaming gains little in a 2 MB app.
+-dontobfuscate
+
+# Release builds don't log routine events: no file URIs or page turns in logcat.
+# Log.w and Log.e stay, for diagnosing a problem after a rehearsal.
+-assumenosideeffects class android.util.Log {
+    public static int d(...);
+    public static int i(...);
+    public static int v(...);
+}

@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.DocumentsContract
+import androidx.activity.compose.ReportDrawnWhen
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -46,6 +47,8 @@ fun LibraryScreen(
     viewModel: LibraryViewModel = viewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    // Tells Android when the library is really there, list included: logged as "Fully drawn" at cold start.
+    ReportDrawnWhen { state != LibraryState.Loading }
     val picker = rememberLauncherForActivityResult(OpenLocalDocumentTree()) { uri ->
         if (uri != null) viewModel.setFolder(uri)
     }

@@ -113,10 +113,24 @@ Done when: each case shows a message and none crashes.
 
 ### 8. Release check
 
-- [ ] Turn on `isMinifyEnabled` for the release build type.
-- [ ] Tidy the keep rules: the build file references a `proguard-rules.pro` that does not exist, the rules live in `keepRules`.
-- [ ] Time cold start and page turns on the tablet, release build.
+- [x] Turn on `isMinifyEnabled` for the release build type. Resource shrinking too: the APK goes from 27.7 MB to 2.2 MB. No keep rules were needed; the full flow works in the minified build.
+- [x] Tidy the keep rules: the `proguard-rules.pro` reference is gone. `src/main/keepRules/rules.keep` has `-dontobfuscate`, so a stack trace from the stand is readable without that build's mapping file, and strips `Log.d`/`Log.i`/`Log.v` from release (no file URIs or page turns in logcat; `Log.w` stays).
+- [x] No backup at all: `data_extraction_rules.xml` excludes everything from cloud backup and from device-to-device transfer. `allowBackup="false"` alone does not stop the latter on Android 12+.
+- [x] Process death in the release build: app killed in the background and reopened comes back in the reader, no crash. It restarts at page 1; the page is not saved.
+- [x] Time cold start and page turns on the tablet, release build. 2026-11-25, minified: first frame 189-262 ms, library with its list of 205 files 361-474 ms ("Fully drawn", via `ReportDrawnWhen`). Page turns on the 20-page scan: 2 ms after the tap at reading pace, at most 50 ms in a burst.
 - [ ] Use it at one rehearsal. Write down what annoyed you.
+
+The tablet's release build is signed with the debug key (`-Pandroid.injected.signing.*`, see below). Good enough for one tablet; a real release key is needed before anyone else installs it. Changing the key later means uninstalling, which drops the folder grant.
+
+Install the rehearsal build:
+
+```
+./gradlew :app:installRelease \
+  -Pandroid.injected.signing.store.file=$HOME/.android/debug.keystore \
+  -Pandroid.injected.signing.store.password=android \
+  -Pandroid.injected.signing.key.alias=androiddebugkey \
+  -Pandroid.injected.signing.key.password=android
+```
 
 ## To verify
 
@@ -133,6 +147,8 @@ Done when: a PDF that crashes or hangs PDFium leaves the app running and other s
 
 ## Later milestones (not planned yet)
 
+- Run the instrumented tests against a minified build type, so R8 problems show up in tests instead of on the stand.
+- Remember the current page across process death and reopening a score.
 - Library: one folder per piece, subfolders, Room index, search, refresh after files change.
 - Setlists as references to pieces.
 - Play order and jump markers, stored alongside the PDF.
