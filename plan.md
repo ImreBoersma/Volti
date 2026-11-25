@@ -6,7 +6,7 @@ A sheet music reader for Android tablets. Offline, fast, low battery use.
 
 **Security.** PDFs are untrusted files parsed by native code. That is the one real attack surface. Everything else is about keeping the app's reach small:
 
-- No network permission.
+- No network permission. Changed 2026-11-25 for milestone 3 (scores from Google Drive): network only to Google's Drive endpoints, only to download, only while the app is open. The reader never needs the network: scores are always read from the device.
 - No storage permission. Access only to the one folder granted through the system picker.
 - The platform `PdfRenderer`, not a bundled PDF parser that needs patching by hand.
 - No backup of app data.
@@ -16,7 +16,7 @@ A sheet music reader for Android tablets. Offline, fast, low battery use.
 - A page turn shows a bitmap that is already rendered. No blank frame.
 - Cold start to the library in under one second.
 
-**Battery.** A page that is not changing costs zero CPU. No animations, no background work, no sync.
+**Battery.** A page that is not changing costs zero CPU. No animations, no background work. Milestone 3's sync runs only when the library is opened or pulled, never in the background.
 
 ## Milestone 1: a reader for one folder
 
@@ -204,6 +204,53 @@ Done when: an A4 scan with wide margins fills the screen noticeably more, and a 
 - [x] Run the instrumented tests against a minified build type, so R8 problems show up in tests instead of on the stand. The `minified` build type is debug with R8 as in release (`testBuildType`); run `./gradlew connectedMinifiedAndroidTest`, on the tablet with `-Pandroid.testInstrumentationRunnerArguments.requireGrant=true`. CI runs it too.
 
 How close it is to release: `minified` is not debuggable, because R8 only optimises (merges, inlines, strips `Log.d`) when a build isn't; R8's metadata reads `isOptimizationsEnabled: true` as in release. 128 of our classes are left after R8, 112 in release (227 while it was still debuggable). The difference: the test APK calls the app's copies of shared libraries and some code only tests use, so the minified build keeps exactly those classes and members, nothing more: `src/minified/keepRules/test-references.keep`, generated from the test APK by `scripts/trace-test-references.sh` (rerun it when a test starts using something new; the minified run then fails with `NoSuchMethodError`). Supertypes the test code implements are kept whole. Library internals the app relies on (reflective ViewModel creation, DataStore's protobuf, navigation's serializer lookup) are not kept by these rules unless a test names them, so their own keep rules are tested too. For a quick local run against debug: `-Pvolti.testBuildType=debug`.
+
+### 8. Reader: a back button
+
+- [ ] A small, quiet button in the top-left corner of the reader that goes back to the library. That corner doesn't turn pages back.
+- [ ] Back by gesture keeps working.
+
+Done when: a score can be left without the back gesture, and a tap anywhere else on the left still turns back.
+
+### 9. Reader: the page's own background colour
+
+- [ ] Around the page, the colour of the score's paper instead of white or black: measured from the same small render that finds the margins (its 90th percentile), per score.
+- [ ] In both themes: a cream or yellowed scan then fills the screen without a frame.
+
+Done when: a scan on off-white paper shows no visible edge between page and surround.
+
+## Milestone 3: scores from Google Drive
+
+Decided 2026-11-25: instead of a separate sync app mirroring Drive into the local folder, Volti itself pulls a Drive folder. This changes the priorities above: the app gets network access, so the reach is kept as small as it can be.
+
+- Network only to Google's Drive API, only HTTPS, only downloads. Nothing is uploaded.
+- Downloaded PDFs are as untrusted as local ones: they render in the isolated renderer, with the same limits.
+- Sync only when the library opens or is pulled. No background work, no sync during reading.
+- Scores live in the app's own storage, so the library and reader work offline on stage. What was synced last is always there.
+
+### 0. Decisions before building
+
+- [ ] Private or public folder. Private: Google sign-in and the `drive.readonly` scope; needs an OAuth client in a Google Cloud project, registered with the app's signing key. Public ("anyone with the link"): an API key and a folder link, no sign-in, but the scores are public.
+- [ ] Drive only, or Drive next to the local folder.
+
+### 1. Sign-in and listing
+
+- [ ] Link a Drive folder (paste its link, or pick it after signing in); list its PDFs and subfolders with their checksums.
+
+### 2. The local copy
+
+- [ ] Download new and changed PDFs into the app's private storage, with an index (Drive id, name, folder, checksum, local file). Remove what was removed in Drive.
+- [ ] Size limits and checks on what comes in.
+
+### 3. The library from the copy
+
+- [ ] The library lists the local copy, with the same folders, names, sort and search. The reader opens the local file.
+
+### 4. Sync
+
+- [ ] Sync when the library opens and on pull-to-refresh; show progress and when the last sync was. Offline: the last copy, and say so.
+
+Done when: a score added in Drive shows up on the tablet after pulling the library, and every score opens with the network off.
 
 ## Later milestones (not planned yet)
 
