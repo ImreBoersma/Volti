@@ -81,6 +81,8 @@ Done when: page one is sharp, has the correct aspect ratio, and rotation does no
 
 Measured 2026-11-25, release build, 20-page 200 dpi scan: a page renders in about 100 ms. Turning at a normal pace, the next page is ready 1 ms after the tap. In a burst of taps about 100 ms apart, every page was still ready; the tap waits up to 43 ms behind the prefetch.
 
+A dropped bitmap is only drawn into once the screen is done with it: the reader reports each page it records (`onDrawn`) and each frame the render thread commits (`onPresented`, via `registerFrameCommitCallback`), and a bitmap is reused at least 50 ms after a newer frame replaced it on screen. Counting from the state alone failed on the CI emulator, where a busy main thread kept an old page on screen.
+
 Done when: turning through a 20-page scan never shows a blank frame.
 
 ### 6. Stage mode

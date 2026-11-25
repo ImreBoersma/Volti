@@ -40,8 +40,8 @@ sealed interface ReaderState {
 }
 
 /**
- * A bitmap that left the screen is not drawn into for this long, about three frames at 60 Hz,
- * so the UI has drawn its replacement first.
+ * A bitmap is not drawn into until this long after it was replaced, about three frames at 60 Hz:
+ * replaced in the state, and replaced on screen as reported by [ReaderViewModel.onPresented].
  */
 internal const val REUSE_DELAY_MS = 50L
 
@@ -65,9 +65,23 @@ class ReaderViewModel @JvmOverloads constructor(
     /** Pages that threw while rendering. Not retried: a broken page stays broken. */
     private val brokenPages = mutableSetOf<Int>()
 
-    /** The bitmap on screen, and bitmaps that left it, with the time they left. */
+    /** The bitmap last published, and bitmaps it replaced, with the time they were replaced. */
     private var onScreen: Bitmap? = null
     private val leftScreen = ArrayDeque<Pair<Bitmap, Long>>()
+
+    /**
+     * What the UI really put on screen, from [onDrawn] and [onPresented]. The state alone is not enough:
+     * a busy main thread or render thread can keep an older page on screen well after a newer one was
+     * published. Written on the main thread, read on the PDF thread: guarded by [drawnLock].
+     */
+    private val drawnLock = Any()
+
+    /**
+     * Bitmaps in recorded frames that may still be on screen, oldest first: the one presented last and any
+     * drawn since. Frames reach the screen in recording order.
+     */
+    private val drawn = ArrayDeque<Bitmap>()
+    private val stoppedDrawing = ArrayDeque<Pair<Bitmap, Long>>()
 
     /** Main thread only. */
     private var lastSize: PixelSize? = null
@@ -120,6 +134,21 @@ class ReaderViewModel @JvmOverloads constructor(
         }
     }
 
+    /** Called by the UI when it records a frame with [bitmap]: from now on it may be on screen. */
+    fun onDrawn(bitmap: Bitmap) = synchronized(drawnLock) {
+        if (drawn.lastOrNull() !== bitmap) drawn.addLast(bitmap)
+    }
+
+    /**
+     * Called by the UI once the frame showing [bitmap] (null: no page) has been committed to the screen.
+     * Bitmaps from older frames have then left it; bitmaps from newer frames are still on their way.
+     */
+    fun onPresented(bitmap: Bitmap?) = synchronized(drawnLock) {
+        val now = SystemClock.uptimeMillis()
+        val older = if (bitmap == null) drawn.size else drawn.indexOfFirst { it === bitmap }.coerceAtLeast(0)
+        repeat(older) { stoppedDrawing.addLast(drawn.removeFirst() to now) }
+    }
+
     fun next() = turn(+1)
 
     fun previous() = turn(-1)
@@ -162,21 +191,36 @@ class ReaderViewModel @JvmOverloads constructor(
 
     /**
      * Renders [index], into the bitmap of a page that fell out of the window when that bitmap is safe to
-     * draw into: not on screen, and off screen for at least [REUSE_DELAY_MS]. Returns null for a page
-     * that throws; the rest of the score stays readable.
+     * draw into. Returns null for a page that throws; the rest of the score stays readable.
      */
     private fun renderInto(doc: ScoreDocument, index: Int): Bitmap? {
         if (index in brokenPages) return null
-        val now = SystemClock.uptimeMillis()
-        while (leftScreen.isNotEmpty() && now - leftScreen.first().second >= REUSE_DELAY_MS) leftScreen.removeFirst()
         val dropped = window.keys.filter { it !in current - 1..current + 1 }.map { window.remove(it)!! }
-        val reuse = dropped.firstOrNull { bitmap -> bitmap !== onScreen && leftScreen.none { it.first === bitmap } }
+        val reuse = if (dropped.isEmpty()) null else safeToDrawInto(dropped)
         return try {
             doc.renderPage(index, size!!, reuse).also { window[index] = it }
         } catch (e: Exception) {
             Log.w("Volti", "Can't render page ${index + 1} of $uri", e)
             brokenPages += index
             null
+        }
+    }
+
+    /**
+     * The first of [candidates] that is not the published page and not possibly on screen, and was replaced
+     * in both at least [REUSE_DELAY_MS] ago. Drawing into anything else could show a half-rendered page.
+     */
+    private fun safeToDrawInto(candidates: List<Bitmap>): Bitmap? {
+        val now = SystemClock.uptimeMillis()
+        while (leftScreen.isNotEmpty() && now - leftScreen.first().second >= REUSE_DELAY_MS) leftScreen.removeFirst()
+        return synchronized(drawnLock) {
+            while (stoppedDrawing.isNotEmpty() && now - stoppedDrawing.first().second >= REUSE_DELAY_MS) stoppedDrawing.removeFirst()
+            candidates.firstOrNull { bitmap ->
+                bitmap !== onScreen &&
+                    leftScreen.none { it.first === bitmap } &&
+                    drawn.none { it === bitmap } &&
+                    stoppedDrawing.none { it.first === bitmap }
+            }
         }
     }
 

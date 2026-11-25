@@ -7,14 +7,17 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import nl.imreboersma.volti.data.PixelSize
@@ -52,10 +55,24 @@ fun ReaderScreen(
             is ReaderState.Page -> if (s.bitmap == null) {
                 Text(text = "Can't show page ${s.index + 1}.", color = Color.Black)
             } else {
+                val view = LocalView.current
+                // Once no page is drawn any more (an error message, leaving the reader), say so when that
+                // frame is on screen, so the last page's bitmap can be reused.
+                DisposableEffect(view) {
+                    onDispose { view.viewTreeObserver.registerFrameCommitCallback { viewModel.onPresented(null) } }
+                }
                 Image(
                     bitmap = s.bitmap.asImageBitmap(),
                     contentDescription = null,
                     contentScale = ContentScale.Fit,
+                    // Tells the ViewModel what is really on screen, so it never draws into that bitmap: drawn
+                    // when this frame is recorded, presented once the render thread has committed it.
+                    // Runs when the page changes, not every frame.
+                    modifier = Modifier.drawWithContent {
+                        drawContent()
+                        viewModel.onDrawn(s.bitmap)
+                        view.viewTreeObserver.registerFrameCommitCallback { viewModel.onPresented(s.bitmap) }
+                    },
                 )
             }
         }

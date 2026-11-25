@@ -45,10 +45,15 @@ class ReaderViewModelTest {
     private val size = PixelSize(1600, 2400)
     private lateinit var vm: ReaderViewModel
 
-    /** Every state the "UI" saw, and which bitmap it showed when. Guarded by [screenLock]. */
+    /**
+     * The stand-in UI's own record, independent of the ViewModel's: every state it saw, the bitmap on
+     * screen, bitmaps in recorded frames not yet presented, and when each bitmap left the screen.
+     * Guarded by [screenLock].
+     */
     private val screenLock = Any()
     private val states = mutableListOf<ReaderState>()
     private var onScreen: Bitmap? = null
+    private val notYetPresented = mutableListOf<Bitmap>()
     private val leftScreenAt = IdentityHashMap<Bitmap, Long>()
 
     private inner class FakeDocument(
@@ -66,7 +71,9 @@ class ReaderViewModelTest {
                 reused.incrementAndGet()
                 synchronized(screenLock) {
                     val left = leftScreenAt[reuse]
-                    if (reuse === onScreen || (left != null && SystemClock.uptimeMillis() - left < REUSE_DELAY_MS)) {
+                    if (reuse === onScreen || notYetPresented.any { it === reuse } ||
+                        (left != null && SystemClock.uptimeMillis() - left < REUSE_DELAY_MS)
+                    ) {
                         events += "drew into a bitmap on screen"
                     }
                 }
@@ -81,7 +88,17 @@ class ReaderViewModelTest {
         }
     }
 
-    private fun viewModel(openTimeoutMs: Long = 10_000, open: () -> ScoreDocument): ReaderViewModel {
+    /**
+     * The stand-in UI. Once per [frameMillis] (a long one is a busy main thread) it records a frame with the
+     * latest state and reports onDrawn; [presentMillis] later (a long one is a busy render thread) that frame
+     * reaches the screen and it reports onPresented, as ReaderScreen does.
+     */
+    private fun viewModel(
+        openTimeoutMs: Long = 10_000,
+        frameMillis: Long = 16,
+        presentMillis: Long = 5,
+        open: () -> ScoreDocument,
+    ): ReaderViewModel {
         // A content URI with an encoded slash, as the library passes it.
         val handle = SavedStateHandle(mapOf("uri" to "content://provider/tree/a%3AScores/document/a%3AScores%2FBolero.pdf"))
         val factory = viewModelFactory {
@@ -91,13 +108,24 @@ class ReaderViewModelTest {
         }
         vm = ViewModelProvider.create(store, factory)[ReaderViewModel::class]
         collector.launch {
-            vm.state.collect { state ->
+            while (true) {
+                delay(frameMillis)
+                val state = vm.state.value
+                val bitmap = (state as? ReaderState.Page)?.bitmap
                 synchronized(screenLock) {
-                    states += state
-                    val bitmap = (state as? ReaderState.Page)?.bitmap
-                    if (bitmap !== onScreen) {
-                        onScreen?.let { leftScreenAt[it] = SystemClock.uptimeMillis() }
-                        onScreen = bitmap
+                    if (states.lastOrNull() != state) states += state
+                    if (bitmap != null) notYetPresented += bitmap
+                    bitmap?.let(vm::onDrawn)
+                }
+                launch {
+                    delay(presentMillis)
+                    synchronized(screenLock) {
+                        if (bitmap !== onScreen) {
+                            onScreen?.let { leftScreenAt[it] = SystemClock.uptimeMillis() }
+                            onScreen = bitmap
+                        }
+                        notYetPresented.removeAll { it === bitmap }
+                        vm.onPresented(bitmap)
                     }
                 }
             }
@@ -316,4 +344,43 @@ class ReaderViewModelTest {
         Thread.sleep(100)
         assertEquals(ReaderState.Failed(ReaderState.Problem.TooSlow), vm.state.value)
     }
+
+    @Test
+    fun aBusyMainThreadNeverGetsItsPageDrawnOver() {
+        // The UI draws only every 200 ms, while pages turn every 60 ms: a page stays on screen long
+        // after the state moved on. This failed on the CI emulator when reuse only looked at the state.
+        viewModel(frameMillis = 200) { FakeDocument(pageCount = 30) }
+
+        vm.render(size)
+        awaitPage(0)
+        repeat(15) {
+            onMain { vm.next() }
+            Thread.sleep(60)
+        }
+        awaitPage(15)
+        Thread.sleep(500)
+
+        assertEquals(listOf<String>(), events.filter { it.startsWith("drew") })
+    }
+
+    @Test
+    fun aBusyRenderThreadNeverGetsItsPageDrawnOver() {
+        // Each frame reaches the screen 120 ms after it was recorded: the old page is still on screen after
+        // the new one was drawn. Counting from onDrawn instead of onPresented would draw into it.
+        viewModel(frameMillis = 30, presentMillis = 120) { FakeDocument(pageCount = 30) }
+
+        vm.render(size)
+        awaitPage(0)
+        repeat(15) {
+            onMain { vm.next() }
+            Thread.sleep(60)
+        }
+        awaitPage(15)
+        Thread.sleep(500)
+
+        assertEquals(listOf<String>(), events.filter { it.startsWith("drew") })
+    }
+
+    /** Taps arrive on the main thread; so do turns in these tests. */
+    private fun onMain(block: () -> Unit) = InstrumentationRegistry.getInstrumentation().runOnMainSync(block)
 }
