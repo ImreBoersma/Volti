@@ -232,8 +232,18 @@ Decided 2026-11-25: instead of a separate sync app mirroring Drive into the loca
 
 ### 0. Decisions before building
 
-- [ ] Private or public folder. Private: Google sign-in and the `drive.readonly` scope; needs an OAuth client in a Google Cloud project, registered with the app's signing key. Public ("anyone with the link"): an API key and a folder link, no sign-in, but the scores are public.
-- [ ] Drive only, or Drive next to the local folder.
+- [x] Private or public folder: private (2026-11-25). Google sign-in with the `drive.readonly` scope, through Google Play services' Authorization API, which hands the app an access token; Volti stores no password or token itself.
+- [x] Drive only, or Drive next to the local folder: next to it (2026-11-25). If the sync lets you down, a PDF can still go on the tablet directly.
+
+Setup in Google Cloud, once, by me (Volti only needs the result):
+
+1. console.cloud.google.com: a new project, e.g. "Volti".
+2. APIs & Services, Library: enable the Google Drive API.
+3. Google Auth Platform (OAuth consent screen): External, app name Volti, my e-mail; under Audience, add my Google account as a test user. It stays in Testing: only test users can sign in, which is all Volti needs.
+4. Data access: add the scope `.../auth/drive.readonly`.
+5. Clients: create an OAuth client of type Android, twice: package `nl.imreboersma.volti` and `nl.imreboersma.volti.debug`, both with the debug key's SHA-1 `78:BA:25:D0:59:1A:A0:DB:42:A3:E7:2E:C8:80:55:F1:CC:30:EC:19`. A release key later needs a third client.
+
+No client secret or API key goes into the app: an Android OAuth client is matched by package name and signing key.
 
 ### 1. Sign-in and listing
 
