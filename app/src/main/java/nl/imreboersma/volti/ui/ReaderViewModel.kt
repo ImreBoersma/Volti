@@ -15,11 +15,14 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import nl.imreboersma.volti.Reader
+import nl.imreboersma.volti.data.PasswordProtectedException
 import nl.imreboersma.volti.data.PixelSize
 import nl.imreboersma.volti.data.ScoreDocument
 import nl.imreboersma.volti.data.openScore
@@ -28,7 +31,9 @@ sealed interface ReaderState {
     data object Loading : ReaderState
 
     /** The file could not be opened. Final. */
-    data object Failed : ReaderState
+    data class Failed(val problem: Problem = Problem.Unreadable) : ReaderState
+
+    enum class Problem { Unreadable, PasswordProtected, TooSlow }
 
     /** Page [index] is on screen; [bitmap] is null when that one page could not be rendered. */
     data class Page(val bitmap: Bitmap?, val index: Int, val pageCount: Int) : ReaderState
@@ -44,6 +49,7 @@ class ReaderViewModel @JvmOverloads constructor(
     app: Application,
     handle: SavedStateHandle,
     private val open: (Uri) -> ScoreDocument = { openScore(app.contentResolver, it) },
+    private val openTimeoutMs: Long = 10_000,
 ) : AndroidViewModel(app) {
     private val uri = handle.toRoute<Reader>().uri.toUri()
 
@@ -75,7 +81,8 @@ class ReaderViewModel @JvmOverloads constructor(
      * Skips empty and unchanged sizes, and gives up for good once the file failed.
      */
     fun render(size: PixelSize) {
-        if (size.width <= 0 || size.height <= 0 || size == lastSize || _state.value == ReaderState.Failed) return
+        if (size.width <= 0 || size.height <= 0 || size == lastSize || _state.value is ReaderState.Failed) return
+        if (lastSize == null) watchFirstPage()
         lastSize = size
         resizeJob?.cancel()
         resizeJob = onPdfThread {
@@ -89,12 +96,27 @@ class ReaderViewModel @JvmOverloads constructor(
             } catch (e: Exception) {
                 // Untrusted input: whatever the parser throws means this file can't be shown.
                 Log.w("Volti", "Can't open $uri", e)
-                _state.value = ReaderState.Failed
+                val problem = if (e is PasswordProtectedException) ReaderState.Problem.PasswordProtected else ReaderState.Problem.Unreadable
+                _state.value = ReaderState.Failed(problem)
                 return@onPdfThread
             }
             this.size = size
             window.clear()
             showCurrent(doc, since = SystemClock.uptimeMillis())
+        }
+    }
+
+    /**
+     * Native rendering can't be interrupted, and the Play renderer runs every document under one
+     * process-wide lock. A file that hangs it would leave a blank reader with the screen kept on.
+     * After [openTimeoutMs] without a first page, give up on this file and say so.
+     */
+    private fun watchFirstPage() {
+        viewModelScope.launch {
+            delay(openTimeoutMs)
+            if (_state.compareAndSet(ReaderState.Loading, ReaderState.Failed(ReaderState.Problem.TooSlow))) {
+                Log.w("Volti", "Gave up on $uri after $openTimeoutMs ms")
+            }
         }
     }
 
@@ -134,7 +156,8 @@ class ReaderViewModel @JvmOverloads constructor(
             onScreen?.let { leftScreen.addLast(it to SystemClock.uptimeMillis()) }
             onScreen = page.bitmap
         }
-        _state.value = page
+        // Not over a Failed: the time limit may have given up on this file while the render ran.
+        _state.update { if (it is ReaderState.Failed) it else page }
     }
 
     /**
@@ -158,7 +181,7 @@ class ReaderViewModel @JvmOverloads constructor(
     }
 
     private fun onPdfThread(block: suspend () -> Unit): Job = viewModelScope.launch(pdfThread) {
-        if (_state.value != ReaderState.Failed) block()
+        if (_state.value !is ReaderState.Failed) block()
     }
 
     override fun onCleared() {

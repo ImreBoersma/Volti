@@ -34,8 +34,10 @@ class LibraryViewModel(app: Application) : AndroidViewModel(app) {
             } else {
                 val scores = try {
                     listScores(app.contentResolver, folder)
-                } catch (e: SecurityException) {
-                    Log.w("Volti", "No access to $folder", e)
+                } catch (e: Exception) {
+                    // Any provider failure, not just a lost grant. An uncaught one would crash on every
+                    // start, because the folder is stored, with no way to pick another.
+                    Log.w("Volti", "Can't list $folder", e)
                     null
                 }
                 LibraryState.Ready(folder, scores)

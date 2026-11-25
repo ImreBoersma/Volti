@@ -29,6 +29,9 @@ internal fun fitInside(pageWidth: Int, pageHeight: Int, max: PixelSize): PixelSi
     )
 }
 
+/** The PDF needs a password. The renderers throw SecurityException for that, as does a lost folder grant. */
+class PasswordProtectedException(cause: SecurityException) : IOException("Password-protected PDF", cause)
+
 /** An open PDF. Not thread-safe, and only one page may be open at a time: use from one thread. */
 interface ScoreDocument : Closeable {
     val pageCount: Int
@@ -56,6 +59,9 @@ fun openScore(resolver: ContentResolver, uri: Uri): ScoreDocument {
         } else {
             PlatformDocument(PdfRenderer(fd))
         }
+    } catch (e: SecurityException) {
+        fd.close()
+        throw PasswordProtectedException(e)
     } catch (e: Exception) {
         fd.close()
         throw e

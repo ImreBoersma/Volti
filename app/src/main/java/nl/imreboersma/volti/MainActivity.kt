@@ -53,7 +53,7 @@ fun VoltiApp(navController: NavHostController = rememberNavController()) {
         val reader = viewModel<ReaderViewModel>(viewModelStoreOwner = entry!!)
         val state by reader.state.collectAsStateWithLifecycle()
         // A file that can't be opened doesn't need the screen on.
-        if (state != ReaderState.Failed) StageMode()
+        if (state !is ReaderState.Failed) StageMode()
     }
     NavHost(
         navController = navController,

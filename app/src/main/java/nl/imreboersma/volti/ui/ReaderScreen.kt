@@ -38,7 +38,15 @@ fun ReaderScreen(
     ) {
         when (val s = state) {
             ReaderState.Loading -> Unit
-            ReaderState.Failed -> Text(text = "Can't open this file.", color = Color.Black)
+            is ReaderState.Failed -> Text(
+                text = when (s.problem) {
+                    ReaderState.Problem.PasswordProtected -> "This PDF is password-protected."
+                    ReaderState.Problem.TooSlow ->
+                        "This file takes too long to open. If other scores stay blank too, close and reopen Volti."
+                    ReaderState.Problem.Unreadable -> "Can't open this file."
+                },
+                color = Color.Black,
+            )
             // The bitmap is rendered to fit this box, so Fit draws it 1:1. During a rotation,
             // Fit shrinks the old page until the new render lands, instead of clipping it.
             is ReaderState.Page -> if (s.bitmap == null) {

@@ -81,11 +81,13 @@ class ReaderViewModelTest {
         }
     }
 
-    private fun viewModel(open: () -> ScoreDocument): ReaderViewModel {
+    private fun viewModel(openTimeoutMs: Long = 10_000, open: () -> ScoreDocument): ReaderViewModel {
         // A content URI with an encoded slash, as the library passes it.
         val handle = SavedStateHandle(mapOf("uri" to "content://provider/tree/a%3AScores/document/a%3AScores%2FBolero.pdf"))
         val factory = viewModelFactory {
-            initializer { ReaderViewModel(app, handle) { events += "open $it"; open() } }
+            initializer {
+                ReaderViewModel(app, handle, open = { events += "open $it"; open() }, openTimeoutMs = openTimeoutMs)
+            }
         }
         vm = ViewModelProvider.create(store, factory)[ReaderViewModel::class]
         collector.launch {
@@ -162,7 +164,7 @@ class ReaderViewModelTest {
         viewModel { throw IllegalArgumentException("File descriptor not seekable") }
 
         vm.render(size)
-        awaitState { it == ReaderState.Failed }
+        awaitState { it is ReaderState.Failed }
         vm.render(PixelSize(2560, 1500))
         vm.next()
         Thread.sleep(100)
@@ -174,7 +176,7 @@ class ReaderViewModelTest {
     fun ioExceptionGivesFailed() {
         viewModel { throw IOException("No pages") }
         vm.render(size)
-        awaitState { it == ReaderState.Failed }
+        awaitState { it is ReaderState.Failed }
     }
 
     @Test
@@ -299,5 +301,19 @@ class ReaderViewModelTest {
             listOf("render 0 1600x2400", "render 0 2560x1500", "render 1 2560x1500"),
             renders(),
         )
+    }
+
+    @Test
+    fun aFileThatHangsGivesUpAndStaysGivenUp() {
+        val hang = CountDownLatch(1)
+        viewModel(openTimeoutMs = 200) { hang.await(5, TimeUnit.SECONDS); FakeDocument() }
+
+        vm.render(size)
+        assertEquals(ReaderState.Failed(ReaderState.Problem.TooSlow), awaitState { it is ReaderState.Failed })
+
+        hang.countDown() // The renderer finally returns.
+        awaitEvents(2) // open, then page 0 is rendered after all
+        Thread.sleep(100)
+        assertEquals(ReaderState.Failed(ReaderState.Problem.TooSlow), vm.state.value)
     }
 }

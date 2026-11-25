@@ -94,13 +94,20 @@ Done when: the screen stays on in the reader and dims normally in the library.
 
 ### 7. Hostile and broken input
 
-- [ ] Password-protected PDF (`SecurityException`).
-- [ ] Corrupt or non-PDF file with a `.pdf` name (`IOException`).
-- [ ] Absurd page dimensions: cap the bitmap size. (Done in step 4: the bitmap never exceeds the view.)
-- [ ] A PDF with zero pages, or a page of 0 x 0.
-- [ ] One broken page in a good score: shows "Can't show page N.", the other pages stay readable. (Built in step 5, tested with a fake; not yet seen with a real corrupt page.)
-- [ ] A provider that hands out a non-seekable descriptor (a pipe): `IllegalArgumentException`.
-- [ ] Folder deleted or permission revoked: check `persistedUriPermissions` at start, fall back to the picker.
+Test files are in `app/src/androidTest/assets/hostile/`, made by `make_hostile_pdfs.py`. `HostileInputTest` opens each through the real ViewModel and renderer; each was also opened from the library on the tablet on 2026-11-25, without a crash.
+
+- [x] Password-protected PDF: "This PDF is password-protected." The renderer's `SecurityException` becomes `PasswordProtectedException`, so a lost folder grant (also a `SecurityException`) is not mistaken for a password.
+- [x] Corrupt, truncated or non-PDF file with a `.pdf` name: "Can't open this file."
+- [x] Absurd page dimensions: the bitmap never exceeds the view. A 1,000,000,000 x 1 page renders as a 1600 x 1 strip: no crash, but effectively blank.
+- [x] A PDF with zero pages: "Can't open this file." A 0 x 0 page: PDFium substitutes a default page size and renders it.
+- [x] One broken page in a good score: shows "Can't show page N.", the other pages stay readable. Proven only with a fake document: with the real renderer a broken content stream does not throw, PDFium draws what it can, so the message is never reached.
+- [x] A provider that hands out a non-seekable descriptor (a pipe): any exception from opening gives "Can't open this file." Tested with a fake; no such provider on the tablet.
+- [x] Folder deleted: "Can't read this folder." (step 2). Permission revoked: the stored folder is ignored and the library asks for a folder again (step 1, `FolderStoreTest`).
+- [x] File deleted after the library listed it: "Can't open this file."
+- [x] Listing the folder throws anything (any provider, not just a lost grant): "Can't read this folder." Before this, an unexpected exception crashed on every start, because the folder is stored.
+- [x] A file that hangs the renderer: after 10 s without a first page, "This file takes too long to open." and the screen may sleep again. Tested with a fake. Tried on the tablet: a self-drawing form renders in 48 ms (PDFium detects it), a 20000 x 20000 compressed image in 1.2 s. No real PDF hung it.
+
+Limit, accepted for milestone 1: PDFium runs inside the app's process. A native crash or a decompression bomb kills the app, no catch can stop that, and an exploit would run with the app's folder grant. Shown on the tablet on 2026-11-25: `form-bomb.pdf` (6.7 KB, 40 nested forms that each draw the next twice) makes PDFium abort within seconds, a native crash. The app restarts in the library, so there is no crash loop, but on stage the app is gone. A hanging file also holds the renderer's process-wide lock, so other scores stay blank until the app restarts. The fix is the isolated renderer below, first after milestone 1. Acceptable for now: the files are my own, and the app has no network permission.
 
 Done when: each case shows a message and none crashes.
 
@@ -115,6 +122,14 @@ Done when: each case shows a message and none crashes.
 
 - ~~On Android 15 and up, `PdfRenderer` is believed to be updated through Google Play system updates.~~ Confirmed 2026-11-25: the tablet's firmware patch is 2025-06-01 (no longer patched), but the MediaProvider module with `PdfRendererPreV` and its own PDFium is on the 2026 Play train. Hence `PdfRendererPreV` on Android 14.
 - ~~The Jetpack `androidx.pdf` library.~~ Decided: not used. It is a viewer on top of the same module, so no security gain, and its UI does not fit three-bitmap page turns.
+
+## Milestone 2, first step: isolated renderer
+
+- [ ] Render in a service with `android:isolatedProcess="true"`: no permissions, no folder grant, only the file descriptor it is handed.
+- [ ] Bitmaps back over `SharedMemory`; the service reports page count and errors over AIDL.
+- [ ] A native crash or hang kills only the service: show the message, restart it for the next score.
+
+Done when: a PDF that crashes or hangs PDFium leaves the app running and other scores readable. Test case: `form-bomb.pdf` from `make_hostile_pdfs.py`.
 
 ## Later milestones (not planned yet)
 
