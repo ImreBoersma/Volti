@@ -1,52 +1,47 @@
 package nl.imreboersma.volti.ui
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
-import nl.imreboersma.volti.ui.theme.VoltiTheme
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import nl.imreboersma.volti.data.PixelSize
 
 @Composable
 fun ReaderScreen(
-    onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
+    viewModel: ReaderViewModel = viewModel(),
 ) {
-    Scaffold(modifier = modifier.fillMaxSize()) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            Text(
-                text = "Reader",
-                style = MaterialTheme.typography.headlineLarge,
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(Color.White)
+            .systemBarsPadding()
+            .onSizeChanged { viewModel.render(PixelSize(it.width, it.height)) },
+        contentAlignment = Alignment.Center,
+    ) {
+        when (val s = state) {
+            ReaderState.Loading -> Unit
+            ReaderState.Failed -> Text(text = "Can't open this file.", color = Color.Black)
+            // The bitmap is rendered to fit this box, so Fit draws it 1:1. During a rotation,
+            // Fit shrinks the old page until the new render lands, instead of clipping it.
+            is ReaderState.Page -> Image(
+                bitmap = s.bitmap.asImageBitmap(),
+                contentDescription = null,
+                contentScale = ContentScale.Fit,
             )
-            Button(
-                onClick = onNavigateBack,
-                modifier = Modifier.padding(top = 16.dp),
-            ) {
-                Text(text = "Back to Library")
-            }
         }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun ReaderScreenPreview() {
-    VoltiTheme {
-        ReaderScreen(onNavigateBack = {})
     }
 }

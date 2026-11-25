@@ -53,17 +53,17 @@ Done when: the library shows file names, and a folder with 200 files does not fr
 
 ### 3. Pass a document to the reader
 
-- [ ] Replace the string routes with type-safe routes (`@Serializable` route classes).
-- [ ] The reader route carries the document URI.
+- [x] Replace the string routes with type-safe routes (`@Serializable` route classes).
+- [x] The reader route carries the document URI.
 
 Done when: tapping a title opens the reader with that file's URI available.
 
 ### 4. Render page one
 
-- [ ] Open the file with `ContentResolver.openFileDescriptor`.
-- [ ] Hand the `ParcelFileDescriptor` to `PdfRenderer`.
-- [ ] Render into a bitmap sized to the reader's pixel dimensions.
-- [ ] Own the renderer in a `ViewModel`. Close page, renderer and descriptor in `onCleared`.
+- [x] Open the file with `ContentResolver.openFileDescriptor`.
+- [x] Hand the `ParcelFileDescriptor` to `PdfRendererPreV` on Android 14 (Play-updated, in the MediaProvider module), `PdfRenderer` on 15+. Falls back to `PdfRenderer` if the SDK extension is missing.
+- [x] Render into a bitmap sized to the reader's pixel dimensions.
+- [x] Own the renderer in a `ViewModel`. Pages close right after rendering; renderer and descriptor close in `onCleared`, on the render thread.
 
 Decisions:
 
@@ -92,7 +92,9 @@ Done when: the screen stays on in the reader and dims normally in the library.
 
 - [ ] Password-protected PDF (`SecurityException`).
 - [ ] Corrupt or non-PDF file with a `.pdf` name (`IOException`).
-- [ ] Absurd page dimensions: cap the bitmap size.
+- [ ] Absurd page dimensions: cap the bitmap size. (Done in step 4: the bitmap never exceeds the view.)
+- [ ] A PDF with zero pages, or a page of 0 x 0.
+- [ ] A provider that hands out a non-seekable descriptor (a pipe): `IllegalArgumentException`.
 - [ ] Folder deleted or permission revoked: check `persistedUriPermissions` at start, fall back to the picker.
 
 Done when: each case shows a message and none crashes.
@@ -106,8 +108,8 @@ Done when: each case shows a message and none crashes.
 
 ## To verify
 
-- On Android 15 and up, `PdfRenderer` is believed to be updated through Google Play system updates. Confirm, and check whether the tablet still receives security patches.
-- The Jetpack `androidx.pdf` library: read its current state before step 4 and decide whether it replaces `PdfRenderer`.
+- ~~On Android 15 and up, `PdfRenderer` is believed to be updated through Google Play system updates.~~ Confirmed 2026-11-25: the tablet's firmware patch is 2025-06-01 (no longer patched), but the MediaProvider module with `PdfRendererPreV` and its own PDFium is on the 2026 Play train. Hence `PdfRendererPreV` on Android 14.
+- ~~The Jetpack `androidx.pdf` library.~~ Decided: not used. It is a viewer on top of the same module, so no security gain, and its UI does not fit three-bitmap page turns.
 
 ## Later milestones (not planned yet)
 

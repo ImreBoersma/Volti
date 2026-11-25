@@ -41,7 +41,7 @@ private class OpenLocalDocumentTree : ActivityResultContracts.OpenDocumentTree()
 
 @Composable
 fun LibraryScreen(
-    onNavigateToReader: () -> Unit,
+    onOpenScore: (Score) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: LibraryViewModel = viewModel(),
 ) {
@@ -53,7 +53,7 @@ fun LibraryScreen(
     LibraryContent(
         state = state,
         onPickFolder = { picker.launch((state as? LibraryState.Ready)?.folder) },
-        onOpenScore = { onNavigateToReader() },
+        onOpenScore = onOpenScore,
         modifier = modifier,
     )
 }
