@@ -31,7 +31,22 @@ android {
             // Project rules, if any are ever needed, go in src/main/keepRules/; AGP picks them up from there.
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
         }
+        // The instrumented tests run against this: R8 as in release, so a missing keep rule fails a test instead
+        // of a rehearsal. Debug's app ID and signing, so it uses the debug build's folder grant on the tablet. Not
+        // debuggable: R8 only optimises (merges, inlines, strips Log.d) when the build isn't, as in release.
+        // What only the tests use is kept in src/minified/keepRules/, traced by scripts/trace-test-references.sh.
+        create("minified") {
+            initWith(getByName("debug"))
+            isDebuggable = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
+            testProguardFiles("src/androidTest/test-rules.pro")
+            matchingFallbacks += "debug"
+        }
     }
+    // Minified by default, also on CI. For a quicker local run: -Pvolti.testBuildType=debug (connectedDebugAndroidTest).
+    testBuildType = providers.gradleProperty("volti.testBuildType").getOrElse("minified")
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -64,4 +79,6 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+    // The Compose tests need its test activity in the build they run against, which is the minified one.
+    "minifiedImplementation"(libs.androidx.compose.ui.test.manifest)
 }

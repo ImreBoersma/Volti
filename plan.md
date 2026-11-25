@@ -201,7 +201,9 @@ Done when: an A4 scan with wide margins fills the screen noticeably more, and a 
 
 ### 7. Tests against the release build
 
-- [ ] Run the instrumented tests against a minified build type, so R8 problems show up in tests instead of on the stand.
+- [x] Run the instrumented tests against a minified build type, so R8 problems show up in tests instead of on the stand. The `minified` build type is debug with R8 as in release (`testBuildType`); run `./gradlew connectedMinifiedAndroidTest`, on the tablet with `-Pandroid.testInstrumentationRunnerArguments.requireGrant=true`. CI runs it too.
+
+How close it is to release: `minified` is not debuggable, because R8 only optimises (merges, inlines, strips `Log.d`) when a build isn't; R8's metadata reads `isOptimizationsEnabled: true` as in release. 128 of our classes are left after R8, 112 in release (227 while it was still debuggable). The difference: the test APK calls the app's copies of shared libraries and some code only tests use, so the minified build keeps exactly those classes and members, nothing more: `src/minified/keepRules/test-references.keep`, generated from the test APK by `scripts/trace-test-references.sh` (rerun it when a test starts using something new; the minified run then fails with `NoSuchMethodError`). Supertypes the test code implements are kept whole. Library internals the app relies on (reflective ViewModel creation, DataStore's protobuf, navigation's serializer lookup) are not kept by these rules unless a test names them, so their own keep rules are tested too. For a quick local run against debug: `-Pvolti.testBuildType=debug`.
 
 ## Later milestones (not planned yet)
 
