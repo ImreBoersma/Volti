@@ -85,8 +85,11 @@ fun copyChecked(input: InputStream, target: File, expectedMd5: String, limit: Lo
     }
 }
 
-/** Where the PDFs live: one file per version, named by its md5. */
-class PdfStore(private val dir: File) {
+/**
+ * Where the PDFs live: one file per version, named by its md5. [freeBytes] is the space a download may use: on the
+ * tablet, what Android can make free (cached data of other apps included).
+ */
+class PdfStore(private val dir: File, private val freeBytes: () -> Long) {
     fun fileFor(md5: String): File = File(dir, "$md5.pdf")
 
     fun has(md5: String) = fileFor(md5).isFile
@@ -94,7 +97,7 @@ class PdfStore(private val dir: File) {
     /** Downloads into a temporary file and moves it into place only once it passed [copyChecked]. */
     fun store(md5: String, size: Long, input: InputStream) {
         dir.mkdirs()
-        if (dir.usableSpace < size + KEEP_FREE_BYTES) throw DownloadRejected("Not enough space on the tablet")
+        if (freeBytes() < size + KEEP_FREE_BYTES) throw DownloadRejected("Not enough space on the tablet")
         val temp = File(dir, "download-${UUID.randomUUID()}.tmp")
         copyChecked(input, temp, md5)
         if (!temp.renameTo(fileFor(md5))) {

@@ -80,7 +80,7 @@ class LocalCopyTest {
 
     @Test
     fun aGoodPdfIsStored() {
-        val store = PdfStore(tmp.newFolder("drive"))
+        val store = PdfStore(tmp.newFolder("drive")) { Long.MAX_VALUE }
         store.store(md5(pdf), pdf.size.toLong(), pdf.inputStream())
         assertTrue(store.has(md5(pdf)))
         assertEquals(pdf.toList(), store.fileFor(md5(pdf)).readBytes().toList())
@@ -115,7 +115,7 @@ class LocalCopyTest {
     @Test
     fun cleanUpKeepsOnlyWhatIsInUse() {
         val dir = tmp.newFolder("drive")
-        val store = PdfStore(dir)
+        val store = PdfStore(dir) { Long.MAX_VALUE }
         listOf(v1, v2).forEach { store.fileFor(it).writeText("x") }
         File(dir, "download-abc.tmp").writeText("half")
         store.keepOnly(setOf(v2))

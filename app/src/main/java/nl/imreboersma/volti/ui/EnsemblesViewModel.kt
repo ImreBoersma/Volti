@@ -35,6 +35,7 @@ import nl.imreboersma.volti.drive.parseFolderLink
 import nl.imreboersma.volti.drive.walkDriveFolder
 import java.io.IOException
 import android.net.Uri
+import android.os.storage.StorageManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -110,7 +111,10 @@ class EnsembleViewModel(app: Application, private val handle: SavedStateHandle) 
     private val id = handle.toRoute<EnsembleFiles>().id
     private val db = VoltiDatabase.get(app)
     private val auth = DriveAuth(app)
-    private val store = PdfStore(File(app.filesDir, "drive"))
+    private val store = File(app.filesDir, "drive").let { dir ->
+        val storage = app.getSystemService(StorageManager::class.java)
+        PdfStore(dir) { storage.getAllocatableBytes(storage.getUuidForPath(app.filesDir)) }
+    }
 
     private val _ensemble = MutableStateFlow<Ensemble?>(null)
     val ensemble: StateFlow<Ensemble?> = _ensemble.asStateFlow()
