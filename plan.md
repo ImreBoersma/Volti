@@ -267,9 +267,13 @@ The names in that folder show why my parts can't be detected: "F-hoorn 1", "Fren
 
 ### 2. The local copy
 
-- [ ] Files in the database, keyed by Drive file id (name, folder, checksum, version, local file). Milestones 4 and 5 build on it.
-- [ ] Download new and changed PDFs into the app's private storage. A changed PDF keeps its previous version until I have seen the new one. Removed in Drive: marked as removed, kept while anything of mine refers to it.
-- [ ] Size limits and checks on what comes in.
+- [x] Files in the database, keyed by Drive file id (name, folder, checksum, version, local file). Milestones 4 and 5 build on it.
+- [x] Download new and changed PDFs into the app's private storage. A changed PDF keeps its previous version until I have seen the new one. Removed in Drive: marked as removed, kept while anything of mine refers to it.
+- [x] Size limits and checks on what comes in.
+
+Done 2026-11-26. PDFs are stored by checksum (`files/drive/<md5>.pdf`), so a version is its md5, an old and a new version are two files, and one PDF in two ensembles is stored once. Per file the database keeps the version in Drive, the newest on the tablet and the one I last opened; opening a score records it, and it stays until I open a newer one ("Changed" until then), also while a sync brings that newer one in. Gone from Drive: dropped, unless I opened it, then kept as "Removed in Drive". A listing stopped at 5,000 entries drops nothing it didn't reach. A download must be at most 200 MB, start like a PDF and match Drive's md5, and leaves 500 MB free; one that fails is tried again next sync. The sync runs only while the ensemble shows: it stops for the reader or another app and picks up on return.
+
+Checked on the emulator: 32 PDFs (16 MB) downloaded, a score opened with airplane mode on. After clearing the app's data, Play services asked which Google account to use: so with several accounts it asks, it doesn't pick one.
 
 ### 3. The library from the copy
 

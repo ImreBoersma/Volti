@@ -1,0 +1,113 @@
+package nl.imreboersma.volti.drive
+
+import nl.imreboersma.volti.db.EnsembleFile
+import java.io.File
+import java.io.IOException
+import java.io.InputStream
+import java.security.MessageDigest
+import java.util.UUID
+
+/** Largest PDF Volti downloads. A 200 dpi scan of a long part is tens of MB; this is well past that. */
+const val MAX_PDF_BYTES = 200L * 1024 * 1024
+
+/** Left free on the tablet after a download, so the copy never fills it up. */
+const val KEEP_FREE_BYTES = 500L * 1024 * 1024
+
+/**
+ * The ensemble's rows after a walk of its folder found [found]:
+ * - new PDFs are added, not yet downloaded;
+ * - names, folders and the version in Drive follow Drive; what is on the tablet, and what I saw, stay as they were
+ *   (downloads and opening the score change those);
+ * - what is no longer there is dropped, unless I opened it: then it stays, marked removed, to play from;
+ * - unless the walk was not [complete]: then what it didn't reach is left as it is.
+ * PDFs without a well-formed checksum are left out (Drive gives one for every uploaded file; it becomes a file name),
+ * and a PDF in two subfolders counts once, in the first.
+ */
+fun reconcile(ensembleId: Long, old: List<EnsembleFile>, found: List<DriveEntry>, complete: Boolean = true): List<EnsembleFile> {
+    val before = old.associateBy { it.fileId }
+    val now = found.filter { it.file.md5Checksum?.matches(MD5) == true }.distinctBy { it.file.id }.map { entry ->
+        val file = entry.file
+        val size = file.size?.toLongOrNull() ?: 0
+        before[file.id]?.copy(
+            resourceKey = file.resourceKey,
+            name = file.name,
+            folders = entry.folders,
+            md5 = file.md5Checksum!!,
+            size = size,
+            removed = false,
+        ) ?: EnsembleFile(ensembleId, file.id, file.resourceKey, file.name, entry.folders, file.md5Checksum!!, size)
+    }
+    val seen = now.mapTo(HashSet()) { it.fileId }
+    val missing = old.filter { it.fileId !in seen }
+    return now + when {
+        !complete -> missing
+        else -> missing.filter { it.seenMd5 != null }.map { it.copy(removed = true) }
+    }
+}
+
+private val MD5 = Regex("[0-9a-f]{32}")
+
+class DownloadRejected(message: String) : IOException(message)
+
+/**
+ * Copies [input] to [target]: at most [limit] bytes, starting like a PDF (`%PDF-` within the first 1024 bytes, as
+ * the format allows), with md5 [expectedMd5]. Anything else is deleted and rejected: what lands on the tablet is what
+ * Drive said it would be.
+ */
+fun copyChecked(input: InputStream, target: File, expectedMd5: String, limit: Long = MAX_PDF_BYTES) {
+    val digest = MessageDigest.getInstance("MD5")
+    try {
+        target.outputStream().use { out ->
+            val buffer = ByteArray(64 * 1024)
+            val head = ByteArray(1024)
+            var headSize = 0
+            var total = 0L
+            while (true) {
+                val n = input.read(buffer)
+                if (n < 0) break
+                total += n
+                if (total > limit) throw DownloadRejected("Larger than ${limit / 1024 / 1024} MB")
+                if (headSize < head.size) {
+                    val take = minOf(n, head.size - headSize)
+                    System.arraycopy(buffer, 0, head, headSize, take)
+                    headSize += take
+                }
+                digest.update(buffer, 0, n)
+                out.write(buffer, 0, n)
+            }
+            if (!head.copyOf(headSize).decodeToString().contains("%PDF-")) throw DownloadRejected("Not a PDF")
+        }
+        val md5 = digest.digest().joinToString("") { "%02x".format(it) }
+        if (!md5.equals(expectedMd5, ignoreCase = true)) throw DownloadRejected("Checksum doesn't match")
+    } catch (e: Exception) {
+        target.delete()
+        throw e
+    }
+}
+
+/** Where the PDFs live: one file per version, named by its md5. */
+class PdfStore(private val dir: File) {
+    fun fileFor(md5: String): File = File(dir, "$md5.pdf")
+
+    fun has(md5: String) = fileFor(md5).isFile
+
+    /** Downloads into a temporary file and moves it into place only once it passed [copyChecked]. */
+    fun store(md5: String, size: Long, input: InputStream) {
+        dir.mkdirs()
+        if (dir.usableSpace < size + KEEP_FREE_BYTES) throw DownloadRejected("Not enough space on the tablet")
+        val temp = File(dir, "download-${UUID.randomUUID()}.tmp")
+        copyChecked(input, temp, md5)
+        if (!temp.renameTo(fileFor(md5))) {
+            temp.delete()
+            throw IOException("Couldn't store the download")
+        }
+    }
+
+    /** Deletes every version not in [inUse], and downloads that never finished. */
+    fun keepOnly(inUse: Set<String>) {
+        dir.listFiles()?.forEach { file ->
+            val md5 = file.name.removeSuffix(".pdf")
+            if (file.name.endsWith(".tmp") || md5 !in inUse) file.delete()
+        }
+    }
+}

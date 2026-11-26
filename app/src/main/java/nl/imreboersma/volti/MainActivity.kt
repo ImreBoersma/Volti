@@ -92,8 +92,13 @@ fun VoltiApp(navController: NavHostController = rememberNavController()) {
                 },
             )
         }
-        composable<EnsembleFiles> {
-            EnsembleScreen(onRemoved = dropUnlessResumed { navController.popBackStack() })
+        composable<EnsembleFiles> { entry ->
+            EnsembleScreen(
+                onOpenScore = { uri ->
+                    if (entry.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) navController.navigate(Reader(uri))
+                },
+                onRemoved = dropUnlessResumed { navController.popBackStack() },
+            )
         }
         composable<Reader> {
             // Only while the reader is the resumed screen: a second tap during the crossfade would also pop the

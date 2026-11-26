@@ -31,6 +31,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.compose.ui.graphics.Color
+import android.app.PendingIntent
+import nl.imreboersma.volti.db.EnsembleFile
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 
@@ -110,14 +115,22 @@ fun EnsemblesScreen(onOpen: (Long) -> Unit, viewModel: EnsemblesViewModel = view
     }
 }
 
-/** One ensemble's PDFs, straight from Drive. */
+/** One ensemble's PDFs as on the tablet, with the sync with Drive above them. */
 @Composable
-fun EnsembleScreen(onRemoved: () -> Unit, viewModel: EnsembleViewModel = viewModel()) {
+fun EnsembleScreen(
+    onOpenScore: (String) -> Unit,
+    onRemoved: () -> Unit,
+    viewModel: EnsembleViewModel = viewModel(),
+) {
     val ensemble by viewModel.ensemble.collectAsStateWithLifecycle()
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val files by viewModel.files.collectAsStateWithLifecycle()
+    val sync by viewModel.sync.collectAsStateWithLifecycle()
     val consent = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) {
         viewModel.consented(it.data)
     }
+    // Syncs while this screen shows, and only then. The consent screen also stops it; coming back syncs again.
+    LifecycleEventEffect(Lifecycle.Event.ON_START) { viewModel.load() }
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.pause() }
 
     Scaffold(modifier = Modifier.fillMaxSize()) { padding ->
         Column(
@@ -133,42 +146,51 @@ fun EnsembleScreen(onRemoved: () -> Unit, viewModel: EnsembleViewModel = viewMod
                 }
                 OutlinedButton(onClick = { viewModel.remove(onRemoved) }) { Text("Remove") }
             }
-            when (val s = state) {
-                EnsembleState.Loading -> Message("Listing the folder in Google Drive…")
-                is EnsembleState.NeedsConsent -> Middle {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Volti needs read-only access to Google Drive to list this folder.")
-                        Button(
-                            onClick = { consent.launch(IntentSenderRequest.Builder(s.intent).build()) },
-                            modifier = Modifier.padding(top = 16.dp),
-                        ) { Text("Sign in to Google Drive") }
-                    }
-                }
-                is EnsembleState.Failed -> Middle {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(s.message)
-                        Button(onClick = viewModel::load, modifier = Modifier.padding(top = 16.dp)) { Text("Try again") }
-                    }
-                }
-                is EnsembleState.Listed -> Listing(s)
-            }
+            SyncLine(
+                sync = sync,
+                count = files?.size ?: 0,
+                onConsent = { consent.launch(IntentSenderRequest.Builder(it).build()) },
+                onRetry = viewModel::load,
+            )
+            files?.let { Files(it, onOpen = { file -> viewModel.open(file, onOpenScore) }) }
         }
     }
 }
 
 @Composable
-private fun Listing(state: EnsembleState.Listed) {
-    val groups = state.pdfs.groupBy { it.folders }
-    Text(
-        text = buildString {
-            append("${state.folderName}: ${state.pdfs.size} PDFs")
-            if (state.folders > 0) append(" in ${state.folders + 1} folders")
-            if (state.stopped) append(". Stopped at 5,000 entries: the deepest files are left out")
-        },
+private fun SyncLine(sync: SyncState, count: Int, onConsent: (PendingIntent) -> Unit, onRetry: () -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
         modifier = Modifier.padding(vertical = 16.dp),
-    )
+    ) {
+        Text(
+            text = when (sync) {
+                SyncState.Idle, SyncState.Listing -> "Checking Google Drive…"
+                is SyncState.Downloading -> "Downloading ${sync.done + 1} of ${sync.total}…"
+                is SyncState.NeedsConsent -> "Volti needs read-only access to Google Drive to sync this folder."
+                is SyncState.Failed -> sync.message
+                is SyncState.Done -> buildString {
+                    append(if (count == 1) "1 PDF" else "$count PDFs")
+                    append(", up to date")
+                    if (sync.failed > 0) append(". ${sync.failed} couldn't be downloaded; they are tried again next time")
+                    if (sync.stopped) append(". Stopped at 5,000 entries: the deepest files are left out")
+                }
+            },
+            modifier = Modifier.weight(1f, fill = false),
+        )
+        when (sync) {
+            is SyncState.NeedsConsent -> Button(onClick = { onConsent(sync.intent) }) { Text("Sign in to Google Drive") }
+            is SyncState.Failed -> OutlinedButton(onClick = onRetry) { Text("Try again") }
+            else -> Unit
+        }
+    }
+}
+
+@Composable
+private fun Files(files: List<EnsembleFile>, onOpen: (EnsembleFile) -> Unit) {
     LazyColumn {
-        groups.forEach { (folders, entries) ->
+        files.groupBy { it.folders }.forEach { (folders, entries) ->
             if (folders.isNotEmpty()) {
                 // Joined with a character no name can hold: Drive names may contain "/".
                 item(key = "folder:" + folders.joinToString("\u0000")) {
@@ -179,15 +201,27 @@ private fun Listing(state: EnsembleState.Listed) {
                     )
                 }
             }
-            items(entries, key = { it.file.id + "@" + folders.joinToString("\u0000") }) { entry ->
-                Text(entry.file.name, modifier = Modifier.padding(vertical = 6.dp))
+            items(entries, key = { it.fileId }) { file ->
+                val downloaded = file.localMd5 != null
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(enabled = downloaded) { onOpen(file) }
+                        .padding(vertical = 10.dp),
+                ) {
+                    Text(
+                        file.name,
+                        color = if (downloaded) Color.Unspecified else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f),
+                    )
+                    when {
+                        !downloaded -> Text("Not downloaded yet", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        file.removed -> Text("Removed in Drive", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        file.changed -> Text("Changed", color = MaterialTheme.colorScheme.secondary)
+                    }
+                }
             }
         }
     }
 }
-
-@Composable
-private fun Middle(content: @Composable () -> Unit) = Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { content() }
-
-@Composable
-private fun Message(text: String) = Middle { Text(text) }

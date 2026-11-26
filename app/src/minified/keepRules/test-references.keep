@@ -7,6 +7,11 @@
     void setContent(androidx.activity.ComponentActivity, androidx.compose.runtime.CompositionContext, kotlin.jvm.functions.Function2);
 }
 #noinspection ShrinkerUnresolvedReference
+-keep class androidx.arch.core.executor.ArchTaskExecutor {
+    #noinspection ShrinkerUnresolvedReference
+    java.util.concurrent.Executor getIOThreadExecutor();
+}
+#noinspection ShrinkerUnresolvedReference
 -keep class androidx.collection.FloatList
 #noinspection ShrinkerUnresolvedReference
 -keep class androidx.collection.FloatListKt {
@@ -1351,7 +1356,38 @@
     androidx.navigation.NavHostController rememberNavController(androidx.navigation.Navigator[], androidx.compose.runtime.Composer, int);
 }
 #noinspection ShrinkerUnresolvedReference
+-keep class androidx.room.BaseRoomConnectionManager$DriverWrapper {
+    #noinspection ShrinkerUnresolvedReference
+    <init>(androidx.room.BaseRoomConnectionManager, androidx.sqlite.SQLiteDriver);
+    #noinspection ShrinkerUnresolvedReference
+    androidx.sqlite.SQLiteConnection open(java.lang.String);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.room.BaseRoomConnectionManager { *; }
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.room.DatabaseConfiguration {
+    #noinspection ShrinkerUnresolvedReference
+    <init>(android.content.Context, java.lang.String, androidx.sqlite.db.SupportSQLiteOpenHelper$Factory, androidx.room.RoomDatabase$MigrationContainer, java.util.List, boolean, androidx.room.RoomDatabase$JournalMode, java.util.concurrent.Executor, java.util.concurrent.Executor, android.content.Intent, boolean, boolean, java.util.Set, java.lang.String, java.io.File, java.util.concurrent.Callable, androidx.room.RoomDatabase$PrepackagedDatabaseCallback, java.util.List, java.util.List, boolean, androidx.sqlite.SQLiteDriver, kotlin.coroutines.CoroutineContext);
+    #noinspection ShrinkerUnresolvedReference
+    android.content.Context context;
+    #noinspection ShrinkerUnresolvedReference
+    androidx.room.DatabaseConfiguration copy$default(androidx.room.DatabaseConfiguration, android.content.Context, java.lang.String, androidx.sqlite.db.SupportSQLiteOpenHelper$Factory, androidx.room.RoomDatabase$MigrationContainer, java.util.List, boolean, androidx.room.RoomDatabase$JournalMode, java.util.concurrent.Executor, java.util.concurrent.Executor, android.content.Intent, boolean, boolean, java.util.Set, java.lang.String, java.io.File, java.util.concurrent.Callable, androidx.room.RoomDatabase$PrepackagedDatabaseCallback, java.util.List, java.util.List, boolean, androidx.sqlite.SQLiteDriver, kotlin.coroutines.CoroutineContext, int, java.lang.Object);
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.String name;
+    #noinspection ShrinkerUnresolvedReference
+    androidx.sqlite.SQLiteDriver sqliteDriver;
+    #noinspection ShrinkerUnresolvedReference
+    androidx.sqlite.db.SupportSQLiteOpenHelper$Factory sqliteOpenHelperFactory;
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.room.InvalidationTracker {
+    #noinspection ShrinkerUnresolvedReference
+    <init>(androidx.room.RoomDatabase, java.util.Map, java.util.Map, java.lang.String[]);
+}
+#noinspection ShrinkerUnresolvedReference
 -keep class androidx.room.Room {
+    #noinspection ShrinkerUnresolvedReference
+    androidx.room.RoomDatabase$Builder databaseBuilder(android.content.Context, java.lang.Class, java.lang.String);
     #noinspection ShrinkerUnresolvedReference
     androidx.room.RoomDatabase$Builder inMemoryDatabaseBuilder(android.content.Context, java.lang.Class);
 }
@@ -1361,7 +1397,181 @@
     androidx.room.RoomDatabase build();
 }
 #noinspection ShrinkerUnresolvedReference
--keep class androidx.room.RoomDatabase
+-keep class androidx.room.RoomDatabase$JournalMode {
+    #noinspection ShrinkerUnresolvedReference
+    androidx.room.RoomDatabase$JournalMode WRITE_AHEAD_LOGGING;
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.room.RoomDatabase$MigrationContainer {
+    #noinspection ShrinkerUnresolvedReference
+    <init>();
+    #noinspection ShrinkerUnresolvedReference
+    void addMigration(androidx.room.migration.Migration);
+    #noinspection ShrinkerUnresolvedReference
+    void addMigrations(java.util.List);
+    #noinspection ShrinkerUnresolvedReference
+    boolean contains(int, int);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.room.RoomDatabase$PrepackagedDatabaseCallback
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.room.RoomDatabase { *; }
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.room.RoomOpenDelegate$ValidationResult {
+    #noinspection ShrinkerUnresolvedReference
+    <init>(boolean, java.lang.String);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.room.RoomOpenDelegate { *; }
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.room.migration.AutoMigrationSpec
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.room.migration.Migration {
+    #noinspection ShrinkerUnresolvedReference
+    int endVersion;
+    #noinspection ShrinkerUnresolvedReference
+    int startVersion;
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.room.util.FtsTableInfo$Companion {
+    #noinspection ShrinkerUnresolvedReference
+    androidx.room.util.FtsTableInfo read(androidx.sqlite.SQLiteConnection, java.lang.String);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.room.util.FtsTableInfo {
+    #noinspection ShrinkerUnresolvedReference
+    <init>(java.lang.String, java.util.Set, java.lang.String);
+    #noinspection ShrinkerUnresolvedReference
+    androidx.room.util.FtsTableInfo$Companion Companion;
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.String name;
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.room.util.KClassUtil {
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.Object findAndInstantiateDatabaseImpl$default(java.lang.Class, java.lang.String, int, java.lang.Object);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.room.util.TableInfo$Column {
+    #noinspection ShrinkerUnresolvedReference
+    <init>(java.lang.String, java.lang.String, boolean, int, java.lang.String, int);
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.String name;
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.room.util.TableInfo$Companion {
+    #noinspection ShrinkerUnresolvedReference
+    androidx.room.util.TableInfo read(androidx.sqlite.SQLiteConnection, java.lang.String);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.room.util.TableInfo$ForeignKey {
+    #noinspection ShrinkerUnresolvedReference
+    <init>(java.lang.String, java.lang.String, java.lang.String, java.util.List, java.util.List);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.room.util.TableInfo$Index {
+    #noinspection ShrinkerUnresolvedReference
+    <init>(java.lang.String, boolean, java.util.List, java.util.List);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.room.util.TableInfo {
+    #noinspection ShrinkerUnresolvedReference
+    <init>(java.lang.String, java.util.Map, java.util.Set, java.util.Set);
+    #noinspection ShrinkerUnresolvedReference
+    androidx.room.util.TableInfo$Companion Companion;
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.String name;
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.room.util.ViewInfo$Companion {
+    #noinspection ShrinkerUnresolvedReference
+    androidx.room.util.ViewInfo read(androidx.sqlite.SQLiteConnection, java.lang.String);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.room.util.ViewInfo {
+    #noinspection ShrinkerUnresolvedReference
+    <init>(java.lang.String, java.lang.String);
+    #noinspection ShrinkerUnresolvedReference
+    androidx.room.util.ViewInfo$Companion Companion;
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.String name;
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.sqlite.SQLite {
+    #noinspection ShrinkerUnresolvedReference
+    void execSQL(androidx.sqlite.SQLiteConnection, java.lang.String);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.sqlite.SQLiteConnection {
+    #noinspection ShrinkerUnresolvedReference
+    void close();
+    #noinspection ShrinkerUnresolvedReference
+    androidx.sqlite.SQLiteStatement prepare(java.lang.String);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.sqlite.SQLiteDriver {
+    #noinspection ShrinkerUnresolvedReference
+    androidx.sqlite.SQLiteConnection open(java.lang.String);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.sqlite.SQLiteStatement {
+    #noinspection ShrinkerUnresolvedReference
+    void bindText(int, java.lang.String);
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.String getText(int);
+    #noinspection ShrinkerUnresolvedReference
+    boolean step();
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.sqlite.db.SupportSQLiteDatabase {
+    #noinspection ShrinkerUnresolvedReference
+    void execSQL(java.lang.String);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.sqlite.db.SupportSQLiteOpenHelper$Callback { *; }
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.sqlite.db.SupportSQLiteOpenHelper$Configuration$Builder {
+    #noinspection ShrinkerUnresolvedReference
+    androidx.sqlite.db.SupportSQLiteOpenHelper$Configuration build();
+    #noinspection ShrinkerUnresolvedReference
+    androidx.sqlite.db.SupportSQLiteOpenHelper$Configuration$Builder callback(androidx.sqlite.db.SupportSQLiteOpenHelper$Callback);
+    #noinspection ShrinkerUnresolvedReference
+    androidx.sqlite.db.SupportSQLiteOpenHelper$Configuration$Builder name(java.lang.String);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.sqlite.db.SupportSQLiteOpenHelper$Configuration$Companion {
+    #noinspection ShrinkerUnresolvedReference
+    androidx.sqlite.db.SupportSQLiteOpenHelper$Configuration$Builder builder(android.content.Context);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.sqlite.db.SupportSQLiteOpenHelper$Configuration {
+    #noinspection ShrinkerUnresolvedReference
+    androidx.sqlite.db.SupportSQLiteOpenHelper$Configuration$Companion Companion;
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.sqlite.db.SupportSQLiteOpenHelper$Factory {
+    #noinspection ShrinkerUnresolvedReference
+    androidx.sqlite.db.SupportSQLiteOpenHelper create(androidx.sqlite.db.SupportSQLiteOpenHelper$Configuration);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.sqlite.db.SupportSQLiteOpenHelper
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory {
+    #noinspection ShrinkerUnresolvedReference
+    <init>();
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.sqlite.driver.SupportSQLiteConnection {
+    #noinspection ShrinkerUnresolvedReference
+    <init>(androidx.sqlite.db.SupportSQLiteDatabase);
+    #noinspection ShrinkerUnresolvedReference
+    androidx.sqlite.db.SupportSQLiteDatabase getDb();
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.sqlite.driver.SupportSQLiteDriver {
+    #noinspection ShrinkerUnresolvedReference
+    <init>(androidx.sqlite.db.SupportSQLiteOpenHelper);
+}
 #noinspection ShrinkerUnresolvedReference
 -keep class androidx.tracing.Trace {
     #noinspection ShrinkerUnresolvedReference
@@ -1393,7 +1603,14 @@
 #noinspection ShrinkerUnresolvedReference
 -keep class kotlin.LazyKt {
     #noinspection ShrinkerUnresolvedReference
+    kotlin.Lazy lazy(kotlin.LazyThreadSafetyMode, kotlin.jvm.functions.Function0);
+    #noinspection ShrinkerUnresolvedReference
     kotlin.Lazy lazy(kotlin.jvm.functions.Function0);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class kotlin.LazyThreadSafetyMode {
+    #noinspection ShrinkerUnresolvedReference
+    kotlin.LazyThreadSafetyMode PUBLICATION;
 }
 #noinspection ShrinkerUnresolvedReference
 -keep class kotlin.NoWhenBranchMatchedException {
@@ -1539,6 +1756,10 @@
 #noinspection ShrinkerUnresolvedReference
 -keep class kotlin.collections.MapsKt {
     #noinspection ShrinkerUnresolvedReference
+    java.util.Map build(java.util.Map);
+    #noinspection ShrinkerUnresolvedReference
+    java.util.Map createMapBuilder();
+    #noinspection ShrinkerUnresolvedReference
     java.util.Map emptyMap();
     #noinspection ShrinkerUnresolvedReference
     int mapCapacity(int);
@@ -1550,11 +1771,17 @@
 #noinspection ShrinkerUnresolvedReference
 -keep class kotlin.collections.SetsKt {
     #noinspection ShrinkerUnresolvedReference
+    java.util.Set build(java.util.Set);
+    #noinspection ShrinkerUnresolvedReference
+    java.util.Set createSetBuilder();
+    #noinspection ShrinkerUnresolvedReference
     java.util.Set emptySet();
     #noinspection ShrinkerUnresolvedReference
     java.util.Set minus(java.util.Set, java.lang.Iterable);
     #noinspection ShrinkerUnresolvedReference
     java.util.Set setOf(java.lang.Object);
+    #noinspection ShrinkerUnresolvedReference
+    java.util.Set setOf(java.lang.Object[]);
 }
 #noinspection ShrinkerUnresolvedReference
 -keep class kotlin.comparisons.ComparisonsKt {
@@ -1669,9 +1896,19 @@
     void writeText$default(java.io.File, java.lang.String, java.nio.charset.Charset, int, java.lang.Object);
 }
 #noinspection ShrinkerUnresolvedReference
+-keep class kotlin.io.TextStreamsKt {
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.String readText(java.io.Reader);
+}
+#noinspection ShrinkerUnresolvedReference
 -keep class kotlin.jdk7.AutoCloseableKt {
     #noinspection ShrinkerUnresolvedReference
     void closeFinally(java.lang.AutoCloseable, java.lang.Throwable);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class kotlin.jvm.JvmClassMappingKt {
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.Class getJavaClass(kotlin.reflect.KClass);
 }
 #noinspection ShrinkerUnresolvedReference
 -keep class kotlin.jvm.functions.Function0 { *; }
@@ -1806,7 +2043,16 @@
 #noinspection ShrinkerUnresolvedReference
 -keep class kotlin.reflect.KClass {
     #noinspection ShrinkerUnresolvedReference
+    java.lang.String getQualifiedName();
+    #noinspection ShrinkerUnresolvedReference
     java.lang.String getSimpleName();
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class kotlin.reflect.KClasses {
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.Object cast(kotlin.reflect.KClass, java.lang.Object);
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.Object safeCast(kotlin.reflect.KClass, java.lang.Object);
 }
 #noinspection ShrinkerUnresolvedReference
 -keep class kotlin.reflect.KFunction
@@ -1858,6 +2104,8 @@
     #noinspection ShrinkerUnresolvedReference
     java.lang.String repeat(java.lang.CharSequence, int);
     #noinspection ShrinkerUnresolvedReference
+    java.lang.String replace$default(java.lang.String, java.lang.String, java.lang.String, boolean, int, java.lang.Object);
+    #noinspection ShrinkerUnresolvedReference
     boolean startsWith$default(java.lang.String, java.lang.String, boolean, int, java.lang.Object);
     #noinspection ShrinkerUnresolvedReference
     java.lang.String substringAfterLast$default(java.lang.String, char, java.lang.String, int, java.lang.Object);
@@ -1867,6 +2115,10 @@
     java.lang.String substringBeforeLast(java.lang.String, char, java.lang.String);
     #noinspection ShrinkerUnresolvedReference
     java.lang.String substringBeforeLast$default(java.lang.String, char, java.lang.String, int, java.lang.Object);
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.CharSequence trimEnd(java.lang.CharSequence);
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.String trimMargin$default(java.lang.String, java.lang.String, int, java.lang.Object);
 }
 #noinspection ShrinkerUnresolvedReference
 -keep class kotlin.time.AbstractLongTimeSource { *; }
@@ -2278,6 +2530,166 @@
     java.lang.Object doSelect(kotlin.coroutines.Continuation);
 }
 #noinspection ShrinkerUnresolvedReference
+-keep class kotlinx.serialization.DeserializationStrategy
+#noinspection ShrinkerUnresolvedReference
+-keep class kotlinx.serialization.KSerializer
+#noinspection ShrinkerUnresolvedReference
+-keep class kotlinx.serialization.SealedClassSerializer {
+    #noinspection ShrinkerUnresolvedReference
+    <init>(java.lang.String, kotlin.reflect.KClass, kotlin.reflect.KClass[], kotlinx.serialization.KSerializer[], java.lang.annotation.Annotation[]);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class kotlinx.serialization.SerializationStrategy
+#noinspection ShrinkerUnresolvedReference
+-keep class kotlinx.serialization.UnknownFieldException {
+    #noinspection ShrinkerUnresolvedReference
+    <init>(int);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class kotlinx.serialization.builtins.BuiltinSerializersKt {
+    #noinspection ShrinkerUnresolvedReference
+    kotlinx.serialization.KSerializer getNullable(kotlinx.serialization.KSerializer);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class kotlinx.serialization.descriptors.SerialDescriptor
+#noinspection ShrinkerUnresolvedReference
+-keep class kotlinx.serialization.encoding.CompositeDecoder {
+    #noinspection ShrinkerUnresolvedReference
+    boolean decodeBooleanElement(kotlinx.serialization.descriptors.SerialDescriptor, int);
+    #noinspection ShrinkerUnresolvedReference
+    int decodeElementIndex(kotlinx.serialization.descriptors.SerialDescriptor);
+    #noinspection ShrinkerUnresolvedReference
+    int decodeIntElement(kotlinx.serialization.descriptors.SerialDescriptor, int);
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.Object decodeNullableSerializableElement(kotlinx.serialization.descriptors.SerialDescriptor, int, kotlinx.serialization.DeserializationStrategy, java.lang.Object);
+    #noinspection ShrinkerUnresolvedReference
+    boolean decodeSequentially();
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.Object decodeSerializableElement(kotlinx.serialization.descriptors.SerialDescriptor, int, kotlinx.serialization.DeserializationStrategy, java.lang.Object);
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.String decodeStringElement(kotlinx.serialization.descriptors.SerialDescriptor, int);
+    #noinspection ShrinkerUnresolvedReference
+    void endStructure(kotlinx.serialization.descriptors.SerialDescriptor);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class kotlinx.serialization.encoding.CompositeEncoder {
+    #noinspection ShrinkerUnresolvedReference
+    void encodeBooleanElement(kotlinx.serialization.descriptors.SerialDescriptor, int, boolean);
+    #noinspection ShrinkerUnresolvedReference
+    void encodeIntElement(kotlinx.serialization.descriptors.SerialDescriptor, int, int);
+    #noinspection ShrinkerUnresolvedReference
+    void encodeNullableSerializableElement(kotlinx.serialization.descriptors.SerialDescriptor, int, kotlinx.serialization.SerializationStrategy, java.lang.Object);
+    #noinspection ShrinkerUnresolvedReference
+    void encodeSerializableElement(kotlinx.serialization.descriptors.SerialDescriptor, int, kotlinx.serialization.SerializationStrategy, java.lang.Object);
+    #noinspection ShrinkerUnresolvedReference
+    void encodeStringElement(kotlinx.serialization.descriptors.SerialDescriptor, int, java.lang.String);
+    #noinspection ShrinkerUnresolvedReference
+    void endStructure(kotlinx.serialization.descriptors.SerialDescriptor);
+    #noinspection ShrinkerUnresolvedReference
+    boolean shouldEncodeElementDefault(kotlinx.serialization.descriptors.SerialDescriptor, int);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class kotlinx.serialization.encoding.Decoder {
+    #noinspection ShrinkerUnresolvedReference
+    kotlinx.serialization.encoding.CompositeDecoder beginStructure(kotlinx.serialization.descriptors.SerialDescriptor);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class kotlinx.serialization.encoding.Encoder {
+    #noinspection ShrinkerUnresolvedReference
+    kotlinx.serialization.encoding.CompositeEncoder beginStructure(kotlinx.serialization.descriptors.SerialDescriptor);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class kotlinx.serialization.internal.ArrayListSerializer {
+    #noinspection ShrinkerUnresolvedReference
+    <init>(kotlinx.serialization.KSerializer);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class kotlinx.serialization.internal.BooleanSerializer {
+    #noinspection ShrinkerUnresolvedReference
+    kotlinx.serialization.internal.BooleanSerializer INSTANCE;
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class kotlinx.serialization.internal.GeneratedSerializer { *; }
+#noinspection ShrinkerUnresolvedReference
+-keep class kotlinx.serialization.internal.IntSerializer {
+    #noinspection ShrinkerUnresolvedReference
+    kotlinx.serialization.internal.IntSerializer INSTANCE;
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class kotlinx.serialization.internal.PluginExceptionsKt {
+    #noinspection ShrinkerUnresolvedReference
+    void throwMissingFieldException(int, int, kotlinx.serialization.descriptors.SerialDescriptor);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class kotlinx.serialization.internal.PluginGeneratedSerialDescriptor {
+    #noinspection ShrinkerUnresolvedReference
+    <init>(java.lang.String, kotlinx.serialization.internal.GeneratedSerializer, int);
+    #noinspection ShrinkerUnresolvedReference
+    void addElement(java.lang.String, boolean);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class kotlinx.serialization.internal.SerializationConstructorMarker
+#noinspection ShrinkerUnresolvedReference
+-keep class kotlinx.serialization.internal.StringSerializer {
+    #noinspection ShrinkerUnresolvedReference
+    kotlinx.serialization.internal.StringSerializer INSTANCE;
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class kotlinx.serialization.json.ClassDiscriminatorMode {
+    #noinspection ShrinkerUnresolvedReference
+    kotlinx.serialization.json.ClassDiscriminatorMode NONE;
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class kotlinx.serialization.json.Json {
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.Object decodeFromString(kotlinx.serialization.DeserializationStrategy, java.lang.String);
+    #noinspection ShrinkerUnresolvedReference
+    kotlinx.serialization.modules.SerializersModule getSerializersModule();
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class kotlinx.serialization.json.JsonBuilder {
+    #noinspection ShrinkerUnresolvedReference
+    void setClassDiscriminatorMode(kotlinx.serialization.json.ClassDiscriminatorMode);
+    #noinspection ShrinkerUnresolvedReference
+    void setPrettyPrint(boolean);
+    #noinspection ShrinkerUnresolvedReference
+    void setPrettyPrintIndent(java.lang.String);
+    #noinspection ShrinkerUnresolvedReference
+    void setSerializersModule(kotlinx.serialization.modules.SerializersModule);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class kotlinx.serialization.json.JsonContentPolymorphicSerializer { *; }
+#noinspection ShrinkerUnresolvedReference
+-keep class kotlinx.serialization.json.JsonElement
+#noinspection ShrinkerUnresolvedReference
+-keep class kotlinx.serialization.json.JsonElementKt {
+    #noinspection ShrinkerUnresolvedReference
+    kotlinx.serialization.json.JsonObject getJsonObject(kotlinx.serialization.json.JsonElement);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class kotlinx.serialization.json.JsonKt {
+    #noinspection ShrinkerUnresolvedReference
+    kotlinx.serialization.json.Json Json$default(kotlinx.serialization.json.Json, kotlin.jvm.functions.Function1, int, java.lang.Object);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class kotlinx.serialization.json.JsonObject
+#noinspection ShrinkerUnresolvedReference
+-keep class kotlinx.serialization.json.JvmStreamsKt {
+    #noinspection ShrinkerUnresolvedReference
+    void encodeToStream(kotlinx.serialization.json.Json, kotlinx.serialization.SerializationStrategy, java.lang.Object, java.io.OutputStream);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class kotlinx.serialization.modules.SerializersModule
+#noinspection ShrinkerUnresolvedReference
+-keep class kotlinx.serialization.modules.SerializersModuleBuilder {
+    #noinspection ShrinkerUnresolvedReference
+    <init>();
+    #noinspection ShrinkerUnresolvedReference
+    kotlinx.serialization.modules.SerializersModule build();
+    #noinspection ShrinkerUnresolvedReference
+    void polymorphicDefaultDeserializer(kotlin.reflect.KClass, kotlin.jvm.functions.Function1);
+}
+#noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.Library
 #noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.MainActivityKt {
@@ -2418,6 +2830,36 @@
     java.lang.Object remove(nl.imreboersma.volti.db.Ensemble, kotlin.coroutines.Continuation);
 }
 #noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.db.EnsembleFile {
+    #noinspection ShrinkerUnresolvedReference
+    <init>(long, java.lang.String, java.lang.String, java.lang.String, java.util.List, java.lang.String, long, java.lang.String, java.lang.String, boolean);
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.String getFileId();
+    #noinspection ShrinkerUnresolvedReference
+    java.util.List getFolders();
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.String getLocalMd5();
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.String getSeenMd5();
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.db.EnsembleFileDao {
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.Object all(long, kotlin.coroutines.Continuation);
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.Object downloaded(long, java.lang.String, java.lang.String, kotlin.coroutines.Continuation);
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.Object opened(long, java.lang.String, java.lang.String, kotlin.coroutines.Continuation);
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.Object replace(long, kotlin.jvm.functions.Function1, kotlin.coroutines.Continuation);
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.Object save(java.util.List, kotlin.coroutines.Continuation);
+    #noinspection ShrinkerUnresolvedReference
+    kotlinx.coroutines.flow.Flow shown(long);
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.Object versionsInUse(kotlin.coroutines.Continuation);
+}
+#noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.db.VoltiDatabase {
     #noinspection ShrinkerUnresolvedReference
     int $stable;
@@ -2425,6 +2867,8 @@
     void close();
     #noinspection ShrinkerUnresolvedReference
     nl.imreboersma.volti.db.EnsembleDao ensembles();
+    #noinspection ShrinkerUnresolvedReference
+    nl.imreboersma.volti.db.EnsembleFileDao files();
 }
 #noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.render.IsolatedRendererKt {
