@@ -61,6 +61,7 @@ private class OpenLocalDocumentTree : ActivityResultContracts.OpenDocumentTree()
 @Composable
 fun LibraryScreen(
     onOpenScore: (Score) -> Unit,
+    onOpenEnsembles: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: LibraryViewModel = viewModel(),
 ) {
@@ -107,6 +108,7 @@ fun LibraryScreen(
             }
         },
         onOpenScore = onOpenScore,
+        onOpenEnsembles = onOpenEnsembles,
         modifier = modifier,
     )
 }
@@ -127,6 +129,7 @@ private fun LibraryContent(
     onOpenFolder: (Subfolder) -> Unit,
     onOpenFound: (FoundEntry) -> Unit,
     onOpenScore: (Score) -> Unit,
+    onOpenEnsembles: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(modifier = modifier.fillMaxSize()) { innerPadding ->
@@ -151,8 +154,12 @@ private fun LibraryContent(
                         Text(text = state.path.joinToString(" / ") { it.name })
                     }
                 }
+                // Step 3 of milestone 3 puts the ensembles in the library itself; until then, a way in.
+                OutlinedButton(onClick = onOpenEnsembles) { Text(text = "Ensembles") }
                 if (state is LibraryState.Ready) {
-                    OutlinedButton(onClick = onPickFolder) { Text(text = "Change folder") }
+                    OutlinedButton(onClick = onPickFolder, modifier = Modifier.padding(start = 8.dp)) {
+                        Text(text = "Change folder")
+                    }
                 }
             }
             if (state is LibraryState.Ready) {
@@ -300,6 +307,7 @@ fun LibraryScreenPreview() {
             onOpenFolder = {},
             onOpenFound = {},
             onOpenScore = {},
+            onOpenEnsembles = {},
         )
     }
 }

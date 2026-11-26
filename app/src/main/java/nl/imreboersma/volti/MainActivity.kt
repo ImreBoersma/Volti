@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -20,6 +21,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import kotlinx.serialization.Serializable
+import nl.imreboersma.volti.ui.EnsembleScreen
+import nl.imreboersma.volti.ui.EnsemblesScreen
 import nl.imreboersma.volti.ui.LibraryScreen
 import nl.imreboersma.volti.ui.ReaderScreen
 import nl.imreboersma.volti.ui.ReaderState
@@ -29,6 +32,13 @@ import nl.imreboersma.volti.ui.theme.VoltiTheme
 
 @Serializable
 object Library
+
+@Serializable
+object Ensembles
+
+/** One ensemble's files; [id] is its row in the database. */
+@Serializable
+data class EnsembleFiles(val id: Long)
 
 /** [uri] is the document URI of the score, as a string. */
 @Serializable
@@ -69,7 +79,21 @@ fun VoltiApp(navController: NavHostController = rememberNavController()) {
         composable<Library> {
             LibraryScreen(
                 onOpenScore = { score -> navController.navigate(Reader(score.uri.toString())) },
+                onOpenEnsembles = dropUnlessResumed { navController.navigate(Ensembles) },
             )
+        }
+        composable<Ensembles> { entry ->
+            EnsemblesScreen(
+                onOpen = { id ->
+                    // As for the reader: a second tap during the crossfade would open the ensemble twice.
+                    if (entry.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                        navController.navigate(EnsembleFiles(id))
+                    }
+                },
+            )
+        }
+        composable<EnsembleFiles> {
+            EnsembleScreen(onRemoved = dropUnlessResumed { navController.popBackStack() })
         }
         composable<Reader> {
             // Only while the reader is the resumed screen: a second tap during the crossfade would also pop the

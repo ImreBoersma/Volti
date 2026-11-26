@@ -1351,6 +1351,18 @@
     androidx.navigation.NavHostController rememberNavController(androidx.navigation.Navigator[], androidx.compose.runtime.Composer, int);
 }
 #noinspection ShrinkerUnresolvedReference
+-keep class androidx.room.Room {
+    #noinspection ShrinkerUnresolvedReference
+    androidx.room.RoomDatabase$Builder inMemoryDatabaseBuilder(android.content.Context, java.lang.Class);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.room.RoomDatabase$Builder {
+    #noinspection ShrinkerUnresolvedReference
+    androidx.room.RoomDatabase build();
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.room.RoomDatabase
+#noinspection ShrinkerUnresolvedReference
 -keep class androidx.tracing.Trace {
     #noinspection ShrinkerUnresolvedReference
     void beginSection(java.lang.String);
@@ -1613,6 +1625,8 @@
 -keep class kotlin.coroutines.jvm.internal.Boxing {
     #noinspection ShrinkerUnresolvedReference
     java.lang.Boolean boxBoolean(boolean);
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.Integer boxInt(int);
     #noinspection ShrinkerUnresolvedReference
     java.lang.Long boxLong(long);
 }
@@ -2382,6 +2396,35 @@
 -keep class nl.imreboersma.volti.data.Subfolder {
     #noinspection ShrinkerUnresolvedReference
     java.lang.String getDocumentId();
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.db.Ensemble {
+    #noinspection ShrinkerUnresolvedReference
+    <init>(long, java.lang.String, java.lang.String, java.lang.String, java.lang.String, int, kotlin.jvm.internal.DefaultConstructorMarker);
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.String getName();
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.String getResourceKey();
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.db.EnsembleDao {
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.Object add(nl.imreboersma.volti.db.Ensemble, kotlin.coroutines.Continuation);
+    #noinspection ShrinkerUnresolvedReference
+    kotlinx.coroutines.flow.Flow all();
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.Object get(long, kotlin.coroutines.Continuation);
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.Object remove(nl.imreboersma.volti.db.Ensemble, kotlin.coroutines.Continuation);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.db.VoltiDatabase {
+    #noinspection ShrinkerUnresolvedReference
+    int $stable;
+    #noinspection ShrinkerUnresolvedReference
+    void close();
+    #noinspection ShrinkerUnresolvedReference
+    nl.imreboersma.volti.db.EnsembleDao ensembles();
 }
 #noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.render.IsolatedRendererKt {

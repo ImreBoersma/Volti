@@ -245,13 +245,13 @@ Rules for the network:
 - [x] Private or public folder: private (2026-11-25). Google sign-in with the `drive.readonly` scope, through Google Play services' Authorization API, which hands the app an access token; Volti stores no password or token itself.
 - [x] Drive only, or Drive next to the local folder: next to it (2026-11-25). If the sync lets you down, a PDF can still go on the tablet directly.
 - [x] Library top level: ensembles (2026-11-26).
-- [ ] Accept re-signing in about once a week: while the Google Cloud app stays in Testing, Google ends a sign-in after 7 days. Leaving Testing with `drive.readonly`, a restricted scope, needs Google's verification, which is out of proportion for one user. The local copy keeps working when the sign-in has run out; only syncing asks to sign in again.
+- [x] No weekly sign-in (2026-11-26): in Testing, Google ends a sign-in after 7 days. Instead the app is published ("In production") without verification, which Google allows for personal use (under 100 users), restricted scope included. The cost: a one-time "Google hasn't verified this app" screen at the first sign-in.
 
 Setup in Google Cloud, once, by me (Volti only needs the result):
 
 1. console.cloud.google.com: a new project, e.g. "Volti".
 2. APIs & Services, Library: enable the Google Drive API.
-3. Google Auth Platform (OAuth consent screen): External, app name Volti, my e-mail; under Audience, add my Google account as a test user. It stays in Testing: only test users can sign in, which is all Volti needs.
+3. Google Auth Platform (OAuth consent screen): External, app name Volti, my e-mail. Under Audience: Publish app, so sign-ins don't run out after 7 days (see above). Done 2026-11-26, project `volti-515911`.
 4. Data access: add the scope `.../auth/drive.readonly`.
 5. Clients: create an OAuth client of type Android, twice: package `nl.imreboersma.volti` and `nl.imreboersma.volti.debug`, both with the debug key's SHA-1 `78:BA:25:D0:59:1A:A0:DB:42:A3:E7:2E:C8:80:55:F1:CC:30:EC:19`. A release key later needs a third client.
 
@@ -259,11 +259,15 @@ No client secret or API key goes into the app: an Android OAuth client is matche
 
 ### 1. Sign-in and listing
 
-- [ ] Add an ensemble: paste a shared folder's link, give it a name and my instrument. List its PDFs and subfolders, recursively, with their checksums.
+- [x] Add an ensemble: paste a shared folder's link, give it a name and my instrument. List its PDFs and subfolders, recursively, with their checksums.
+
+Done 2026-11-26. The ensembles are in Room already (pulled forward from step 2, so nothing added now is lost on restart); an Ensembles button in the library leads to them until step 3. Two read-only HTTPS calls, no Google client library; Play services holds the grant, Volti only a short-lived token in memory. Ids from Drive's answers are checked before they go into the next query. Checked on the emulator with Harmonieorkest Brummen's horn folder: 32 PDFs listed. Open: with several Google accounts on the tablet, does Volti ask which one?
+
+The names in that folder show why my parts can't be detected: "F-hoorn 1", "French Horn 1 in F", "hoorn13" (horns 1 and 3), "F-hoorn 1-2", "Hoorn in F", and a euphonium part in the horn folder.
 
 ### 2. The local copy
 
-- [ ] A small database (Room), keyed by Drive file id: ensembles, files (name, folder, checksum, version, local file). Milestones 4 and 5 build on it.
+- [ ] Files in the database, keyed by Drive file id (name, folder, checksum, version, local file). Milestones 4 and 5 build on it.
 - [ ] Download new and changed PDFs into the app's private storage. A changed PDF keeps its previous version until I have seen the new one. Removed in Drive: marked as removed, kept while anything of mine refers to it.
 - [ ] Size limits and checks on what comes in.
 
