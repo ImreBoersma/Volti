@@ -109,6 +109,14 @@ fun LibraryScreen(
         },
         onOpenScore = onOpenScore,
         onOpenEnsembles = onOpenEnsembles,
+        // What the back gesture does here: clear the search, else up a folder. At the top there is no button: back
+        // leaves the app.
+        onBack = when {
+            !active -> null
+            query.isNotEmpty() -> fun() { viewModel.setQuery("") }
+            (state as? LibraryState.Ready)?.path?.isNotEmpty() == true -> fun() { viewModel.up() }
+            else -> null
+        },
         modifier = modifier,
     )
 }
@@ -130,6 +138,7 @@ private fun LibraryContent(
     onOpenFound: (FoundEntry) -> Unit,
     onOpenScore: (Score) -> Unit,
     onOpenEnsembles: () -> Unit,
+    onBack: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(modifier = modifier.fillMaxSize()) { innerPadding ->
@@ -145,6 +154,9 @@ private fun LibraryContent(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
+                if (onBack != null) {
+                    AppBackButton(onBack, if (query.isNotEmpty()) "Clear the search" else "Up a folder")
+                }
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = (state as? LibraryState.Ready)?.name ?: "Library",
@@ -308,6 +320,7 @@ fun LibraryScreenPreview() {
             onOpenFound = {},
             onOpenScore = {},
             onOpenEnsembles = {},
+            onBack = null,
         )
     }
 }

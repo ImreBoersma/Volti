@@ -84,6 +84,7 @@ fun VoltiApp(navController: NavHostController = rememberNavController()) {
         }
         composable<Ensembles> { entry ->
             EnsemblesScreen(
+                onBack = dropUnlessResumed { navController.popBackStack() },
                 onOpen = { id ->
                     // As for the reader: a second tap during the crossfade would open the ensemble twice.
                     if (entry.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
@@ -98,6 +99,7 @@ fun VoltiApp(navController: NavHostController = rememberNavController()) {
                     if (entry.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) navController.navigate(Reader(uri))
                 },
                 onRemoved = dropUnlessResumed { navController.popBackStack() },
+                onBack = dropUnlessResumed { navController.popBackStack() },
             )
         }
         composable<Reader> {

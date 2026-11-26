@@ -41,7 +41,11 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 
 /** My ensembles, and a form to add one from a shared folder's link. */
 @Composable
-fun EnsemblesScreen(onOpen: (Long) -> Unit, viewModel: EnsemblesViewModel = viewModel()) {
+fun EnsemblesScreen(
+    onOpen: (Long) -> Unit,
+    onBack: () -> Unit,
+    viewModel: EnsemblesViewModel = viewModel()
+) {
     val ensembles by viewModel.ensembles.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
     var link by rememberSaveable { mutableStateOf("") }
@@ -49,66 +53,77 @@ fun EnsemblesScreen(onOpen: (Long) -> Unit, viewModel: EnsemblesViewModel = view
     var instrument by rememberSaveable { mutableStateOf("") }
 
     Scaffold(modifier = Modifier.fillMaxSize()) { padding ->
-        LazyColumn(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .consumeWindowInsets(padding)
                 .imePadding()
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            item { Text("Ensembles", style = MaterialTheme.typography.headlineLarge) }
-            items(ensembles.orEmpty(), key = { it.id }) { ensemble ->
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onOpen(ensemble.id) }
-                        .padding(vertical = 12.dp),
-                ) {
-                    Text(ensemble.name, style = MaterialTheme.typography.titleMedium)
-                    Text(ensemble.instrument, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                HorizontalDivider()
+            // Above the list, not in it: the back button stays when the list scrolls to the form.
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                AppBackButton(onBack, "Back to the library")
+                Text("Ensembles", style = MaterialTheme.typography.headlineLarge)
             }
-            item {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.padding(top = 24.dp),
-                ) {
-                    Text("Add an ensemble", style = MaterialTheme.typography.titleMedium)
-                    OutlinedTextField(
-                        value = link,
-                        onValueChange = { link = it },
-                        label = { Text("Link to the shared Drive folder") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(
-                            value = name,
-                            onValueChange = { name = it },
-                            label = { Text("Ensemble") },
-                            singleLine = true,
-                            modifier = Modifier.weight(1f),
-                        )
-                        OutlinedTextField(
-                            value = instrument,
-                            onValueChange = { instrument = it },
-                            label = { Text("What I play, e.g. Bb clarinet 2") },
-                            singleLine = true,
-                            modifier = Modifier.weight(1f),
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                items(ensembles.orEmpty(), key = { it.id }) { ensemble ->
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onOpen(ensemble.id) }
+                            .padding(vertical = 12.dp),
+                    ) {
+                        Text(ensemble.name, style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            ensemble.instrument,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                    Button(onClick = {
-                        viewModel.add(link, name, instrument) { id ->
-                            link = ""
-                            name = ""
-                            instrument = ""
-                            onOpen(id)
+                    HorizontalDivider()
+                }
+                item {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.padding(top = 24.dp),
+                    ) {
+                        Text("Add an ensemble", style = MaterialTheme.typography.titleMedium)
+                        OutlinedTextField(
+                            value = link,
+                            onValueChange = { link = it },
+                            label = { Text("Link to the shared Drive folder") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedTextField(
+                                value = name,
+                                onValueChange = { name = it },
+                                label = { Text("Ensemble") },
+                                singleLine = true,
+                                modifier = Modifier.weight(1f),
+                            )
+                            OutlinedTextField(
+                                value = instrument,
+                                onValueChange = { instrument = it },
+                                label = { Text("What I play, e.g. Bb clarinet 2") },
+                                singleLine = true,
+                                modifier = Modifier.weight(1f),
+                            )
                         }
-                    }) { Text("Add") }
+                        error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                        Button(onClick = {
+                            viewModel.add(link, name, instrument) { id ->
+                                link = ""
+                                name = ""
+                                instrument = ""
+                                onOpen(id)
+                            }
+                        }) { Text("Add") }
+                    }
                 }
             }
         }
@@ -120,14 +135,16 @@ fun EnsemblesScreen(onOpen: (Long) -> Unit, viewModel: EnsemblesViewModel = view
 fun EnsembleScreen(
     onOpenScore: (String) -> Unit,
     onRemoved: () -> Unit,
+    onBack: () -> Unit,
     viewModel: EnsembleViewModel = viewModel(),
 ) {
     val ensemble by viewModel.ensemble.collectAsStateWithLifecycle()
     val files by viewModel.files.collectAsStateWithLifecycle()
     val sync by viewModel.sync.collectAsStateWithLifecycle()
-    val consent = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) {
-        viewModel.consented(it.data)
-    }
+    val consent =
+        rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) {
+            viewModel.consented(it.data)
+        }
     // Syncs while this screen shows, and only then. The consent screen also stops it; coming back syncs again.
     LifecycleEventEffect(Lifecycle.Event.ON_START) { viewModel.load() }
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.pause() }
@@ -140,9 +157,13 @@ fun EnsembleScreen(
                 .padding(16.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                AppBackButton(onBack, "Back to the ensembles")
                 Column(modifier = Modifier.weight(1f)) {
                     Text(ensemble?.name.orEmpty(), style = MaterialTheme.typography.headlineLarge)
-                    Text(ensemble?.instrument.orEmpty(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        ensemble?.instrument.orEmpty(),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
                 OutlinedButton(onClick = { viewModel.remove(onRemoved) }) { Text("Remove") }
             }
@@ -158,7 +179,12 @@ fun EnsembleScreen(
 }
 
 @Composable
-private fun SyncLine(sync: SyncState, count: Int, onConsent: (PendingIntent) -> Unit, onRetry: () -> Unit) {
+private fun SyncLine(
+    sync: SyncState,
+    count: Int,
+    onConsent: (PendingIntent) -> Unit,
+    onRetry: () -> Unit
+) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -216,8 +242,16 @@ private fun Files(files: List<EnsembleFile>, onOpen: (EnsembleFile) -> Unit) {
                         modifier = Modifier.weight(1f),
                     )
                     when {
-                        !downloaded -> Text("Not downloaded yet", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        file.removed -> Text("Removed in Drive", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        !downloaded -> Text(
+                            "Not downloaded yet",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        file.removed -> Text(
+                            "Removed in Drive",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
                         file.changed -> Text("Changed", color = MaterialTheme.colorScheme.secondary)
                     }
                 }
