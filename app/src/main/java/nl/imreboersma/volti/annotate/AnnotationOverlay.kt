@@ -1,7 +1,12 @@
 package nl.imreboersma.volti.annotate
 
 import android.graphics.Matrix
+import androidx.activity.compose.BackHandler
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.currentStateAsState
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.systemGestureExclusion
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -142,6 +147,8 @@ private fun InkInput(pageIndex: Int, geometry: PageGeometry, viewModel: Annotati
     Box(
         modifier = Modifier
             .fillMaxSize()
+            // While annotating, a stroke from the very edge of the screen draws instead of going Back. Done leaves.
+            .then(if (annotating) Modifier.systemGestureExclusion() else Modifier)
             .pointerInput(viewModel) {
                 val batch = MutableStrokeInputBatch()
                 awaitPointerEventScope {
@@ -252,9 +259,12 @@ private fun InkInput(pageIndex: Int, geometry: PageGeometry, viewModel: Annotati
  * undo and done. While the toolbar is out, a finger draws.
  */
 @Composable
-fun BoxScope.AnnotationControls(viewModel: AnnotationViewModel) {
+fun BoxScope.AnnotationControls(viewModel: AnnotationViewModel, onOpenPrevious: (uri: String) -> Unit) {
     val annotating by viewModel.annotating.collectAsStateWithLifecycle()
-    if (!annotating) {
+    val change by viewModel.change.collectAsStateWithLifecycle()
+    if (!annotating) change?.let { ChangeNotice(it, onOpenPrevious, viewModel::marksChecked, viewModel::later) }
+    // On the previous version, nothing to annotate: it is there to look at.
+    if (!annotating && change != ScoreChange.ShowingPrevious) {
         CornerButton("Annotate", "Show the annotate button", viewModel::start, Modifier.align(Alignment.TopEnd)) { ink ->
             // A pencil, at an angle.
             val s = 2.5.dp.toPx()
@@ -274,6 +284,13 @@ fun BoxScope.AnnotationControls(viewModel: AnnotationViewModel) {
     var atTop by rememberSaveable { mutableStateOf(false) }
     // The palette is out only while choosing: it would cover more music than it needs to.
     var choosing by rememberSaveable { mutableStateOf(false) }
+    // Back (and Esc) does what Done does: it leaves annotating, not the score. Only while the reader is the resumed
+    // screen: a second Back during the crossfade out of it must still reach the screen before.
+    val resumed = LocalLifecycleOwner.current.lifecycle.currentStateAsState().value.isAtLeast(Lifecycle.State.RESUMED)
+    BackHandler(enabled = resumed) {
+        viewModel.done()
+        choosing = false
+    }
     val shape = RoundedCornerShape(24.dp)
     // A touch in a gap between a panel's buttons must not reach the page: having touch handling at all keeps it from
     // the page underneath, and taking the release that no button took keeps it from being a page turn. Down and move
@@ -308,7 +325,7 @@ fun BoxScope.AnnotationControls(viewModel: AnnotationViewModel) {
                     val picked = stamp.symbol == symbol
                     Canvas(
                         modifier = Modifier
-                            .size(44.dp)
+                            .size(48.dp)
                             .clip(CircleShape)
                             .background(Color.White)
                             .border(if (picked) 3.dp else 1.dp, colors.message, CircleShape)
@@ -332,21 +349,29 @@ fun BoxScope.AnnotationControls(viewModel: AnnotationViewModel) {
         ) {
             PEN_COLORS.forEach { pen ->
                 val picked = color == pen && tool !is Tool.Eraser
+                // A 36 dp swatch in a 48 dp target.
                 Box(
+                    contentAlignment = Alignment.Center,
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(48.dp)
                         .clip(CircleShape)
-                        .border(if (picked) 3.dp else 1.dp, colors.message, CircleShape)
-                        .padding(6.dp)
-                        .clip(CircleShape)
-                        .background(Color(pen))
                         // A colour goes for the symbols too; picked while stamping, it stays with the symbol.
                         .clickable(role = Role.RadioButton) { viewModel.pickColor(pen) }
                         .semantics {
                             contentDescription = "Pen, ${colorName(pen)}"
                             selected = picked
                         },
-                )
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .border(if (picked) 3.dp else 1.dp, colors.message, CircleShape)
+                            .padding(6.dp)
+                            .clip(CircleShape)
+                            .background(Color(pen)),
+                    )
+                }
             }
             FilterChip(
                 selected = stamp != null,
@@ -380,6 +405,54 @@ fun BoxScope.AnnotationControls(viewModel: AnnotationViewModel) {
                 viewModel.done()
                 choosing = false
             }) { Text("Done", color = colors.message) }
+        }
+    }
+}
+
+/**
+ * The score changed under my marks: say so, below the top buttons, with the version before to compare against. I
+ * check; Volti doesn't move marks to where it thinks they belong. On that previous version itself, say which it is.
+ */
+@Composable
+private fun BoxScope.ChangeNotice(
+    change: ScoreChange,
+    onOpenPrevious: (String) -> Unit,
+    onChecked: () -> Unit,
+    onLater: () -> Unit,
+) {
+    val colors = LocalReaderColors.current
+    val shape = RoundedCornerShape(24.dp)
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .align(Alignment.TopCenter)
+            .windowInsetsPadding(WindowInsets.statusBars)
+            .padding(top = 72.dp, start = 12.dp, end = 12.dp)
+            .clip(shape)
+            .background(colors.surround)
+            .border(1.5.dp, colors.message, shape)
+            // A tap on the text is no page turn (as on the toolbar: the release nobody took is taken here).
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        awaitPointerEvent().changes.forEach { if (it.previousPressed && !it.pressed && !it.isConsumed) it.consume() }
+                    }
+                }
+            }
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        when (change) {
+            is ScoreChange.Changed -> {
+                Text("This score changed since you made your marks. Check that they still fit.", color = colors.message)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = { onOpenPrevious(change.previousUri) }) { Text("Previous version", color = colors.message) }
+                    TextButton(onClick = onChecked) { Text("Marks checked", color = colors.message) }
+                    // Not now, mid-rehearsal: hidden for this opening, the previous version kept.
+                    TextButton(onClick = onLater) { Text("Later", color = colors.message) }
+                }
+            }
+            ScoreChange.ShowingPrevious ->
+                Text("The previous version, to compare your marks with. Back goes to the new one.", color = colors.message)
         }
     }
 }

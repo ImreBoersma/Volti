@@ -91,4 +91,62 @@ class AnnotationViewModelTest {
         assertEquals(listOf("MF"), vm.symbols.value[0]?.map { it.symbol })
         stored(strokes = 1, symbols = 2)
     }
+
+    /** A Drive score in an ensemble that I opened at version 1, then at version 2. */
+    private suspend fun changedDriveScore(fileId: String): Long {
+        val ensemble = db.ensembles().add(nl.imreboersma.volti.db.Ensemble(name = "Test", instrument = "Horn", folderId = "f" + UUID.randomUUID().toString().take(12)))
+        val v1 = "1".repeat(32)
+        val v2 = "2".repeat(32)
+        db.files().save(listOf(nl.imreboersma.volti.db.EnsembleFile(ensemble, fileId, null, "a.pdf", emptyList(), v2, 1, localMd5 = v2)))
+        db.files().opened(ensemble, fileId, v1)
+        db.files().opened(ensemble, fileId, v2)
+        return ensemble
+    }
+
+    private suspend fun openDrive(fileId: String): AnnotationViewModel {
+        val vm = withContext(Dispatchers.Main) { AnnotationViewModel(app, SavedStateHandle(mapOf("uri" to "file:///none.pdf", "scoreKey" to "drive:$fileId"))) }
+        vm.ready.first { it }
+        repeat(50) { if (vm.change.value != null) return vm; kotlinx.coroutines.delay(20) }
+        return vm
+    }
+
+    @Test
+    fun aChangedScoreWithMyMarksSaysSo() = runBlocking {
+        val fileId = "file" + UUID.randomUUID().toString().take(8)
+        val ensemble = changedDriveScore(fileId)
+        db.annotations().addSymbols(listOf(AnnotationSymbol("s-$fileId", "drive:$fileId", 0, "Fermata", 1f, 1f, 0)))
+        try {
+            val vm = openDrive(fileId)
+            assertTrue(vm.change.value is ScoreChange.Changed)
+            main { vm.marksChecked() }
+            repeat(50) { if (db.files().previousOf(fileId) == null) return@repeat; kotlinx.coroutines.delay(20) }
+            assertEquals(null, db.files().previousOf(fileId))
+        } finally {
+            db.annotations().removeSymbols(listOf("s-$fileId"))
+            db.ensembles().remove(db.ensembles().get(ensemble)!!)
+        }
+    }
+
+    @Test
+    fun aChangedScoreWithoutMarksSaysNothingAndLetsThePreviousGo() = runBlocking {
+        val fileId = "file" + UUID.randomUUID().toString().take(8)
+        val ensemble = changedDriveScore(fileId)
+        try {
+            val vm = openDrive(fileId)
+            assertEquals(null, vm.change.value)
+            assertEquals(null, db.files().previousOf(fileId))
+        } finally {
+            db.ensembles().remove(db.ensembles().get(ensemble)!!)
+        }
+    }
+
+    @Test
+    fun thePreviousVersionIsToLookAtOnly() = runBlocking {
+        val previous = withContext(Dispatchers.Main) {
+            AnnotationViewModel(app, SavedStateHandle(mapOf("uri" to "file:///none.pdf", "scoreKey" to key, "previous" to true)))
+        }
+        repeat(50) { if (previous.change.value != null) return@repeat; kotlinx.coroutines.delay(20) }
+        assertEquals(ScoreChange.ShowingPrevious, previous.change.value)
+        assertEquals("no pen on the old layout", false, previous.ready.value)
+    }
 }

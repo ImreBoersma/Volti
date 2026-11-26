@@ -2201,6 +2201,8 @@
     #noinspection ShrinkerUnresolvedReference
     java.lang.String substringBeforeLast$default(java.lang.String, char, java.lang.String, int, java.lang.Object);
     #noinspection ShrinkerUnresolvedReference
+    java.lang.String take(java.lang.String, int);
+    #noinspection ShrinkerUnresolvedReference
     java.lang.CharSequence trimEnd(java.lang.CharSequence);
     #noinspection ShrinkerUnresolvedReference
     java.lang.String trimMargin$default(java.lang.String, java.lang.String, int, java.lang.Object);
@@ -2787,6 +2789,8 @@
     nl.imreboersma.volti.LocalLibrary INSTANCE;
 }
 #noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.MainActivity
+#noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.MainActivityKt {
     #noinspection ShrinkerUnresolvedReference
     void VoltiApp(androidx.navigation.NavHostController, androidx.compose.runtime.Composer, int, int);
@@ -2794,7 +2798,7 @@
 #noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.Reader {
     #noinspection ShrinkerUnresolvedReference
-    <init>(java.lang.String, java.lang.String, int, kotlin.jvm.internal.DefaultConstructorMarker);
+    <init>(java.lang.String, java.lang.String, boolean, int, kotlin.jvm.internal.DefaultConstructorMarker);
 }
 #noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.Settings
@@ -2842,11 +2846,15 @@
     #noinspection ShrinkerUnresolvedReference
     void finished(int, androidx.ink.strokes.Stroke);
     #noinspection ShrinkerUnresolvedReference
+    kotlinx.coroutines.flow.StateFlow getChange();
+    #noinspection ShrinkerUnresolvedReference
     kotlinx.coroutines.flow.StateFlow getReady();
     #noinspection ShrinkerUnresolvedReference
     kotlinx.coroutines.flow.StateFlow getStrokes();
     #noinspection ShrinkerUnresolvedReference
     kotlinx.coroutines.flow.StateFlow getSymbols();
+    #noinspection ShrinkerUnresolvedReference
+    void marksChecked();
     #noinspection ShrinkerUnresolvedReference
     void place(int, nl.imreboersma.volti.annotate.Point, nl.imreboersma.volti.annotate.Symbol);
     #noinspection ShrinkerUnresolvedReference
@@ -2865,6 +2873,13 @@
     float getX();
     #noinspection ShrinkerUnresolvedReference
     float getY();
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.annotate.ScoreChange$Changed
+#noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.annotate.ScoreChange$ShowingPrevious {
+    #noinspection ShrinkerUnresolvedReference
+    nl.imreboersma.volti.annotate.ScoreChange$ShowingPrevious INSTANCE;
 }
 #noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.annotate.Symbol {
@@ -3010,9 +3025,9 @@
 #noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.db.EnsembleFile {
     #noinspection ShrinkerUnresolvedReference
-    <init>(long, java.lang.String, java.lang.String, java.lang.String, java.util.List, java.lang.String, long, java.lang.String, java.lang.String, boolean, java.lang.Long, boolean, boolean, int, kotlin.jvm.internal.DefaultConstructorMarker);
+    <init>(long, java.lang.String, java.lang.String, java.lang.String, java.util.List, java.lang.String, long, java.lang.String, java.lang.String, boolean, java.lang.Long, boolean, boolean, java.lang.String, int, kotlin.jvm.internal.DefaultConstructorMarker);
     #noinspection ShrinkerUnresolvedReference
-    nl.imreboersma.volti.db.EnsembleFile copy$default(nl.imreboersma.volti.db.EnsembleFile, long, java.lang.String, java.lang.String, java.lang.String, java.util.List, java.lang.String, long, java.lang.String, java.lang.String, boolean, java.lang.Long, boolean, boolean, int, java.lang.Object);
+    nl.imreboersma.volti.db.EnsembleFile copy$default(nl.imreboersma.volti.db.EnsembleFile, long, java.lang.String, java.lang.String, java.lang.String, java.util.List, java.lang.String, long, java.lang.String, java.lang.String, boolean, java.lang.Long, boolean, boolean, java.lang.String, int, java.lang.Object);
     #noinspection ShrinkerUnresolvedReference
     boolean getDecided();
     #noinspection ShrinkerUnresolvedReference
@@ -3031,11 +3046,15 @@
     #noinspection ShrinkerUnresolvedReference
     java.lang.Object all(long, kotlin.coroutines.Continuation);
     #noinspection ShrinkerUnresolvedReference
+    java.lang.Object checked(java.lang.String, kotlin.coroutines.Continuation);
+    #noinspection ShrinkerUnresolvedReference
     java.lang.Object downloaded(long, java.lang.String, java.lang.String, kotlin.coroutines.Continuation);
     #noinspection ShrinkerUnresolvedReference
     java.lang.Object forgetUnused(long, kotlin.coroutines.Continuation);
     #noinspection ShrinkerUnresolvedReference
     java.lang.Object opened(long, java.lang.String, java.lang.String, kotlin.coroutines.Continuation);
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.Object previousOf(java.lang.String, kotlin.coroutines.Continuation);
     #noinspection ShrinkerUnresolvedReference
     java.lang.Object replace(long, kotlin.jvm.functions.Function1, kotlin.coroutines.Continuation);
     #noinspection ShrinkerUnresolvedReference

@@ -134,12 +134,41 @@ class EnsembleFileDaoTest {
     }
 
     @Test
+    fun openingANewerVersionKeepsTheOneISawUntilChecked() = runBlocking {
+        val id = ensemble()
+        files.save(listOf(file(id, "a", local = v1)))
+        files.opened(id, "a", v1)
+        assertEquals(null, files.previousOf("a")) // The first time there is nothing before it.
+        files.opened(id, "a", v2)
+        assertEquals(v1, files.previousOf("a"))
+        files.opened(id, "a", v2) // Opening it again keeps what there is to compare.
+        assertEquals(v1, files.previousOf("a"))
+        assertTrue(v1 in files.versionsInUse())
+        files.checked("a")
+        assertEquals(null, files.previousOf("a"))
+    }
+
+    @Test
+    fun checkedInOneEnsembleStaysCheckedInTheOther() = runBlocking {
+        val a = ensemble()
+        val b = db.ensembles().add(Ensemble(name = "Other", instrument = "Horn", folderId = "folderBBBBBB"))
+        files.save(listOf(file(a, "x", local = v1), file(b, "x", local = v1)))
+        files.opened(a, "x", v1)
+        files.opened(b, "x", v1)
+        files.opened(a, "x", v2) // A change, seen in the first ensemble,
+        assertEquals(v1, files.previousOf("x"))
+        files.checked("x") // checked there,
+        files.opened(b, "x", v2) // and the same version in the second is no change any more.
+        assertEquals(null, files.previousOf("x"))
+    }
+
+    @Test
     fun ensemblesSurviveTheMigrations() {
         val name = "migration-test"
         migrations.createDatabase(name, 1).use {
             it.execSQL("INSERT INTO ensemble (name, instrument, folderId) VALUES ('Harmonie', 'Horn', 'folderAAAAAA')")
         }
-        migrations.runMigrationsAndValidate(name, 6, true).close()
+        migrations.runMigrationsAndValidate(name, 7, true).close()
         val migrated = Room.databaseBuilder(context, VoltiDatabase::class.java, name).build()
         try {
             val all = runBlocking { migrated.ensembles().all().first() }

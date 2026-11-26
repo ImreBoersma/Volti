@@ -9,6 +9,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.unit.dp
 
 /** Cream paper with ink, the Bauhaus blue for actions, the red for what is switched on. */
 internal val LightColors = lightColorScheme(
@@ -63,6 +64,9 @@ internal val DarkColors = darkColorScheme(
     outline = CreamMuted,
     outlineVariant = InkLine,
 )
+
+/** The widest a form or settings column gets: on a wide window, fields and rows don't stretch across it. */
+val MaxContentWidth = 600.dp
 
 /**
  * The reader's own colours. The page is white paper in both themes, so what touches it is fixed rather than

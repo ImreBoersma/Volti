@@ -347,7 +347,11 @@ Checked on the Fairphone 6: a fermata placed where tapped, survived a reinstall,
 
 ### 3. A changed score
 
-- [ ] A new version of an annotated PDF: show it with my annotations on top and say the score changed, with the previous version still available. I check; Volti doesn't try to move marks to where it thinks they belong. Happens now and then, mostly in smaller ensembles.
+- [x] A new version of an annotated PDF: show it with my annotations on top and say the score changed, with the previous version still available. I check; Volti doesn't try to move marks to where it thinks they belong. Happens now and then, mostly in smaller ensembles.
+
+Done 2026-11-26. Opening a newer version of a score keeps the version I last saw as the previous one (not the one that was there between two openings, and not when another ensemble with the same Drive file already showed me this version). If I have marks on it, the reader says "This score changed since you made your marks. Check that they still fit." with Previous version, Marks checked and Later. The previous version opens in the reader with the same marks and a banner, to look at only: no pen, since a mark on the old layout would land on the new one in the wrong place. Marks checked lets the previous version go at the next clean-up; Later hides the notice for this opening and keeps it. Without marks there is nothing to check: no notice, and the previous version goes at once.
+
+Checked on the emulator with a version change made in the database (the stand-in previous version was another part): the notice over the new version with its marks, the previous version with its banner, Marks checked clearing it.
 
 Done when: a part annotated with the S Pen on the tablet keeps its marks across a restart, a crop change, half-page turns and a new version from Drive.
 

@@ -24,6 +24,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nl.imreboersma.volti.Reader
 import nl.imreboersma.volti.db.VoltiDatabase
+import nl.imreboersma.volti.drive.Syncer
+import android.net.Uri
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.security.MessageDigest
@@ -37,6 +39,15 @@ private const val PEN_SIZE = 3f
 
 /** How close the eraser must come to a stroke, in page units. */
 private const val ERASER_RADIUS = 12f
+
+/** That the score changed under my marks, for the reader to say. */
+sealed interface ScoreChange {
+    /** A newer version than the one I made my marks on: [previousUri] is the one before, to compare. */
+    data class Changed(val previousUri: String) : ScoreChange
+
+    /** This is that previous version, open to compare. */
+    data object ShowingPrevious : ScoreChange
+}
 
 /** What a pen (or, while annotating, a finger) does on the page. */
 sealed interface Tool {
@@ -57,6 +68,7 @@ class Drawn(val row: AnnotationStroke, val stroke: Stroke, val points: List<Poin
  */
 class AnnotationViewModel(app: Application, handle: SavedStateHandle) : AndroidViewModel(app) {
     private val dao = VoltiDatabase.get(app).annotations()
+    private val files = VoltiDatabase.get(app).files()
     private var scoreKey: String? = null
 
     private val _strokes = MutableStateFlow<Map<Int, List<Drawn>>>(emptyMap())
@@ -68,6 +80,9 @@ class AnnotationViewModel(app: Application, handle: SavedStateHandle) : AndroidV
 
     /** Per page index. */
     val symbols: StateFlow<Map<Int, List<AnnotationSymbol>>> = _symbols.asStateFlow()
+
+    private val _change = MutableStateFlow<ScoreChange?>(null)
+    val change: StateFlow<ScoreChange?> = _change.asStateFlow()
 
     private val _ready = MutableStateFlow(false)
 
@@ -104,7 +119,10 @@ class AnnotationViewModel(app: Application, handle: SavedStateHandle) : AndroidV
             val drawn = withContext(Dispatchers.Default) { rows.mapNotNull(::draw) }
             _strokes.value = drawn.groupBy { it.row.page }
             _symbols.value = dao.symbolsForScore(key).filter { Symbol.named(it.symbol) != null }.groupBy { it.page }
-            _ready.value = true
+            // The previous version is to look at only: the marks are the new version's, and one written on the old
+            // layout would land on the new one in the wrong place.
+            _ready.value = !route.previous
+            _change.value = if (route.previous) ScoreChange.ShowingPrevious else changeOf(key)
         }
     }
 
@@ -127,6 +145,32 @@ class AnnotationViewModel(app: Application, handle: SavedStateHandle) : AndroidV
             Log.w("Volti", "Can't read the score for its annotations", e)
             null // The reader says what's wrong with the file; without a key it just has no annotations.
         }
+    }
+
+    /**
+     * Whether a Drive score changed since I opened it last: only worth saying when I have marks on it. Without marks
+     * there is nothing to check, and the previous version is let go at once.
+     */
+    private suspend fun changeOf(key: String): ScoreChange? {
+        val fileId = key.removePrefix("drive:").takeIf { key.startsWith("drive:") } ?: return null
+        val previous = files.previousOf(fileId) ?: return null
+        if (_strokes.value.values.all { it.isEmpty() } && _symbols.value.values.all { it.isEmpty() }) {
+            files.checked(fileId)
+            return null
+        }
+        return ScoreChange.Changed(Uri.fromFile(Syncer.get(getApplication()).fileFor(previous)).toString())
+    }
+
+    /** Not now: the notice goes for this opening; it comes back next time, and the previous version stays. */
+    fun later() {
+        _change.value = null
+    }
+
+    /** My marks fit the new version: the previous one can go. */
+    fun marksChecked() {
+        val key = scoreKey ?: return
+        _change.value = null
+        viewModelScope.launch { files.checked(key.removePrefix("drive:")) }
     }
 
     fun start() {

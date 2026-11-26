@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
+import nl.imreboersma.volti.ui.theme.MaxContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
@@ -63,6 +65,7 @@ fun AddEnsembleScreen(onAdded: (Long) -> Unit, onBack: () -> Unit, viewModel: En
         Column(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier
+                .widthIn(max = MaxContentWidth)
                 .fillMaxSize()
                 .padding(padding)
                 .consumeWindowInsets(padding)

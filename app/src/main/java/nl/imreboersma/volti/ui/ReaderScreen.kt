@@ -52,6 +52,17 @@ import nl.imreboersma.volti.data.PageArea
 import androidx.compose.foundation.layout.BoxScope
 import nl.imreboersma.volti.ui.theme.LocalReaderColors
 import nl.imreboersma.volti.ui.theme.readerColorsOn
+import androidx.compose.foundation.focusable
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEvent
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
 
 /**
  * Where a page is on screen, for whatever is drawn over it (annotations): page [index], showing [area] of it as a
@@ -75,6 +86,9 @@ fun ReaderScreen(
     val paper by viewModel.paper.collectAsStateWithLifecycle()
     // Once the score's paper colour is known, the reader takes it around the page; until then, the theme's.
     val colors = paper?.let { readerColorsOn(Color(it)) } ?: LocalReaderColors.current
+    // The reader holds the keyboard focus, for the pedal.
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(focus) { focus.requestFocus() }
     CompositionLocalProvider(LocalReaderColors provides colors) {
         Box(
             modifier = modifier
@@ -85,7 +99,18 @@ fun ReaderScreen(
                 // Left half turns back, right half turns forward.
                 .pointerInput(viewModel) {
                     detectTapGestures { tap -> if (tap.x < size.width / 2) viewModel.previous() else viewModel.next() }
-                },
+                }
+                // Before any focused control: Space on a pedal turns the page, it doesn't press a toolbar button.
+                .onPreviewKeyEvent { pageTurnKey(it, viewModel) }
+                // On the node TalkBack focuses (the focusable one): the tap halves aren't reachable with TalkBack.
+                .semantics {
+                    customActions = listOf(
+                        CustomAccessibilityAction("Next page") { viewModel.next(); true },
+                        CustomAccessibilityAction("Previous page") { viewModel.previous(); true },
+                    )
+                }
+                .focusRequester(focus)
+                .focusable(),
             contentAlignment = Alignment.Center,
         ) {
             when (val s = state) {
@@ -105,6 +130,23 @@ fun ReaderScreen(
             BackButton(onBack, Modifier.align(Alignment.TopStart))
         }
     }
+}
+
+/**
+ * A page-turn pedal is a keyboard: forward on Page Down, right, down and space, back on Page Up, left and up. One
+ * press is one turn: a pedal held down doesn't skip pages. Its repeats are still taken, so they don't move the focus.
+ * Anything else is left alone: Esc goes Back (see `MainActivity`).
+ */
+private fun pageTurnKey(event: KeyEvent, viewModel: ReaderViewModel): Boolean {
+    val forward = when (event.key) {
+        Key.PageDown, Key.DirectionRight, Key.DirectionDown, Key.Spacebar -> true
+        Key.PageUp, Key.DirectionLeft, Key.DirectionUp -> false
+        else -> return false
+    }
+    if (event.type == KeyEventType.KeyDown && event.nativeKeyEvent.repeatCount == 0) {
+        if (forward) viewModel.next() else viewModel.previous()
+    }
+    return true
 }
 
 /**

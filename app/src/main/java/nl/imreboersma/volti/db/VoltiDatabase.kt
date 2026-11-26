@@ -75,6 +75,11 @@ data class EnsembleFile(
     @ColumnInfo(defaultValue = "0") val mine: Boolean = false,
     /** I said whether it is mine (marked it, or turned down the suggestion): it isn't suggested again. */
     @ColumnInfo(defaultValue = "0") val decided: Boolean = false,
+    /**
+     * The version I had seen before I opened a newer one: kept, to compare my marks against, until I say they are
+     * checked. Null when there is nothing to check.
+     */
+    val previousMd5: String? = null,
 ) {
     val changed get() = seenMd5 != null && localMd5 != null && seenMd5 != localMd5
 }
@@ -139,9 +144,25 @@ interface EnsembleFileDao {
     @Query("UPDATE ensemble_file SET mine = :mine, decided = 1 WHERE ensembleId = :ensembleId AND fileId IN (:fileIds)")
     suspend fun setMine(ensembleId: Long, fileIds: List<String>, mine: Boolean)
 
-    /** I opened version [md5]: it is kept until I open a newer one. */
-    @Query("UPDATE ensemble_file SET seenMd5 = :md5 WHERE ensembleId = :ensembleId AND fileId = :fileId")
+    /**
+     * I opened version [md5]: it is kept until I open a newer one. Opening a newer one keeps the one I saw as
+     * [EnsembleFile.previousMd5]; opening it again, or after a change I haven't checked, keeps the one already there.
+     * A version I already saw through another ensemble (the same Drive file in two) is no change.
+     */
+    @Query(
+        "UPDATE ensemble_file SET previousMd5 = CASE WHEN previousMd5 IS NULL AND seenMd5 IS NOT NULL AND seenMd5 != :md5 " +
+            "AND NOT EXISTS (SELECT 1 FROM ensemble_file o WHERE o.fileId = :fileId AND o.seenMd5 = :md5) " +
+            "THEN seenMd5 ELSE previousMd5 END, seenMd5 = :md5 WHERE ensembleId = :ensembleId AND fileId = :fileId",
+    )
     suspend fun opened(ensembleId: Long, fileId: String, md5: String)
+
+    /** The previous version of the Drive file [fileId], while there is one to compare against. */
+    @Query("SELECT previousMd5 FROM ensemble_file WHERE fileId = :fileId AND previousMd5 IS NOT NULL LIMIT 1")
+    suspend fun previousOf(fileId: String): String?
+
+    /** Nothing to compare any more: the previous version can go. */
+    @Query("UPDATE ensemble_file SET previousMd5 = NULL WHERE fileId = :fileId")
+    suspend fun checked(fileId: String)
 
     @Query("UPDATE ensemble_file SET localMd5 = :md5 WHERE ensembleId = :ensembleId AND fileId = :fileId AND md5 = :md5")
     suspend fun downloaded(ensembleId: Long, fileId: String, md5: String)
@@ -151,7 +172,10 @@ interface EnsembleFileDao {
     suspend fun forgetUnused(ensembleId: Long)
 
     /** Every version some row still needs on the tablet. */
-    @Query("SELECT localMd5 FROM ensemble_file WHERE localMd5 IS NOT NULL UNION SELECT seenMd5 FROM ensemble_file WHERE seenMd5 IS NOT NULL")
+    @Query(
+        "SELECT localMd5 FROM ensemble_file WHERE localMd5 IS NOT NULL UNION SELECT seenMd5 FROM ensemble_file WHERE seenMd5 IS NOT NULL " +
+            "UNION SELECT previousMd5 FROM ensemble_file WHERE previousMd5 IS NOT NULL",
+    )
     suspend fun versionsInUse(): List<String>
 
     /** One sync's result in one go, rows it drops included: a half-written list would lose files. */
@@ -165,13 +189,14 @@ interface EnsembleFileDao {
 
 @Database(
     entities = [Ensemble::class, EnsembleFile::class, AnnotationStroke::class, AnnotationSymbol::class],
-    version = 6,
+    version = 7,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
         AutoMigration(from = 3, to = 4),
         AutoMigration(from = 4, to = 5),
         AutoMigration(from = 5, to = 6),
+        AutoMigration(from = 6, to = 7),
     ],
 )
 @TypeConverters(Converters::class)

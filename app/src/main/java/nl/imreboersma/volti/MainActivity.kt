@@ -1,6 +1,7 @@
 package nl.imreboersma.volti
 
 import android.os.Bundle
+import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import android.graphics.Color
@@ -20,6 +21,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.toRoute
 import kotlinx.serialization.Serializable
 import nl.imreboersma.volti.ui.EnsembleScreen
 import nl.imreboersma.volti.annotate.AnnotationControls
@@ -55,10 +57,11 @@ data class EnsembleFiles(val id: Long)
 
 /**
  * [uri] is the document URI of the score, as a string. [scoreKey] is what its annotations belong to when the opener
- * knows (`drive:<file id>` for an ensemble's score); without it, the file's content decides.
+ * knows (`drive:<file id>` for an ensemble's score); without it, the file's content decides. [previous]: this is the
+ * version before a change, opened to compare my marks against.
  */
 @Serializable
-data class Reader(val uri: String, val scoreKey: String? = null)
+data class Reader(val uri: String, val scoreKey: String? = null, val previous: Boolean = false)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -72,6 +75,13 @@ class MainActivity : ComponentActivity() {
                 VoltiApp()
             }
         }
+    }
+
+    /** Esc does what Back does, on every screen: a keyboard user has no Back key. Only an Esc nothing else took. */
+    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
+        if (keyCode != KeyEvent.KEYCODE_ESCAPE) return super.onKeyDown(keyCode, event)
+        if (event.repeatCount == 0) onBackPressedDispatcher.onBackPressed()
+        return true
     }
 }
 
@@ -138,15 +148,24 @@ fun VoltiApp(navController: NavHostController = rememberNavController()) {
                 onBack = dropUnlessResumed { navController.popBackStack() },
             )
         }
-        composable<Reader> {
-            // Only while the reader is the resumed screen: a second tap during the crossfade would also pop the
-            // library and leave nothing on screen.
+        composable<Reader> { entry ->
             // Annotations go over the reader through its slots; the reader itself doesn't know about them.
             val annotations: AnnotationViewModel = viewModel()
             ReaderScreen(
+                // Only while the reader is the resumed screen: a second tap during the crossfade would also pop the
+                // library and leave nothing on screen.
                 onBack = dropUnlessResumed { navController.popBackStack() },
                 overlay = { page -> PageAnnotations(page, annotations) },
-                controls = { AnnotationControls(annotations) },
+                controls = {
+                    AnnotationControls(
+                        annotations,
+                        onOpenPrevious = { uri ->
+                            if (entry.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                                navController.navigate(entry.toRoute<Reader>().copy(uri = uri, previous = true))
+                            }
+                        },
+                    )
+                },
             )
         }
     }
