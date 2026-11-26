@@ -11,12 +11,12 @@ class NaturalOrderFuzzTest {
     fun consistentOnHostileNames() = checkNaturalOrderIsConsistent(NaturalOrder())
 
     @Test
-    fun consistentWithDutchCollation() = checkNaturalOrderIsConsistent(NaturalOrder(Collator.getInstance(Locale("nl", "NL"))), seed = 3)
+    fun consistentWithDutchCollation() = checkNaturalOrderIsConsistent(NaturalOrder(Collator.getInstance(Locale.forLanguageTag("nl-NL"))), seed = 3)
 
     @Test
     fun noCycleWithNonAsciiDigits() {
         // Found by fuzzing the first version: a fullwidth and an Arabic-Indic digit made these a cycle.
-        val order = NaturalOrder(Collator.getInstance(Locale("nl", "NL")))
+        val order = NaturalOrder(Collator.getInstance(Locale.forLanguageTag("nl-NL")))
         val (a, b, c) = listOf("٣ ５", " ５91", "５a")
         val ab = order.compare(a, b)
         val bc = order.compare(b, c)

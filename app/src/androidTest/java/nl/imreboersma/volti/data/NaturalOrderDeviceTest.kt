@@ -12,7 +12,8 @@ class NaturalOrderDeviceTest {
     fun consistentOnHostileNamesWithIcu() = checkNaturalOrderIsConsistent(NaturalOrder(), seed = 7)
 }
 
-/** Copy of the check in NaturalOrderFuzzTest (unit tests). Keep them the same. */
+/** Copy of the check in NaturalOrderFuzzTest (unit tests). Keep them the same, seed parameter included. */
+@Suppress("SameParameterValue")
 private fun checkNaturalOrderIsConsistent(order: NaturalOrder, seed: Long = 1) {
     val alphabet = listOf("0", "1", "5", "9", "07", "a", "B", "é", " ", ".", "５", "٣", "５", "٣", "９1", "​", "‎", "Ⅻ", "½", "-")
     val random = kotlin.random.Random(seed)

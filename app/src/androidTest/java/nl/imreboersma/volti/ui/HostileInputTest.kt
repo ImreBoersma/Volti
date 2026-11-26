@@ -17,6 +17,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import kotlin.time.Duration.Companion.seconds
 import nl.imreboersma.volti.data.PixelSize
 import nl.imreboersma.volti.data.ReaderSettings
 import org.junit.After
@@ -56,7 +57,7 @@ class HostileInputTest {
     }
 
     private fun ReaderViewModel.settled(): ReaderState = runBlocking {
-        withTimeout(10_000) { state.first { it !is ReaderState.Loading } }
+        withTimeout(10.seconds) { state.first { it !is ReaderState.Loading } }
     }
 
     @Test
@@ -109,9 +110,9 @@ class HostileInputTest {
         val vm = open("broken-page.pdf")
         assertNotNull((vm.settled() as ReaderState.Page).bitmap)
         vm.next()
-        val second = runBlocking { withTimeout(10_000) { vm.state.first { it is ReaderState.Page && it.index == 1 } } }
+        val second = runBlocking { withTimeout(10.seconds) { vm.state.first { it is ReaderState.Page && it.index == 1 } } }
         vm.next()
-        val third = runBlocking { withTimeout(10_000) { vm.state.first { it is ReaderState.Page && it.index == 2 } } }
+        val third = runBlocking { withTimeout(10.seconds) { vm.state.first { it is ReaderState.Page && it.index == 2 } } }
         // PDFium doesn't throw on a broken content stream: it draws what it can. So "Can't show page N."
         // is never reached with the real renderer; ReaderViewModelTest covers it with a fake.
         assertNotNull((second as ReaderState.Page).bitmap)
@@ -137,11 +138,11 @@ class HostileInputTest {
         assertNotNull((vm.settled() as ReaderState.Page).bitmap)
 
         InstrumentationRegistry.getInstrumentation().runOnMainSync { vm.next() }
-        val second = runBlocking { withTimeout(60_000) { vm.state.first { it is ReaderState.Page && it.index == 1 } } }
+        val second = runBlocking { withTimeout(60.seconds) { vm.state.first { it is ReaderState.Page && it.index == 1 } } }
         assertEquals("page 2 should show as unreadable", null, (second as ReaderState.Page).bitmap)
 
         InstrumentationRegistry.getInstrumentation().runOnMainSync { vm.next() }
-        val third = runBlocking { withTimeout(60_000) { vm.state.first { it is ReaderState.Page && it.index == 2 } } }
+        val third = runBlocking { withTimeout(60.seconds) { vm.state.first { it is ReaderState.Page && it.index == 2 } } }
         assertNotNull("page 3 should render in a fresh renderer", (third as ReaderState.Page).bitmap)
     }
 }

@@ -208,8 +208,8 @@ class ReaderViewModel @JvmOverloads constructor(
 
     /**
      * Called by the UI once the frame drawing [bitmaps] (empty: no page) has been committed to the screen.
-     * Bitmaps only in older frames have then left it; bitmaps from newer frames are still on their way. A frame
-     * that isn't known releases nothing: holding on too long is safe, letting go too early is not.
+     * Bitmaps only in older frames have then left it; bitmaps from newer frames are still on their way.
+     * An unknown frame releases nothing: holding on too long is safe, letting go too early is not.
      */
     fun onPresented(bitmaps: List<Bitmap>) = synchronized(drawnLock) {
         val now = SystemClock.uptimeMillis()

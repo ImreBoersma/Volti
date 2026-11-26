@@ -120,7 +120,7 @@ class ScoreDocumentTest {
         }
     }
 
-    /** One page with a black block in the middle 60%, optionally turned with /Rotate. Hand-written: PdfDocument can't rotate. */
+    /** One page with a black block in the middle 60%, optionally turned with /Rotate. Handwritten: PdfDocument can't rotate. */
     private fun marginsPdf(rotate: Int = 0): File {
         val content = "0 g 119 168 357 506 re f".toByteArray()
         val objects = listOf(

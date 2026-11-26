@@ -69,7 +69,7 @@ class ThemeContrastTest {
             val colors = readerColorsOn(paper)
             val text = contrast(colors.message, paper)
             assertTrue("text on paper ${paper}: %.2f".format(text), text >= 4.5)
-            assertTrue("the half-turn line on paper ${paper}", contrast(colors.line, paper) >= 3.0)
+            assertTrue("the half-turn line on paper $paper", contrast(colors.line, paper) >= 3.0)
         }
         // Mid-grey, where ink and cream contrast equally (and least): neither reaches 4.5:1 there, but text, line
         // and the back button's arrow stay at least 3:1. A compromised renderer could pick any grey.

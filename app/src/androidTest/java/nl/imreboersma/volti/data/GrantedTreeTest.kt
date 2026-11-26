@@ -75,10 +75,11 @@ class GrantedTreeTest {
         val all = walkFolder(resolver, tree)
         // Everything at the top, and more below it.
         assertTrue(top.all { entry -> all.any { it.entry == entry && it.parents.isEmpty() } })
-        val nested = all.firstOrNull { it.parents.isNotEmpty() }
-        assumeTrue("the granted folder has no subfolders", nested != null)
+        val found = all.firstOrNull { it.parents.isNotEmpty() }
+        assumeTrue("the granted folder has no subfolders", found != null)
+        val nested = found!!
         // The parents are a real chain: listing the last one contains the entry.
-        assertTrue(nested!!.entry in listFolder(resolver, tree, nested!!.parents.last().documentId)!!)
+        assertTrue(nested.entry in listFolder(resolver, tree, nested.parents.last().documentId)!!)
     }
 
     @Test

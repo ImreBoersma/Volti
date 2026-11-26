@@ -20,6 +20,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import nl.imreboersma.volti.data.PageArea
 import nl.imreboersma.volti.data.PageScan
 import nl.imreboersma.volti.data.PixelSize
@@ -101,7 +103,7 @@ class ReaderViewModelTest {
     /**
      * The stand-in UI. Once per [frameMillis] (a long one is a busy main thread) it records a frame with the
      * latest state and reports onDrawn; [presentMillis] later (a long one is a busy render thread) that frame
-     * reaches the screen and it reports onPresented, as ReaderScreen does.
+     * reaches the screen, and it reports onPresented, as ReaderScreen does.
      */
     private fun viewModel(
         openTimeoutMs: Long = 10_000,
@@ -131,7 +133,7 @@ class ReaderViewModelTest {
         collector.launch {
             var hadPage = false
             while (true) {
-                delay(frameMillis)
+                delay(frameMillis.milliseconds)
                 val state = vm.state.value
                 val bitmaps = (state as? ReaderState.Page)?.bitmaps.orEmpty()
                 synchronized(screenLock) { if (states.lastOrNull() != state) states += state }
@@ -148,7 +150,7 @@ class ReaderViewModelTest {
         }
         collector.launch {
             for ((bitmaps, recordedAt) in frames) {
-                delay(recordedAt + presentMillis - SystemClock.uptimeMillis())
+                delay((recordedAt + presentMillis - SystemClock.uptimeMillis()).milliseconds)
                 synchronized(screenLock) {
                     val now = SystemClock.uptimeMillis()
                     onScreen.filter { old -> bitmaps.none { it === old } }.forEach { leftScreenAt[it] = now }
@@ -168,13 +170,13 @@ class ReaderViewModelTest {
     }
 
     private fun awaitState(predicate: (ReaderState) -> Boolean) = runBlocking {
-        withTimeout(10_000) { vm.state.first(predicate) }
+        withTimeout(10.seconds) { vm.state.first(predicate) }
     }
 
     private fun awaitPage(index: Int) = awaitState { it is ReaderState.Page && it.index == index } as ReaderState.Page
 
     private fun awaitEvents(count: Int) = runBlocking {
-        withTimeout(10_000) { while (events.size < count) delay(10) }
+        withTimeout(10.seconds) { while (events.size < count) delay(10.milliseconds) }
     }
 
     private fun renders() = events.filter { it.startsWith("render") }

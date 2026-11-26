@@ -57,10 +57,5 @@
       <option name="composableFile" value="true" />
       <option name="previewFile" value="true" />
     </inspection_tool>
-    <inspection_tool class="ShrinkerUnresolvedReference" enabled="true" level="ERROR" enabled_by_default="true">
-      <!-- Generated from the test APK by scripts/trace-test-references.sh and checked by R8 itself. The IDE resolves
-           it against the debug classpath, where test-only classes and Kotlin's mangled members don't exist. -->
-      <scope name="Generated keep rules" level="ERROR" enabled="false" />
-    </inspection_tool>
   </profile>
 </component>
