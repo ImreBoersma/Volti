@@ -43,7 +43,10 @@ jobs:
           target: google_apis
           arch: x86_64
           disable-animations: true
-          script: ./gradlew connectedMinifiedAndroidTest
+          # Gesture navigation: the image defaults to three buttons, and an edge swipe is then no Back.
+          script: |
+            adb shell cmd overlay enable com.android.internal.systemui.navbar.gestural
+            ./gradlew connectedMinifiedAndroidTest
       - if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

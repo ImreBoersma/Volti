@@ -242,8 +242,11 @@ private fun InkInput(pageIndex: Int, geometry: PageGeometry, viewModel: Annotati
                         } else {
                             stroke?.let { s ->
                                 batch.clear()
-                                change.historical.forEach { batch.add(input(it.position, it.uptimeMillis, change)) }
-                                batch.add(input(change.position, change.uptimeMillis, change))
+                                // An event can repeat its last historical point as the current one; ink refuses the
+                                // same point twice, and the pen would crash the reader mid-stroke.
+                                (change.historical.map { it.position to it.uptimeMillis } + (change.position to change.uptimeMillis))
+                                    .distinct()
+                                    .forEach { (position, time) -> batch.add(input(position, time, change)) }
                                 ink.addToStroke(batch, s)
                             }
                         }
