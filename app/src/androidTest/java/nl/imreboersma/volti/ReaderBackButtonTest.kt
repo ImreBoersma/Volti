@@ -75,7 +75,7 @@ class ReaderBackButtonTest {
     @After
     fun restoreSettings() = runBlocking { settings.setHalfPageTurns(before.halfPageTurns) }
 
-    private fun inLibrary() = nav.currentDestination?.hasRoute<Library>() == true
+    private fun inLibrary() = nav.currentDestination?.hasRoute<Home>() == true
 
     private fun openReader() {
         compose.runOnUiThread { nav.navigate(score()) }

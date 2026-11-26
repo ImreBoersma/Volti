@@ -2690,12 +2690,17 @@
     void polymorphicDefaultDeserializer(kotlin.reflect.KClass, kotlin.jvm.functions.Function1);
 }
 #noinspection ShrinkerUnresolvedReference
--keep class nl.imreboersma.volti.Ensembles {
+-keep class nl.imreboersma.volti.AddEnsemble {
     #noinspection ShrinkerUnresolvedReference
-    nl.imreboersma.volti.Ensembles INSTANCE;
+    nl.imreboersma.volti.AddEnsemble INSTANCE;
 }
 #noinspection ShrinkerUnresolvedReference
--keep class nl.imreboersma.volti.Library
+-keep class nl.imreboersma.volti.Home
+#noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.LocalLibrary {
+    #noinspection ShrinkerUnresolvedReference
+    nl.imreboersma.volti.LocalLibrary INSTANCE;
+}
 #noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.MainActivityKt {
     #noinspection ShrinkerUnresolvedReference

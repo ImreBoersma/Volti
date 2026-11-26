@@ -4,7 +4,6 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.ReportDrawnWhen
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -27,7 +26,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -47,7 +45,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.currentStateAsState
 import androidx.lifecycle.viewmodel.compose.viewModel
 import nl.imreboersma.volti.data.LibraryEntry
-import nl.imreboersma.volti.data.ReaderSettings
 import nl.imreboersma.volti.data.Score
 import nl.imreboersma.volti.data.Subfolder
 import nl.imreboersma.volti.ui.theme.VoltiTheme
@@ -61,7 +58,7 @@ private class OpenLocalDocumentTree : ActivityResultContracts.OpenDocumentTree()
 @Composable
 fun LibraryScreen(
     onOpenScore: (Score) -> Unit,
-    onOpenEnsembles: () -> Unit,
+    onHome: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: LibraryViewModel = viewModel(),
 ) {
@@ -69,9 +66,6 @@ fun LibraryScreen(
     val query by viewModel.query.collectAsStateWithLifecycle()
     val search by viewModel.search.collectAsStateWithLifecycle()
     val refreshing by viewModel.refreshing.collectAsStateWithLifecycle()
-    val settings by viewModel.settings.collectAsStateWithLifecycle()
-    // Tells Android when the library is really there, list included: logged as "Fully drawn" at cold start.
-    ReportDrawnWhen { state != LibraryState.Loading }
     val picker = rememberLauncherForActivityResult(OpenLocalDocumentTree()) { uri ->
         if (uri != null) viewModel.setFolder(uri)
     }
@@ -95,9 +89,6 @@ fun LibraryScreen(
         refreshing = refreshing,
         onQuery = viewModel::setQuery,
         onSearchFocus = viewModel::prepareSearch,
-        settings = settings,
-        onCropMargins = viewModel::setCropMargins,
-        onHalfPageTurns = viewModel::setHalfPageTurns,
         onRefresh = { viewModel.refresh(pulled = true) },
         onPickFolder = { picker.launch((state as? LibraryState.Ready)?.folder) },
         onOpenFolder = { subfolder -> (state as? LibraryState.Ready)?.let { viewModel.open(it, subfolder) } },
@@ -108,15 +99,18 @@ fun LibraryScreen(
             }
         },
         onOpenScore = onOpenScore,
-        onOpenEnsembles = onOpenEnsembles,
-        // What the back gesture does here: clear the search, else up a folder. At the top there is no button: back
-        // leaves the app.
+        // What the back gesture does here: clear the search, else up a folder, else home.
         onBack = when {
-            !active -> null
             query.isNotEmpty() -> fun() { viewModel.setQuery("") }
             (state as? LibraryState.Ready)?.path?.isNotEmpty() == true -> fun() { viewModel.up() }
-            else -> null
+            else -> onHome
         },
+        backLabel = when {
+            query.isNotEmpty() -> "Clear the search"
+            (state as? LibraryState.Ready)?.path?.isNotEmpty() == true -> "Up a folder"
+            else -> "Back to the library"
+        },
+        active = active,
         modifier = modifier,
     )
 }
@@ -129,16 +123,14 @@ private fun LibraryContent(
     refreshing: Boolean,
     onQuery: (String) -> Unit,
     onSearchFocus: () -> Unit,
-    settings: ReaderSettings,
-    onCropMargins: (Boolean) -> Unit,
-    onHalfPageTurns: (Boolean) -> Unit,
     onRefresh: () -> Unit,
     onPickFolder: () -> Unit,
     onOpenFolder: (Subfolder) -> Unit,
     onOpenFound: (FoundEntry) -> Unit,
     onOpenScore: (Score) -> Unit,
-    onOpenEnsembles: () -> Unit,
-    onBack: (() -> Unit)?,
+    onBack: () -> Unit,
+    backLabel: String,
+    active: Boolean,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(modifier = modifier.fillMaxSize()) { innerPadding ->
@@ -154,39 +146,21 @@ private fun LibraryContent(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                if (onBack != null) {
-                    AppBackButton(onBack, if (query.isNotEmpty()) "Clear the search" else "Up a folder")
-                }
+                // Only while the library is the active screen: during the crossfade into the reader it does nothing.
+                AppBackButton({ if (active) onBack() }, backLabel)
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = (state as? LibraryState.Ready)?.name ?: "Library",
+                        text = (state as? LibraryState.Ready)?.name ?: "On this tablet",
                         style = MaterialTheme.typography.headlineLarge,
                     )
                     if (state is LibraryState.Ready && state.path.isNotEmpty()) {
                         Text(text = state.path.joinToString(" / ") { it.name })
                     }
                 }
-                // Step 3 of milestone 3 puts the ensembles in the library itself; until then, a way in.
-                OutlinedButton(onClick = onOpenEnsembles) { Text(text = "Ensembles") }
                 if (state is LibraryState.Ready) {
-                    OutlinedButton(onClick = onPickFolder, modifier = Modifier.padding(start = 8.dp)) {
+                    OutlinedButton(onClick = onPickFolder) {
                         Text(text = "Change folder")
                     }
-                }
-            }
-            if (state is LibraryState.Ready) {
-                // How scores open. Read when a score opens, so a change applies to the next one.
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
-                    FilterChip(
-                        selected = settings.cropMargins,
-                        onClick = { onCropMargins(!settings.cropMargins) },
-                        label = { Text("Crop margins") },
-                    )
-                    FilterChip(
-                        selected = settings.halfPageTurns,
-                        onClick = { onHalfPageTurns(!settings.halfPageTurns) },
-                        label = { Text("Half-page turns") },
-                    )
                 }
             }
             if (state is LibraryState.Ready && state.entries != null) {
@@ -311,16 +285,14 @@ fun LibraryScreenPreview() {
             refreshing = false,
             onQuery = {},
             onSearchFocus = {},
-            settings = ReaderSettings(),
-            onCropMargins = {},
-            onHalfPageTurns = {},
             onRefresh = {},
             onPickFolder = {},
             onOpenFolder = {},
             onOpenFound = {},
             onOpenScore = {},
-            onOpenEnsembles = {},
-            onBack = null,
+            onBack = {},
+            backLabel = "Back to the library",
+            active = true,
         )
     }
 }

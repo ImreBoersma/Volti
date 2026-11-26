@@ -18,7 +18,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import nl.imreboersma.volti.EnsembleFiles
-import nl.imreboersma.volti.data.NaturalOrder
+import nl.imreboersma.volti.data.EnsembleRow
+import nl.imreboersma.volti.data.ensembleRows
+import nl.imreboersma.volti.data.existingPath
+import nl.imreboersma.volti.data.searchEnsemble
+import kotlinx.coroutines.flow.combine
 import nl.imreboersma.volti.db.Ensemble
 import nl.imreboersma.volti.db.VoltiDatabase
 import nl.imreboersma.volti.drive.DriveAccess
@@ -32,7 +36,6 @@ import nl.imreboersma.volti.drive.walkDriveFolder
 import java.io.IOException
 import android.net.Uri
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -43,9 +46,6 @@ import java.io.File
 
 class EnsemblesViewModel(app: Application) : AndroidViewModel(app) {
     private val dao = VoltiDatabase.get(app).ensembles()
-
-    val ensembles: StateFlow<List<Ensemble>?> =
-        dao.all().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
@@ -98,7 +98,15 @@ private val storeLock = Mutex()
  * step 2. The sync lists the folder, updates the rows (see [reconcile]), downloads what is new or changed, and
  * deletes versions nothing needs any more.
  */
-class EnsembleViewModel(app: Application, handle: SavedStateHandle) : AndroidViewModel(app) {
+sealed interface EnsembleView {
+    data class Folder(val rows: List<EnsembleRow>) : EnsembleView
+    data class Found(val files: List<EnsembleFile>) : EnsembleView
+}
+
+private const val PATH = "path"
+private const val QUERY = "query"
+
+class EnsembleViewModel(app: Application, private val handle: SavedStateHandle) : AndroidViewModel(app) {
     private val id = handle.toRoute<EnsembleFiles>().id
     private val db = VoltiDatabase.get(app)
     private val auth = DriveAuth(app)
@@ -107,15 +115,35 @@ class EnsembleViewModel(app: Application, handle: SavedStateHandle) : AndroidVie
     private val _ensemble = MutableStateFlow<Ensemble?>(null)
     val ensemble: StateFlow<Ensemble?> = _ensemble.asStateFlow()
 
-    /** By folder, then name, in the library's natural order. */
-    val files: StateFlow<List<EnsembleFile>?> = db.files().shown(id)
-        .map { files ->
-            val order = NaturalOrder()
-            files.sortedWith(
-                compareBy<EnsembleFile, String>(order) { it.folders.joinToString("\u0000") }.thenBy(order) { it.name },
-            )
+    /** Everything in the ensemble, as on the tablet. */
+    val files: StateFlow<List<EnsembleFile>?> =
+        db.files().shown(id).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** The folder I'm in, from the ensemble's own folder down. Kept across process death, like the library's. */
+    val path: StateFlow<List<String>> = handle.getStateFlow(PATH, emptyList<String>())
+
+    val query: StateFlow<String> = handle.getStateFlow(QUERY, "")
+
+    /** The folder's rows, or, while searching, what the search found in the whole ensemble. */
+    val rows: StateFlow<EnsembleView?> = combine(files, path, query) { files, path, query ->
+        files?.let {
+            val existing = existingPath(it, path)
+            if (existing != path) handle[PATH] = ArrayList(existing) // The folder is gone: up to what's left.
+            if (query.isBlank()) EnsembleView.Folder(ensembleRows(it, existing)) else EnsembleView.Found(searchEnsemble(it, query))
         }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    fun open(folder: String) {
+        handle[PATH] = ArrayList(path.value + folder)
+    }
+
+    fun up() {
+        handle[PATH] = ArrayList(path.value.dropLast(1))
+    }
+
+    fun setQuery(query: String) {
+        handle[QUERY] = query
+    }
 
     private val _sync = MutableStateFlow<SyncState>(SyncState.Idle)
     val sync: StateFlow<SyncState> = _sync.asStateFlow()

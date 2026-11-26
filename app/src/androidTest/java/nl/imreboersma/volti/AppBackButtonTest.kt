@@ -34,23 +34,31 @@ class AppBackButtonTest {
     private fun on(check: (androidx.navigation.NavDestination) -> Boolean) = nav.currentDestination?.let(check) == true
 
     @Test
-    fun theLibraryTopLevelHasNoBackButton() {
-        assertTrue(compose.onAllNodesWithContentDescription("Up a folder").fetchSemanticsNodes().isEmpty())
-        assertTrue(compose.onAllNodesWithContentDescription("Clear the search").fetchSemanticsNodes().isEmpty())
+    fun theHomeScreenHasNoBackButton() {
+        assertTrue(compose.onAllNodesWithContentDescription("Back to the library").fetchSemanticsNodes().isEmpty())
     }
 
     @Test
-    fun backFromTheEnsemblesGoesToTheLibrary() {
-        compose.runOnUiThread { nav.navigate(Ensembles) }
+    fun backFromTheFolderOnTheTabletGoesHome() {
+        compose.runOnUiThread { nav.navigate(LocalLibrary) }
         compose.waitForIdle()
         compose.onNodeWithContentDescription("Back to the library").performClick()
         compose.waitForIdle()
-        assertTrue(on { it.hasRoute<Library>() })
+        assertTrue(on { it.hasRoute<Home>() })
+    }
+
+    @Test
+    fun backFromAddingAnEnsembleGoesHome() {
+        compose.runOnUiThread { nav.navigate(AddEnsemble) }
+        compose.waitForIdle()
+        compose.onNodeWithContentDescription("Back to the library").performClick()
+        compose.waitForIdle()
+        assertTrue(on { it.hasRoute<Home>() })
     }
 
     @Test
     fun aDoubleTapGoesBackOnce() {
-        compose.runOnUiThread { nav.navigate(Ensembles) }
+        compose.runOnUiThread { nav.navigate(AddEnsemble) }
         compose.waitForIdle()
         val button = compose.onNodeWithContentDescription("Back to the library")
         compose.mainClock.autoAdvance = false // Hold the crossfade, so the button is still there for the second tap.
@@ -59,6 +67,6 @@ class AppBackButtonTest {
         button.performClick()
         compose.mainClock.autoAdvance = true
         compose.waitForIdle()
-        assertTrue("the library is still there", on { it.hasRoute<Library>() })
+        assertTrue("the library is still there", on { it.hasRoute<Home>() })
     }
 }

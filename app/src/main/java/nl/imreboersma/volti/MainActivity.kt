@@ -22,7 +22,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import kotlinx.serialization.Serializable
 import nl.imreboersma.volti.ui.EnsembleScreen
-import nl.imreboersma.volti.ui.EnsemblesScreen
+import nl.imreboersma.volti.ui.AddEnsembleScreen
+import nl.imreboersma.volti.ui.HomeScreen
 import nl.imreboersma.volti.ui.LibraryScreen
 import nl.imreboersma.volti.ui.ReaderScreen
 import nl.imreboersma.volti.ui.ReaderState
@@ -30,11 +31,16 @@ import nl.imreboersma.volti.ui.ReaderViewModel
 import nl.imreboersma.volti.ui.StageMode
 import nl.imreboersma.volti.ui.theme.VoltiTheme
 
+/** Where the app opens: the ensembles and the folder on the tablet. */
 @Serializable
-object Library
+object Home
+
+/** The folder on the tablet. */
+@Serializable
+object LocalLibrary
 
 @Serializable
-object Ensembles
+object AddEnsemble
 
 /** One ensemble's files; [id] is its row in the database. */
 @Serializable
@@ -73,22 +79,37 @@ fun VoltiApp(navController: NavHostController = rememberNavController()) {
     }
     NavHost(
         navController = navController,
-        startDestination = Library,
+        startDestination = Home,
         modifier = Modifier.fillMaxSize(),
     ) {
-        composable<Library> {
-            LibraryScreen(
-                onOpenScore = { score -> navController.navigate(Reader(score.uri.toString())) },
-                onOpenEnsembles = dropUnlessResumed { navController.navigate(Ensembles) },
+        composable<Home> { entry ->
+            // As for the reader: a second tap during a crossfade must not open a screen twice.
+            fun go(route: Any) {
+                if (entry.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) navController.navigate(route)
+            }
+            HomeScreen(
+                onOpenEnsemble = { id -> go(EnsembleFiles(id)) },
+                onAddEnsemble = { go(AddEnsemble) },
+                onOpenLocal = { go(LocalLibrary) },
             )
         }
-        composable<Ensembles> { entry ->
-            EnsemblesScreen(
-                onBack = dropUnlessResumed { navController.popBackStack() },
-                onOpen = { id ->
-                    // As for the reader: a second tap during the crossfade would open the ensemble twice.
+        composable<LocalLibrary> { entry ->
+            LibraryScreen(
+                onOpenScore = { score ->
                     if (entry.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
-                        navController.navigate(EnsembleFiles(id))
+                        navController.navigate(Reader(score.uri.toString()))
+                    }
+                },
+                onHome = dropUnlessResumed { navController.popBackStack() },
+            )
+        }
+        composable<AddEnsemble> { entry ->
+            AddEnsembleScreen(
+                onBack = dropUnlessResumed { navController.popBackStack() },
+                onAdded = { id ->
+                    if (entry.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                        // In place of the form: back from the new ensemble goes to the library, not to the form.
+                        navController.navigate(EnsembleFiles(id)) { popUpTo<AddEnsemble> { inclusive = true } }
                     }
                 },
             )

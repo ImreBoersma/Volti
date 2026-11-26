@@ -277,7 +277,11 @@ Checked on the emulator: 32 PDFs (16 MB) downloaded, a score opened with airplan
 
 ### 3. The library from the copy
 
-- [ ] The library opens on the ensembles, next to the local folder. Inside an ensemble: the folders as in Drive, with the same names, sort and search. The reader opens the local file.
+- [x] The library opens on the ensembles, next to the local folder. Inside an ensemble: the folders as in Drive, with the same names, sort and search. The reader opens the local file.
+
+Done 2026-11-26. The app opens on a home screen: the ensembles, "Add an ensemble", and "On this tablet" for the local folder; the reader settings moved there, since they apply to every score. An ensemble browses like the library (folders first, natural order) and searches all of itself the library's way. Back and the back button: clear the search, up a folder, home. A folder a sync removes falls back to the nearest one still there. Release cold start on the emulator: first frame 450-530 ms, home fully drawn 505-585 ms; on the tablet still to do.
+
+Search found "hoorn 1" in "hoorn13" and "hoorn12" (horns 1 and 3, 1 and 2), but not "French Horn 1 in F": for step 5's suggestions, instrument names need their Dutch, English and abbreviated forms.
 
 ### 4. Sync
 

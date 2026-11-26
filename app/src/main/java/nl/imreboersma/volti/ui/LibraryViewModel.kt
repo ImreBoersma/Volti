@@ -26,8 +26,6 @@ import kotlinx.coroutines.withContext
 import nl.imreboersma.volti.data.FolderStore
 import nl.imreboersma.volti.data.FoundEntry
 import nl.imreboersma.volti.data.NaturalOrder
-import nl.imreboersma.volti.data.ReaderSettings
-import nl.imreboersma.volti.data.ReaderSettingsStore
 import nl.imreboersma.volti.data.LibraryEntry
 import nl.imreboersma.volti.data.Subfolder
 import nl.imreboersma.volti.data.folderName
@@ -74,20 +72,6 @@ private data class OpenPath(val folder: String, val subfolders: List<Subfolder>)
 
 class LibraryViewModel(app: Application, private val handle: SavedStateHandle) : AndroidViewModel(app) {
     private val store = FolderStore(app)
-    private val readerSettings = ReaderSettingsStore(app)
-
-    /** How scores open: the reader reads these when it opens one. */
-    val settings: StateFlow<ReaderSettings> = readerSettings.settings
-        .stateIn(viewModelScope, SharingStarted.Lazily, ReaderSettings())
-
-    fun setCropMargins(on: Boolean) {
-        viewModelScope.launch { readerSettings.setCropMargins(on) }
-    }
-
-    fun setHalfPageTurns(on: Boolean) {
-        viewModelScope.launch { readerSettings.setHalfPageTurns(on) }
-    }
-
     /** In saved state, so the open subfolder survives process death along with the reader on top of it. */
     private val savedPath = handle.getStateFlow(PATH, arrayListOf<String>())
 

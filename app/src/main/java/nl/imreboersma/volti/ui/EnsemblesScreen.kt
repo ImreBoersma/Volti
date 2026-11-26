@@ -1,5 +1,7 @@
 package nl.imreboersma.volti.ui
 
+import android.app.PendingIntent
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -22,6 +24,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -29,28 +32,99 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
-import androidx.compose.ui.graphics.Color
-import android.app.PendingIntent
-import nl.imreboersma.volti.db.EnsembleFile
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.currentStateAsState
 import androidx.lifecycle.viewmodel.compose.viewModel
+import nl.imreboersma.volti.data.EnsembleRow
+import nl.imreboersma.volti.db.EnsembleFile
 
-/** My ensembles, and a form to add one from a shared folder's link. */
+/** A form to add an ensemble from a shared folder's link. */
 @Composable
-fun EnsemblesScreen(
-    onOpen: (Long) -> Unit,
-    onBack: () -> Unit,
-    viewModel: EnsemblesViewModel = viewModel()
-) {
-    val ensembles by viewModel.ensembles.collectAsStateWithLifecycle()
+fun AddEnsembleScreen(onAdded: (Long) -> Unit, onBack: () -> Unit, viewModel: EnsemblesViewModel = viewModel()) {
     val error by viewModel.error.collectAsStateWithLifecycle()
     var link by rememberSaveable { mutableStateOf("") }
     var name by rememberSaveable { mutableStateOf("") }
     var instrument by rememberSaveable { mutableStateOf("") }
+
+    Scaffold(modifier = Modifier.fillMaxSize()) { padding ->
+        Column(
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .consumeWindowInsets(padding)
+                .imePadding()
+                .padding(16.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                AppBackButton(onBack, "Back to the library")
+                Text("Add an ensemble", style = MaterialTheme.typography.headlineLarge)
+            }
+            OutlinedTextField(
+                value = link,
+                onValueChange = { link = it },
+                label = { Text("Link to the shared Drive folder") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Ensemble") },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                )
+                OutlinedTextField(
+                    value = instrument,
+                    onValueChange = { instrument = it },
+                    label = { Text("What I play, e.g. Bb clarinet 2") },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            Button(onClick = { viewModel.add(link, name, instrument, onAdded) }) { Text("Add") }
+        }
+    }
+}
+
+/**
+ * One ensemble, browsed like the library: its Drive folders as folders, search across all of it. The files are the
+ * ones on the tablet; the sync with Drive runs above them while this screen shows.
+ */
+@Composable
+fun EnsembleScreen(
+    onOpenScore: (String) -> Unit,
+    onRemoved: () -> Unit,
+    onBack: () -> Unit,
+    viewModel: EnsembleViewModel = viewModel(),
+) {
+    val ensemble by viewModel.ensemble.collectAsStateWithLifecycle()
+    val files by viewModel.files.collectAsStateWithLifecycle()
+    val path by viewModel.path.collectAsStateWithLifecycle()
+    val query by viewModel.query.collectAsStateWithLifecycle()
+    val view by viewModel.rows.collectAsStateWithLifecycle()
+    val sync by viewModel.sync.collectAsStateWithLifecycle()
+    val consent = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) {
+        viewModel.consented(it.data)
+    }
+    // Syncs while this screen shows, and only then. The consent screen also stops it; coming back syncs again.
+    LifecycleEventEffect(Lifecycle.Event.ON_START) { viewModel.load() }
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.pause() }
+
+    // Back clears the search first, then goes up a folder, then back to the library: the button does the same.
+    // Only while this is the active screen: during the crossfade into the reader, back must close the score.
+    val lifecycle by LocalLifecycleOwner.current.lifecycle.currentStateAsState()
+    val active = lifecycle.isAtLeast(Lifecycle.State.RESUMED)
+    BackHandler(enabled = active && path.isNotEmpty()) { viewModel.up() }
+    BackHandler(enabled = active && query.isNotEmpty()) { viewModel.setQuery("") }
 
     Scaffold(modifier = Modifier.fillMaxSize()) { padding ->
         Column(
@@ -61,108 +135,27 @@ fun EnsemblesScreen(
                 .imePadding()
                 .padding(16.dp),
         ) {
-            // Above the list, not in it: the back button stays when the list scrolls to the form.
             Row(verticalAlignment = Alignment.CenterVertically) {
-                AppBackButton(onBack, "Back to the library")
-                Text("Ensembles", style = MaterialTheme.typography.headlineLarge)
-            }
-            LazyColumn(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                items(ensembles.orEmpty(), key = { it.id }) { ensemble ->
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onOpen(ensemble.id) }
-                            .padding(vertical = 12.dp),
-                    ) {
-                        Text(ensemble.name, style = MaterialTheme.typography.titleMedium)
-                        Text(
-                            ensemble.instrument,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    HorizontalDivider()
-                }
-                item {
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.padding(top = 24.dp),
-                    ) {
-                        Text("Add an ensemble", style = MaterialTheme.typography.titleMedium)
-                        OutlinedTextField(
-                            value = link,
-                            onValueChange = { link = it },
-                            label = { Text("Link to the shared Drive folder") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedTextField(
-                                value = name,
-                                onValueChange = { name = it },
-                                label = { Text("Ensemble") },
-                                singleLine = true,
-                                modifier = Modifier.weight(1f),
-                            )
-                            OutlinedTextField(
-                                value = instrument,
-                                onValueChange = { instrument = it },
-                                label = { Text("What I play, e.g. Bb clarinet 2") },
-                                singleLine = true,
-                                modifier = Modifier.weight(1f),
-                            )
+                AppBackButton(
+                    onBack = {
+                        when {
+                            !active -> Unit
+                            query.isNotEmpty() -> viewModel.setQuery("")
+                            path.isNotEmpty() -> viewModel.up()
+                            else -> onBack()
                         }
-                        error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                        Button(onClick = {
-                            viewModel.add(link, name, instrument) { id ->
-                                link = ""
-                                name = ""
-                                instrument = ""
-                                onOpen(id)
-                            }
-                        }) { Text("Add") }
-                    }
-                }
-            }
-        }
-    }
-}
-
-/** One ensemble's PDFs as on the tablet, with the sync with Drive above them. */
-@Composable
-fun EnsembleScreen(
-    onOpenScore: (String) -> Unit,
-    onRemoved: () -> Unit,
-    onBack: () -> Unit,
-    viewModel: EnsembleViewModel = viewModel(),
-) {
-    val ensemble by viewModel.ensemble.collectAsStateWithLifecycle()
-    val files by viewModel.files.collectAsStateWithLifecycle()
-    val sync by viewModel.sync.collectAsStateWithLifecycle()
-    val consent =
-        rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) {
-            viewModel.consented(it.data)
-        }
-    // Syncs while this screen shows, and only then. The consent screen also stops it; coming back syncs again.
-    LifecycleEventEffect(Lifecycle.Event.ON_START) { viewModel.load() }
-    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.pause() }
-
-    Scaffold(modifier = Modifier.fillMaxSize()) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(16.dp),
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                AppBackButton(onBack, "Back to the ensembles")
+                    },
+                    description = when {
+                        query.isNotEmpty() -> "Clear the search"
+                        path.isNotEmpty() -> "Up a folder"
+                        else -> "Back to the library"
+                    },
+                )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(ensemble?.name.orEmpty(), style = MaterialTheme.typography.headlineLarge)
                     Text(
-                        ensemble?.instrument.orEmpty(),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        (listOfNotNull(ensemble?.instrument) + path).joinToString(" / "),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 OutlinedButton(onClick = { viewModel.remove(onRemoved) }) { Text("Remove") }
@@ -173,7 +166,37 @@ fun EnsembleScreen(
                 onConsent = { consent.launch(IntentSenderRequest.Builder(it).build()) },
                 onRetry = viewModel::load,
             )
-            files?.let { Files(it, onOpen = { file -> viewModel.open(file, onOpenScore) }) }
+            if (!files.isNullOrEmpty()) {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = viewModel::setQuery,
+                    placeholder = { Text("Search this ensemble") },
+                    singleLine = true,
+                    trailingIcon = {
+                        if (query.isNotEmpty()) TextButton(onClick = { viewModel.setQuery("") }) { Text("Clear") }
+                    },
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                )
+            }
+            val open = { file: EnsembleFile -> viewModel.open(file, onOpenScore) }
+            when (val v = view) {
+                null -> Unit
+                is EnsembleView.Folder ->
+                    if (v.rows.isEmpty()) {
+                        // Before the first sync has brought anything in, or a folder without PDFs.
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("No PDFs here yet.") }
+                    } else {
+                        RowList(v.rows, onOpenFolder = viewModel::open, onOpen = open)
+                    }
+                is EnsembleView.Found ->
+                    if (v.files.isEmpty()) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("Nothing found for \"$query\".")
+                        }
+                    } else {
+                        FoundList(v.files, onOpen = open)
+                    }
+            }
         }
     }
 }
@@ -183,7 +206,7 @@ private fun SyncLine(
     sync: SyncState,
     count: Int,
     onConsent: (PendingIntent) -> Unit,
-    onRetry: () -> Unit
+    onRetry: () -> Unit,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -213,49 +236,66 @@ private fun SyncLine(
     }
 }
 
+/** A folder's rows, styled as the library's: folders in bold with a trailing slash, the way a path reads. */
 @Composable
-private fun Files(files: List<EnsembleFile>, onOpen: (EnsembleFile) -> Unit) {
-    LazyColumn {
-        files.groupBy { it.folders }.forEach { (folders, entries) ->
-            if (folders.isNotEmpty()) {
-                // Joined with a character no name can hold: Drive names may contain "/".
-                item(key = "folder:" + folders.joinToString("\u0000")) {
-                    Text(
-                        folders.joinToString(" / "),
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(top = 16.dp, bottom = 4.dp),
-                    )
-                }
+private fun RowList(rows: List<EnsembleRow>, onOpenFolder: (String) -> Unit, onOpen: (EnsembleFile) -> Unit) {
+    LazyColumn(modifier = Modifier.fillMaxSize()) {
+        items(rows, key = { row ->
+            when (row) {
+                is EnsembleRow.Folder -> "folder:" + row.name
+                is EnsembleRow.Pdf -> row.file.fileId
             }
-            items(entries, key = { it.fileId }) { file ->
-                val downloaded = file.localMd5 != null
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
+        }) { row ->
+            when (row) {
+                is EnsembleRow.Folder -> Text(
+                    text = row.name + "/",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable(enabled = downloaded) { onOpen(file) }
-                        .padding(vertical = 10.dp),
-                ) {
-                    Text(
-                        file.name,
-                        color = if (downloaded) Color.Unspecified else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.weight(1f),
-                    )
-                    when {
-                        !downloaded -> Text(
-                            "Not downloaded yet",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-
-                        file.removed -> Text(
-                            "Removed in Drive",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-
-                        file.changed -> Text("Changed", color = MaterialTheme.colorScheme.secondary)
-                    }
-                }
+                        .clickable { onOpenFolder(row.name) }
+                        .padding(vertical = 16.dp),
+                )
+                is EnsembleRow.Pdf -> FileRow(row.file, folders = null, onOpen = onOpen)
             }
+            HorizontalDivider()
+        }
+    }
+}
+
+@Composable
+private fun FoundList(files: List<EnsembleFile>, onOpen: (EnsembleFile) -> Unit) {
+    LazyColumn(modifier = Modifier.fillMaxSize()) {
+        items(files, key = { it.fileId }) { file ->
+            FileRow(file, folders = file.folders.takeIf { it.isNotEmpty() }?.joinToString(" / "), onOpen = onOpen)
+            HorizontalDivider()
+        }
+    }
+}
+
+/** A PDF: openable once it is on the tablet, with what changed about it. */
+@Composable
+private fun FileRow(file: EnsembleFile, folders: String?, onOpen: (EnsembleFile) -> Unit) {
+    val downloaded = file.localMd5 != null
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = downloaded) { onOpen(file) }
+            .padding(vertical = if (folders == null) 16.dp else 12.dp),
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                file.name,
+                style = MaterialTheme.typography.bodyLarge,
+                color = if (downloaded) Color.Unspecified else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            folders?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+        }
+        when {
+            !downloaded -> Text("Not downloaded yet", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            file.removed -> Text("Removed in Drive", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            file.changed -> Text("Changed", color = MaterialTheme.colorScheme.secondary)
         }
     }
 }
