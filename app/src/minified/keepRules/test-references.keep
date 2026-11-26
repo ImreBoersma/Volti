@@ -1762,6 +1762,8 @@
     #noinspection ShrinkerUnresolvedReference
     java.util.Map emptyMap();
     #noinspection ShrinkerUnresolvedReference
+    java.lang.Object getValue(java.util.Map, java.lang.Object);
+    #noinspection ShrinkerUnresolvedReference
     int mapCapacity(int);
     #noinspection ShrinkerUnresolvedReference
     java.util.Map mapOf(kotlin.Pair);
@@ -2712,6 +2714,8 @@
     <init>(java.lang.String);
 }
 #noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.Settings
+#noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.data.DocumentRow {
     #noinspection ShrinkerUnresolvedReference
     <init>(java.lang.String, java.lang.String, java.lang.String);
@@ -2846,15 +2850,19 @@
 #noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.db.EnsembleFile {
     #noinspection ShrinkerUnresolvedReference
-    <init>(long, java.lang.String, java.lang.String, java.lang.String, java.util.List, java.lang.String, long, java.lang.String, java.lang.String, boolean, java.lang.Long, int, kotlin.jvm.internal.DefaultConstructorMarker);
+    <init>(long, java.lang.String, java.lang.String, java.lang.String, java.util.List, java.lang.String, long, java.lang.String, java.lang.String, boolean, java.lang.Long, boolean, boolean, int, kotlin.jvm.internal.DefaultConstructorMarker);
     #noinspection ShrinkerUnresolvedReference
-    nl.imreboersma.volti.db.EnsembleFile copy$default(nl.imreboersma.volti.db.EnsembleFile, long, java.lang.String, java.lang.String, java.lang.String, java.util.List, java.lang.String, long, java.lang.String, java.lang.String, boolean, java.lang.Long, int, java.lang.Object);
+    nl.imreboersma.volti.db.EnsembleFile copy$default(nl.imreboersma.volti.db.EnsembleFile, long, java.lang.String, java.lang.String, java.lang.String, java.util.List, java.lang.String, long, java.lang.String, java.lang.String, boolean, java.lang.Long, boolean, boolean, int, java.lang.Object);
+    #noinspection ShrinkerUnresolvedReference
+    boolean getDecided();
     #noinspection ShrinkerUnresolvedReference
     java.lang.String getFileId();
     #noinspection ShrinkerUnresolvedReference
     java.util.List getFolders();
     #noinspection ShrinkerUnresolvedReference
     java.lang.String getLocalMd5();
+    #noinspection ShrinkerUnresolvedReference
+    boolean getMine();
     #noinspection ShrinkerUnresolvedReference
     java.lang.String getSeenMd5();
 }
@@ -2870,6 +2878,8 @@
     java.lang.Object replace(long, kotlin.jvm.functions.Function1, kotlin.coroutines.Continuation);
     #noinspection ShrinkerUnresolvedReference
     java.lang.Object save(java.util.List, kotlin.coroutines.Continuation);
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.Object setMine(long, java.util.List, boolean, kotlin.coroutines.Continuation);
     #noinspection ShrinkerUnresolvedReference
     kotlinx.coroutines.flow.Flow shown(long);
     #noinspection ShrinkerUnresolvedReference

@@ -66,6 +66,21 @@ class LocalCopyTest {
     }
 
     @Test
+    fun goneButMineIsKeptIfItIsHere() {
+        val mine = row("part", v1).copy(mine = true, decided = true)
+        val rows = reconcile(1, listOf(mine, row("never", v1, local = null).copy(mine = true)), emptyList())
+        assertEquals(listOf("part"), rows.map { it.fileId }) // One that never downloaded has nothing to play from.
+        assertTrue(rows.single().removed)
+        assertTrue(rows.single().mine)
+    }
+
+    @Test
+    fun whatIDecidedSurvivesASync() {
+        val rows = reconcile(1, listOf(row("a", v1).copy(mine = false, decided = true)), listOf(found("a", v2)))
+        assertTrue(rows.single().decided)
+    }
+
+    @Test
     fun anIncompleteWalkDropsNothingItDidntReach() {
         val rows = reconcile(1, listOf(row("a", v1), row("b", v1)), listOf(found("a", v1)), complete = false)
         assertEquals(listOf("a" to false, "b" to false), rows.map { it.fileId to it.removed })

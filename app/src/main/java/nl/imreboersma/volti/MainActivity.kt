@@ -24,6 +24,7 @@ import kotlinx.serialization.Serializable
 import nl.imreboersma.volti.ui.EnsembleScreen
 import nl.imreboersma.volti.ui.AddEnsembleScreen
 import nl.imreboersma.volti.ui.HomeScreen
+import nl.imreboersma.volti.ui.SettingsScreen
 import nl.imreboersma.volti.ui.LibraryScreen
 import nl.imreboersma.volti.ui.ReaderScreen
 import nl.imreboersma.volti.ui.ReaderState
@@ -41,6 +42,9 @@ object LocalLibrary
 
 @Serializable
 object AddEnsemble
+
+@Serializable
+object Settings
 
 /** One ensemble's files; [id] is its row in the database. */
 @Serializable
@@ -91,7 +95,11 @@ fun VoltiApp(navController: NavHostController = rememberNavController()) {
                 onOpenEnsemble = { id -> go(EnsembleFiles(id)) },
                 onAddEnsemble = { go(AddEnsemble) },
                 onOpenLocal = { go(LocalLibrary) },
+                onOpenSettings = { go(Settings) },
             )
+        }
+        composable<Settings> {
+            SettingsScreen(onBack = dropUnlessResumed { navController.popBackStack() })
         }
         composable<LocalLibrary> { entry ->
             LibraryScreen(
@@ -119,7 +127,6 @@ fun VoltiApp(navController: NavHostController = rememberNavController()) {
                 onOpenScore = { uri ->
                     if (entry.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) navController.navigate(Reader(uri))
                 },
-                onRemoved = dropUnlessResumed { navController.popBackStack() },
                 onBack = dropUnlessResumed { navController.popBackStack() },
             )
         }

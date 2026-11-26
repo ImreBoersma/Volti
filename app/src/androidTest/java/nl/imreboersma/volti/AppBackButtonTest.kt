@@ -4,6 +4,7 @@ import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
@@ -42,6 +43,16 @@ class AppBackButtonTest {
     fun backFromTheFolderOnTheTabletGoesHome() {
         compose.runOnUiThread { nav.navigate(LocalLibrary) }
         compose.waitForIdle()
+        compose.onNodeWithContentDescription("Back to the library").performClick()
+        compose.waitForIdle()
+        assertTrue(on { it.hasRoute<Home>() })
+    }
+
+    @Test
+    fun backFromTheSettingsGoesHome() {
+        compose.onNodeWithText("Settings").performClick()
+        compose.waitForIdle()
+        assertTrue(on { it.hasRoute<Settings>() })
         compose.onNodeWithContentDescription("Back to the library").performClick()
         compose.waitForIdle()
         assertTrue(on { it.hasRoute<Home>() })

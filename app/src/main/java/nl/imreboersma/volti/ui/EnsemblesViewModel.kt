@@ -20,6 +20,9 @@ import nl.imreboersma.volti.data.EnsembleRow
 import nl.imreboersma.volti.data.ensembleRows
 import nl.imreboersma.volti.data.existingPath
 import nl.imreboersma.volti.data.searchEnsemble
+import nl.imreboersma.volti.data.looksLikeMyPart
+import nl.imreboersma.volti.data.parseInstrument
+import nl.imreboersma.volti.data.sortedByPlace
 import kotlinx.coroutines.flow.combine
 import nl.imreboersma.volti.db.Ensemble
 import nl.imreboersma.volti.db.VoltiDatabase
@@ -68,10 +71,14 @@ class EnsemblesViewModel(app: Application) : AndroidViewModel(app) {
 sealed interface EnsembleView {
     data class Folder(val rows: List<EnsembleRow>) : EnsembleView
     data class Found(val files: List<EnsembleFile>) : EnsembleView
+
+    /** My parts, wherever they are in the folder. */
+    data class Mine(val files: List<EnsembleFile>) : EnsembleView
 }
 
 private const val PATH = "path"
 private const val QUERY = "query"
+private const val ALL = "all"
 
 /**
  * One ensemble: its files as on the tablet, browsed by folder or searched, and what is new since I last looked.
@@ -111,14 +118,49 @@ class EnsembleViewModel(app: Application, private val handle: SavedStateHandle) 
 
     val query: StateFlow<String> = handle.getStateFlow(QUERY, "")
 
-    /** The folder's rows, or, while searching, what the search found in the whole ensemble. */
-    val rows: StateFlow<EnsembleView?> = combine(files, path, query) { files, path, query ->
+    /** Everything, not just my parts. Only matters once I have marked some. */
+    val showAll: StateFlow<Boolean> = handle.getStateFlow(ALL, false)
+
+    /**
+     * What the screen lists: while searching, what the search found in the whole ensemble; else my parts, once I have
+     * some, unless I asked for everything; else the folder I'm in.
+     */
+    val rows: StateFlow<EnsembleView?> = combine(files, path, query, showAll) { files, path, query, all ->
         files?.let {
             val existing = existingPath(it, path)
             if (existing != path) handle[PATH] = ArrayList(existing) // The folder is gone: up to what's left.
-            if (query.isBlank()) EnsembleView.Folder(ensembleRows(it, existing)) else EnsembleView.Found(searchEnsemble(it, query))
+            val mine = it.filter { file -> file.mine }
+            when {
+                query.isNotBlank() -> EnsembleView.Found(searchEnsemble(it, query))
+                mine.isNotEmpty() && !all -> EnsembleView.Mine(sortedByPlace(mine))
+                else -> EnsembleView.Folder(ensembleRows(it, existing))
+            }
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** Files that look like my part and that I haven't decided on: matched against what I play in the ensemble. */
+    val suggestions: StateFlow<List<EnsembleFile>> = combine(files, ensemble) { files, ensemble ->
+        if (files == null || ensemble == null) return@combine emptyList()
+        val me = parseInstrument(ensemble.instrument)
+        sortedByPlace(files.filter { !it.mine && !it.decided && !it.removed && looksLikeMyPart(me, it.name, it.folders) })
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun showAll(all: Boolean) {
+        handle[ALL] = all
+    }
+
+    fun setMine(file: EnsembleFile, mine: Boolean) {
+        viewModelScope.launch { db.files().setMine(id, listOf(file.fileId), mine) }
+    }
+
+    /** The suggestions I went through: [chosen] are mine, the rest are not, and none is suggested again. */
+    fun decide(reviewed: List<EnsembleFile>, chosen: Set<String>) {
+        viewModelScope.launch {
+            val (yes, no) = reviewed.map { it.fileId }.partition { it in chosen }
+            if (yes.isNotEmpty()) db.files().setMine(id, yes, true)
+            if (no.isNotEmpty()) db.files().setMine(id, no, false)
+        }
+    }
 
     fun open(folder: String) {
         handle[PATH] = ArrayList(path.value + folder)
@@ -155,16 +197,4 @@ class EnsembleViewModel(app: Application, private val handle: SavedStateHandle) 
 
     fun consented(data: Intent?) = syncer.consented(data)
 
-    private var removed = false
-
-    /** Once: a second tap, or one during the crossfade out, must not go back a second screen. */
-    fun remove(onRemoved: () -> Unit) {
-        val ensemble = ensemble.value ?: return
-        if (removed) return
-        removed = true
-        viewModelScope.launch {
-            syncer.remove(ensemble)
-            onRemoved()
-        }
-    }
 }

@@ -24,7 +24,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -49,8 +48,6 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nl.imreboersma.volti.data.FolderStore
-import nl.imreboersma.volti.data.ReaderSettings
-import nl.imreboersma.volti.data.ReaderSettingsStore
 import nl.imreboersma.volti.data.folderName
 import nl.imreboersma.volti.db.Ensemble
 import nl.imreboersma.volti.db.VoltiDatabase
@@ -62,7 +59,6 @@ sealed interface LocalFolder {
 }
 
 class HomeViewModel(app: Application) : AndroidViewModel(app) {
-    private val readerSettings = ReaderSettingsStore(app)
     private val syncer = Syncer.get(app)
     private val dao = VoltiDatabase.get(app).ensembles()
 
@@ -114,20 +110,10 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
-    val settings: StateFlow<ReaderSettings> = readerSettings.settings
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ReaderSettings())
-
-    fun setCropMargins(on: Boolean) {
-        viewModelScope.launch { readerSettings.setCropMargins(on) }
-    }
-
-    fun setHalfPageTurns(on: Boolean) {
-        viewModelScope.launch { readerSettings.setHalfPageTurns(on) }
-    }
 }
 
 /**
- * Where the app opens: my ensembles, then what is on the tablet itself, and how scores open. Back here leaves the
+ * Where the app opens: my ensembles, then what is on the tablet itself; settings one tap away. Back here leaves the
  * app, so there is no back button.
  */
 @Composable
@@ -135,11 +121,11 @@ fun HomeScreen(
     onOpenEnsemble: (Long) -> Unit,
     onAddEnsemble: () -> Unit,
     onOpenLocal: () -> Unit,
+    onOpenSettings: () -> Unit,
     viewModel: HomeViewModel = viewModel(),
 ) {
     val ensembles by viewModel.ensembles.collectAsStateWithLifecycle()
     val local by viewModel.localFolder.collectAsStateWithLifecycle()
-    val settings by viewModel.settings.collectAsStateWithLifecycle()
     val newFiles by viewModel.newFiles.collectAsStateWithLifecycle()
     val syncStates by viewModel.syncStates.collectAsStateWithLifecycle()
     val needsConsent by viewModel.consent.collectAsStateWithLifecycle()
@@ -160,20 +146,10 @@ fun HomeScreen(
             modifier = Modifier.fillMaxSize().padding(padding),
         ) {
         LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-            item { Text("Library", style = MaterialTheme.typography.headlineLarge) }
             item {
-                // How scores open. Read when a score opens, so a change applies to the next one.
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
-                    FilterChip(
-                        selected = settings.cropMargins,
-                        onClick = { viewModel.setCropMargins(!settings.cropMargins) },
-                        label = { Text("Crop margins") },
-                    )
-                    FilterChip(
-                        selected = settings.halfPageTurns,
-                        onClick = { viewModel.setHalfPageTurns(!settings.halfPageTurns) },
-                        label = { Text("Half-page turns") },
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Library", style = MaterialTheme.typography.headlineLarge, modifier = Modifier.weight(1f))
+                    OutlinedButton(onClick = onOpenSettings) { Text("Settings") }
                 }
             }
             item { Heading("Ensembles") }

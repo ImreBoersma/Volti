@@ -88,12 +88,23 @@ class EnsembleFileDaoTest {
     }
 
     @Test
+    fun markingMineAlsoDecides() = runBlocking {
+        val id = ensemble()
+        files.save(listOf(file(id, "a"), file(id, "b"), file(id, "c")))
+        files.setMine(id, listOf("a", "b"), true)
+        files.setMine(id, listOf("c"), false)
+        val all = files.all(id).associateBy { it.fileId }
+        assertEquals(listOf(true, true, false), listOf("a", "b", "c").map { all.getValue(it).mine })
+        assertTrue(all.values.all { it.decided })
+    }
+
+    @Test
     fun ensemblesSurviveTheMigrations() {
         val name = "migration-test"
         migrations.createDatabase(name, 1).use {
             it.execSQL("INSERT INTO ensemble (name, instrument, folderId) VALUES ('Harmonie', 'Horn', 'folderAAAAAA')")
         }
-        migrations.runMigrationsAndValidate(name, 3, true).close()
+        migrations.runMigrationsAndValidate(name, 4, true).close()
         val migrated = Room.databaseBuilder(context, VoltiDatabase::class.java, name).build()
         try {
             val all = runBlocking { migrated.ensembles().all().first() }

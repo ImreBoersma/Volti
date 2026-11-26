@@ -292,8 +292,14 @@ Done 2026-11-26. One sync service for the app: the home screen syncs every ensem
 
 ### 5. My parts
 
-- [ ] Per ensemble, mark the files I play. The ensemble opens on my parts, with everything else one tap away.
-- [ ] Pre-select candidates by matching my instrument against file and folder names, including Dutch and abbreviated names (klarinet, cl.); I confirm. New files that match are suggested, never added on their own.
+- [x] Per ensemble, mark the files I play. The ensemble opens on my parts, with everything else one tap away.
+- [x] Pre-select candidates by matching my instrument against file and folder names, including Dutch and abbreviated names (klarinet, cl.); I confirm. New files that match are suggested, never added on their own.
+
+Done 2026-11-26. Every file has a "Mine" toggle; once there are any, the ensemble opens on "My parts", with "All files" next to it. Files that look like my part and that I haven't decided on are offered in a list, all ticked; what I untick is not suggested again, and neither is anything I toggled myself. A file of mine is kept when it leaves Drive. Changing what I play (in settings) suggests again among the files I haven't decided on.
+
+The matching is deliberately simple, a fixed check rather than anything clever: a word list per instrument (Dutch, English, abbreviations: hoorn, horn, hn, cor), whole words only (a flugelhorn is not a horn), part numbers read right after the instrument ("hoorn13" is parts 1 and 3, "1-2" and "1_2" are 1 and 2, "1-3" is 1 to 3), Roman numerals ("Corno II") and ordinals in front ("2e hoorn", "1st horn") count too; no number means a part for everyone. Next to the instrument, a key other than mine (Es hoorn for an F horn) or a voice I didn't name (bas klarinet for a clarinet) means another instrument; a title's "Alto" doesn't count. An instrument not in the list matches by its own words. On the Brummen horn folder it suggested exactly the 14 horn 1 parts.
+
+Also a settings screen, from the library: crop margins and half-page turns (moved off the library), and per ensemble its name, what I play, and removing it (with a confirmation; moved off the ensemble screen).
 
 Done when: a score added to a shared folder in Drive shows up on the tablet after pulling the library, I can mark it as mine, and every score opens with the network off.
 
@@ -312,6 +318,8 @@ The reason the IMSLP app is still needed. No import of my existing IMSLP annotat
 - [ ] In a setlist, turning past the last page opens the next piece.
 
 ## Later milestones (not planned yet)
+
+- Learn my parts from my corrections. Every suggestion I accept or turn down, and every file I mark by hand, is stored per file already; a later version can learn from those which names mean my part (a new abbreviation, an orchestra's own naming) instead of relying on the fixed word list.
 
 - Display names: my own name per file (my convention is `composer - title - tuning instrument part`), pre-filled from the file name, kept per Drive file id. The Drive name stays as it is.
 - Search across ensembles.

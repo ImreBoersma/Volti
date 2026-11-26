@@ -17,7 +17,12 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.FilterChip
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -104,7 +109,6 @@ fun AddEnsembleScreen(onAdded: (Long) -> Unit, onBack: () -> Unit, viewModel: En
 @Composable
 fun EnsembleScreen(
     onOpenScore: (String) -> Unit,
-    onRemoved: () -> Unit,
     onBack: () -> Unit,
     viewModel: EnsembleViewModel = viewModel(),
 ) {
@@ -116,6 +120,11 @@ fun EnsembleScreen(
     val sync by viewModel.sync.collectAsStateWithLifecycle()
     val needsConsent by viewModel.consent.collectAsStateWithLifecycle()
     val since by viewModel.since.collectAsStateWithLifecycle()
+    val showAll by viewModel.showAll.collectAsStateWithLifecycle()
+    val suggestions by viewModel.suggestions.collectAsStateWithLifecycle()
+    // The suggestions as they were when I tapped Review: a sync may change the list meanwhile, and only what I saw is
+    // decided. A suggestion that arrives during the review waits for the next one.
+    var reviewing by rememberSaveable { mutableStateOf<List<String>?>(null) }
     val consent = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) {
         viewModel.consented(it.data)
     }
@@ -127,7 +136,9 @@ fun EnsembleScreen(
     // Only while this is the active screen: during the crossfade into the reader, back must close the score.
     val lifecycle by LocalLifecycleOwner.current.lifecycle.currentStateAsState()
     val active = lifecycle.isAtLeast(Lifecycle.State.RESUMED)
-    BackHandler(enabled = active && path.isNotEmpty()) { viewModel.up() }
+    // Up a folder only while browsing folders: my parts and search results aren't in one.
+    val inFolder = path.isNotEmpty() && view is EnsembleView.Folder
+    BackHandler(enabled = active && inFolder) { viewModel.up() }
     BackHandler(enabled = active && query.isNotEmpty()) { viewModel.setQuery("") }
 
     Scaffold(modifier = Modifier.fillMaxSize()) { padding ->
@@ -145,24 +156,23 @@ fun EnsembleScreen(
                         when {
                             !active -> Unit
                             query.isNotEmpty() -> viewModel.setQuery("")
-                            path.isNotEmpty() -> viewModel.up()
+                            inFolder -> viewModel.up()
                             else -> onBack()
                         }
                     },
                     description = when {
                         query.isNotEmpty() -> "Clear the search"
-                        path.isNotEmpty() -> "Up a folder"
+                        inFolder -> "Up a folder"
                         else -> "Back to the library"
                     },
                 )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(ensemble?.name.orEmpty(), style = MaterialTheme.typography.headlineLarge)
                     Text(
-                        (listOfNotNull(ensemble?.instrument) + path).joinToString(" / "),
+                        (listOfNotNull(ensemble?.instrument) + if (view is EnsembleView.Folder) path else emptyList()).joinToString(" / "),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                OutlinedButton(onClick = { viewModel.remove(onRemoved) }) { Text("Remove") }
             }
             SyncLine(
                 // Signed out: still say how old the copy here is.
@@ -188,8 +198,48 @@ fun EnsembleScreen(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                 )
             }
+            val anyMine = files.orEmpty().any { it.mine }
+            if (anyMine && query.isBlank()) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 8.dp)) {
+                    FilterChip(selected = !showAll, onClick = { viewModel.showAll(false) }, label = { Text("My parts") })
+                    FilterChip(selected = showAll, onClick = { viewModel.showAll(true) }, label = { Text("All files") })
+                }
+            }
+            if (suggestions.isNotEmpty()) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.padding(bottom = 8.dp),
+                ) {
+                    val count = suggestions.size
+                    Text(
+                        (if (count == 1) "1 file looks" else "$count files look") + " like my part (${ensemble?.instrument.orEmpty()}).",
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    Button(onClick = { reviewing = suggestions.map { it.fileId } }) { Text("Review") }
+                }
+            }
+            reviewing?.let { ids ->
+                val byId = files.orEmpty().associateBy { it.fileId }
+                val shown = ids.mapNotNull { byId[it] }
+                if (shown.isEmpty()) {
+                    reviewing = null // Gone meanwhile: nothing left to decide.
+                } else {
+                    ReviewSuggestions(
+                        shown,
+                        onDone = { chosen ->
+                            viewModel.decide(shown, chosen)
+                            reviewing = null
+                        },
+                        onCancel = { reviewing = null },
+                    )
+                }
+            }
             val open = { file: EnsembleFile -> viewModel.open(file, onOpenScore) }
             val isNew = { file: EnsembleFile -> file.addedAt != null && file.addedAt > since }
+            val rowFor = @Composable { file: EnsembleFile, folders: String? ->
+                FileRow(file, isNew(file), folders, onOpen = open, onMine = { viewModel.setMine(file, it) })
+            }
             // Pulled: sync now, also if it just did.
             PullToRefreshBox(
                 isRefreshing = sync is SyncState.Listing || sync is SyncState.Downloading,
@@ -203,7 +253,7 @@ fun EnsembleScreen(
                         // Before the first sync has brought anything in, or a folder without PDFs.
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("No PDFs here yet.") }
                     } else {
-                        RowList(v.rows, isNew, onOpenFolder = viewModel::open, onOpen = open)
+                        RowList(v.rows, onOpenFolder = viewModel::open, file = { rowFor(it, null) })
                     }
                 is EnsembleView.Found ->
                     if (v.files.isEmpty()) {
@@ -211,8 +261,10 @@ fun EnsembleScreen(
                             Text("Nothing found for \"$query\".")
                         }
                     } else {
-                        FoundList(v.files, isNew, onOpen = open)
+                        FoundList(v.files, file = { rowFor(it, it.folders.takeIf { f -> f.isNotEmpty() }?.joinToString(" / ")) })
                     }
+                is EnsembleView.Mine ->
+                    FoundList(v.files, file = { rowFor(it, it.folders.takeIf { f -> f.isNotEmpty() }?.joinToString(" / ")) })
             }
             }
         }
@@ -245,12 +297,7 @@ private fun SyncLine(
 
 /** A folder's rows, styled as the library's: folders in bold with a trailing slash, the way a path reads. */
 @Composable
-private fun RowList(
-    rows: List<EnsembleRow>,
-    isNew: (EnsembleFile) -> Boolean,
-    onOpenFolder: (String) -> Unit,
-    onOpen: (EnsembleFile) -> Unit,
-) {
+private fun RowList(rows: List<EnsembleRow>, onOpenFolder: (String) -> Unit, file: @Composable (EnsembleFile) -> Unit) {
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         items(rows, key = { row ->
             when (row) {
@@ -268,7 +315,7 @@ private fun RowList(
                         .clickable { onOpenFolder(row.name) }
                         .padding(vertical = 16.dp),
                 )
-                is EnsembleRow.Pdf -> FileRow(row.file, isNew(row.file), folders = null, onOpen = onOpen)
+                is EnsembleRow.Pdf -> file(row.file)
             }
             HorizontalDivider()
         }
@@ -276,18 +323,18 @@ private fun RowList(
 }
 
 @Composable
-private fun FoundList(files: List<EnsembleFile>, isNew: (EnsembleFile) -> Boolean, onOpen: (EnsembleFile) -> Unit) {
+private fun FoundList(files: List<EnsembleFile>, file: @Composable (EnsembleFile) -> Unit) {
     LazyColumn(modifier = Modifier.fillMaxSize()) {
-        items(files, key = { it.fileId }) { file ->
-            FileRow(file, isNew(file), folders = file.folders.takeIf { it.isNotEmpty() }?.joinToString(" / "), onOpen = onOpen)
+        items(files, key = { it.fileId }) { f ->
+            file(f)
             HorizontalDivider()
         }
     }
 }
 
-/** A PDF: openable once it is on the tablet, with what changed about it. */
+/** A PDF: openable once it is on the tablet, with what changed about it, and whether it is mine. */
 @Composable
-private fun FileRow(file: EnsembleFile, new: Boolean, folders: String?, onOpen: (EnsembleFile) -> Unit) {
+private fun FileRow(file: EnsembleFile, new: Boolean, folders: String?, onOpen: (EnsembleFile) -> Unit, onMine: (Boolean) -> Unit) {
     val downloaded = file.localMd5 != null
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -310,5 +357,50 @@ private fun FileRow(file: EnsembleFile, new: Boolean, folders: String?, onOpen: 
             file.changed -> Text("Changed", color = MaterialTheme.colorScheme.secondary)
             new -> Text("New", color = MaterialTheme.colorScheme.secondary)
         }
+        FilterChip(
+            selected = file.mine,
+            onClick = { onMine(!file.mine) },
+            label = { Text("Mine") },
+            modifier = Modifier.padding(start = 12.dp),
+        )
     }
+}
+
+/** The suggested parts, all ticked: I untick what isn't mine. What I leave unticked isn't suggested again. */
+@Composable
+private fun ReviewSuggestions(suggestions: List<EnsembleFile>, onDone: (Set<String>) -> Unit, onCancel: () -> Unit) {
+    var ticked by rememberSaveable { mutableStateOf(suggestions.map { it.fileId }.toSet()) }
+    val chosen = ticked intersect suggestions.map { it.fileId }.toSet() // A file that went meanwhile can't be chosen.
+    AlertDialog(
+        onDismissRequest = onCancel,
+        title = { Text("Are these my parts?") },
+        text = {
+            LazyColumn {
+                items(suggestions, key = { it.fileId }) { file ->
+                    val on = file.fileId in chosen
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .toggleable(value = on, role = Role.Checkbox) {
+                                ticked = if (it) ticked + file.fileId else ticked - file.fileId
+                            }
+                            .padding(vertical = 8.dp),
+                    ) {
+                        Checkbox(checked = on, onCheckedChange = null)
+                        Column(modifier = Modifier.padding(start = 8.dp)) {
+                            Text(file.name)
+                            if (file.folders.isNotEmpty()) Text(file.folders.joinToString(" / "), style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onDone(chosen) }) {
+                Text(if (chosen.size == 1) "1 is mine" else "${chosen.size} are mine")
+            }
+        },
+        dismissButton = { TextButton(onClick = onCancel) { Text("Not now") } },
+    )
 }

@@ -38,8 +38,11 @@ fun existingPath(files: List<EnsembleFile>, path: List<String>): List<String> {
  */
 fun searchEnsemble(files: List<EnsembleFile>, query: String): List<EnsembleFile> {
     val words = searchWords(query)
+    return sortedByPlace(files.filter { matchesWords(words, (it.folders + it.name).map(::searchable)) })
+}
+
+/** By folder, then name, in natural order: how a list across folders reads. */
+fun sortedByPlace(files: List<EnsembleFile>): List<EnsembleFile> {
     val order = NaturalOrder()
-    return files
-        .filter { matchesWords(words, (it.folders + it.name).map(::searchable)) }
-        .sortedWith(compareBy<EnsembleFile, String>(order) { it.folders.joinToString("\u0000") }.thenBy(order) { it.name })
+    return files.sortedWith(compareBy<EnsembleFile, String>(order) { it.folders.joinToString("\u0000") }.thenBy(order) { it.name })
 }

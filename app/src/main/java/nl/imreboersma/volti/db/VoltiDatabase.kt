@@ -2,6 +2,7 @@ package nl.imreboersma.volti.db
 
 import android.content.Context
 import androidx.room.AutoMigration
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Delete
@@ -63,10 +64,14 @@ data class EnsembleFile(
     val localMd5: String? = null,
     /** The version I last opened; null if I never did. When it isn't [localMd5], the score changed since. */
     val seenMd5: String? = null,
-    /** Gone from Drive, but I had opened it: kept, so it can still be played from. */
+    /** Gone from Drive, but I had opened it or marked it mine: kept, so it can still be played from. */
     val removed: Boolean = false,
     /** When a sync added it; null for what the first sync of the ensemble found, which is not new. */
     val addedAt: Long? = null,
+    /** I play this one. */
+    @ColumnInfo(defaultValue = "0") val mine: Boolean = false,
+    /** I said whether it is mine (marked it, or turned down the suggestion): it isn't suggested again. */
+    @ColumnInfo(defaultValue = "0") val decided: Boolean = false,
 ) {
     val changed get() = seenMd5 != null && localMd5 != null && seenMd5 != localMd5
 }
@@ -96,6 +101,9 @@ interface EnsembleDao {
     @Query("UPDATE ensemble SET lookedAt = :time WHERE id = :id")
     suspend fun looked(id: Long, time: Long)
 
+    @Query("UPDATE ensemble SET name = :name, instrument = :instrument WHERE id = :id")
+    suspend fun rename(id: Long, name: String, instrument: String)
+
     @Query(
         "SELECT f.ensembleId AS ensembleId, COUNT(*) AS count FROM ensemble_file f JOIN ensemble e ON e.id = f.ensembleId " +
             "WHERE f.addedAt IS NOT NULL AND (e.lookedAt IS NULL OR f.addedAt > e.lookedAt) GROUP BY f.ensembleId",
@@ -124,6 +132,10 @@ interface EnsembleFileDao {
     @Query("DELETE FROM ensemble_file WHERE ensembleId = :ensembleId")
     suspend fun clear(ensembleId: Long)
 
+    /** Marks [fileIds] as mine or not, and as decided: they aren't suggested again. */
+    @Query("UPDATE ensemble_file SET mine = :mine, decided = 1 WHERE ensembleId = :ensembleId AND fileId IN (:fileIds)")
+    suspend fun setMine(ensembleId: Long, fileIds: List<String>, mine: Boolean)
+
     /** I opened version [md5]: it is kept until I open a newer one. */
     @Query("UPDATE ensemble_file SET seenMd5 = :md5 WHERE ensembleId = :ensembleId AND fileId = :fileId")
     suspend fun opened(ensembleId: Long, fileId: String, md5: String)
@@ -146,8 +158,8 @@ interface EnsembleFileDao {
 
 @Database(
     entities = [Ensemble::class, EnsembleFile::class],
-    version = 3,
-    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3)],
+    version = 4,
+    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3), AutoMigration(from = 3, to = 4)],
 )
 @TypeConverters(Converters::class)
 abstract class VoltiDatabase : RoomDatabase() {

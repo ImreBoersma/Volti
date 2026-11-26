@@ -18,7 +18,7 @@ const val KEEP_FREE_BYTES = 500L * 1024 * 1024
  * - new PDFs are added, not yet downloaded;
  * - names, folders and the version in Drive follow Drive; what is on the tablet, and what I saw, stay as they were
  *   (downloads and opening the score change those);
- * - what is no longer there is dropped, unless I opened it: then it stays, marked removed, to play from;
+ * - what is no longer there is dropped, unless I opened it or marked it mine: then it stays, marked removed;
  * - unless the walk was not [complete]: then what it didn't reach is left as it is;
  * - new PDFs get [addedAt]: null on the ensemble's first sync, where nothing counts as new.
  * PDFs without a well-formed checksum are left out (Drive gives one for every uploaded file; it becomes a file name),
@@ -48,7 +48,8 @@ fun reconcile(
     val missing = old.filter { it.fileId !in seen }
     return now + when {
         !complete -> missing
-        else -> missing.filter { it.seenMd5 != null }.map { it.copy(removed = true) }
+        // Mine but never downloaded: nothing to play from, so it goes like the rest.
+        else -> missing.filter { it.seenMd5 != null || (it.mine && it.localMd5 != null) }.map { it.copy(removed = true) }
     }
 }
 
