@@ -9,7 +9,7 @@ A sheet music reader for Android tablets. Offline, fast, low battery use.
 - No network permission. Changed 2026-11-25 for milestone 3 (scores from Google Drive): network only to Google's Drive endpoints, only to download, only while the app is open. The reader never needs the network: scores are always read from the device.
 - No storage permission. Access only to the one folder granted through the system picker.
 - The platform `PdfRenderer`, not a bundled PDF parser that needs patching by hand.
-- No backup of app data.
+- No backup of app data. Annotations will be the exception (milestone 4): they are the one thing on the tablet that can't be downloaded again.
 
 **Speed.** Two targets, measured on a release build on the tablet:
 
@@ -221,19 +221,31 @@ Checked 2026-11-25 on the tablet: a yellowed scan shows no edge between page and
 
 Done when: a scan on off-white paper shows no visible edge between page and surround.
 
-## Milestone 3: scores from Google Drive
+## Milestone 3: ensembles from Google Drive
 
 Decided 2026-11-25: instead of a separate sync app mirroring Drive into the local folder, Volti itself pulls a Drive folder. This changes the priorities above: the app gets network access, so the reach is kept as small as it can be.
 
-- Network only to Google's Drive API, only HTTPS, only downloads. Nothing is uploaded.
+Decided 2026-11-26, after going through how I work now (download from Drive, import into the IMSLP app, rename, put in a setlist): Volti should replace the IMSLP app, which I use for its annotations, setlists and simple interface. The Drive folders are shared with me by the orchestras, one per orchestra, each with a different instrument of mine. That makes an ensemble the top level of the library:
+
+- An ensemble is a shared Drive folder plus what I play in it ("Harmonie, Bb clarinet 2").
+- The folders are not mine: Volti never renames, moves or writes there. Read-only, also because others keep changing them.
+- A folder usually holds every part, but not in one layout: sometimes all files side by side, sometimes a subfolder per instrument. Names follow whoever uploaded them. So my parts are marked by me, not detected; matching my instrument against names and folders only pre-selects.
+- Everything Volti adds (my parts, names, annotations, setlists) hangs off the Drive file id, which survives renames and new versions.
+
+Rules for the network:
+
+- Network only to Google's Drive API, only HTTPS. Until milestone 4, only downloads.
 - Downloaded PDFs are as untrusted as local ones: they render in the isolated renderer, with the same limits.
 - Sync only when the library opens or is pulled. No background work, no sync during reading.
 - Scores live in the app's own storage, so the library and reader work offline on stage. What was synced last is always there.
+- A new version of a PDF never replaces one silently: not while it is open, and never without saying so (see milestone 4 for annotated scores).
 
 ### 0. Decisions before building
 
 - [x] Private or public folder: private (2026-11-25). Google sign-in with the `drive.readonly` scope, through Google Play services' Authorization API, which hands the app an access token; Volti stores no password or token itself.
 - [x] Drive only, or Drive next to the local folder: next to it (2026-11-25). If the sync lets you down, a PDF can still go on the tablet directly.
+- [x] Library top level: ensembles (2026-11-26).
+- [ ] Accept re-signing in about once a week: while the Google Cloud app stays in Testing, Google ends a sign-in after 7 days. Leaving Testing with `drive.readonly`, a restricted scope, needs Google's verification, which is out of proportion for one user. The local copy keeps working when the sign-in has run out; only syncing asks to sign in again.
 
 Setup in Google Cloud, once, by me (Volti only needs the result):
 
@@ -247,34 +259,54 @@ No client secret or API key goes into the app: an Android OAuth client is matche
 
 ### 1. Sign-in and listing
 
-- [ ] Link a Drive folder (paste its link, or pick it after signing in); list its PDFs and subfolders with their checksums.
+- [ ] Add an ensemble: paste a shared folder's link, give it a name and my instrument. List its PDFs and subfolders, recursively, with their checksums.
 
 ### 2. The local copy
 
-- [ ] Download new and changed PDFs into the app's private storage, with an index (Drive id, name, folder, checksum, local file). Remove what was removed in Drive.
+- [ ] A small database (Room), keyed by Drive file id: ensembles, files (name, folder, checksum, version, local file). Milestones 4 and 5 build on it.
+- [ ] Download new and changed PDFs into the app's private storage. A changed PDF keeps its previous version until I have seen the new one. Removed in Drive: marked as removed, kept while anything of mine refers to it.
 - [ ] Size limits and checks on what comes in.
 
 ### 3. The library from the copy
 
-- [ ] The library lists the local copy, with the same folders, names, sort and search. The reader opens the local file.
+- [ ] The library opens on the ensembles, next to the local folder. Inside an ensemble: the folders as in Drive, with the same names, sort and search. The reader opens the local file.
 
 ### 4. Sync
 
-- [ ] Sync when the library opens and on pull-to-refresh; show progress and when the last sync was. Offline: the last copy, and say so.
+- [ ] Sync when the library opens and on pull-to-refresh; show progress and when the last sync was. Offline or signed out: the last copy, and say so.
+- [ ] New and changed files since I last looked are marked as such.
 
-Done when: a score added in Drive shows up on the tablet after pulling the library, and every score opens with the network off.
+### 5. My parts
+
+- [ ] Per ensemble, mark the files I play. The ensemble opens on my parts, with everything else one tap away.
+- [ ] Pre-select candidates by matching my instrument against file and folder names, including Dutch and abbreviated names (klarinet, cl.); I confirm. New files that match are suggested, never added on their own.
+
+Done when: a score added to a shared folder in Drive shows up on the tablet after pulling the library, I can mark it as mine, and every score opens with the network off.
+
+## Milestone 4: annotations
+
+The reason the IMSLP app is still needed. No import of my existing IMSLP annotations: not worth it.
+
+- [ ] Write with the S Pen, turn with a finger: no annotation mode to switch into. Pen, highlighter, eraser, a few colours. Jetpack's `androidx.ink` is the candidate for low-latency ink.
+- [ ] Stored next to the PDF, never in it: the PDFs are shared and read-only. Kept per Drive file id and page, in coordinates of the whole page, not of the cropped view, so a change in the margin crop doesn't move them.
+- [ ] A new version of an annotated PDF: show it with my annotations on top and say the score changed, with the previous version still available. I check; Volti doesn't try to move marks to where it thinks they belong. Happens now and then, mostly in smaller ensembles.
+- [ ] Backup: annotations are the one thing a lost or reset tablet can't download again. Decide first: a file in my own Drive (the `drive.file` scope, only files Volti created; this would be Volti's first upload) or an export I keep myself.
+
+## Milestone 5: setlists
+
+- [ ] Setlists per ensemble: an ordered list of my parts.
+- [ ] In a setlist, turning past the last page opens the next piece.
 
 ## Later milestones (not planned yet)
 
+- Display names: my own name per file (my convention is `composer - title - tuning instrument part`), pre-filled from the file name, kept per Drive file id. The Drive name stays as it is.
+- Search across ensembles.
 - Remember the page per score, also across process death. (Was milestone 2, step 2; not wanted now.)
 - Page-turner pedal: Bluetooth page turners send key presses. (Was milestone 2, step 3; not wanted now.)
-- Setlists as references to pieces.
 - Play order and jump markers, stored alongside the PDF.
 - Import: share and open-with target for PDFs.
-- Annotations as a separate layer.
 - System-by-system view.
 - MusicXML as a second document type.
-- Room index, if folder queries get too slow for a large library.
 
 ## Out of scope
 
