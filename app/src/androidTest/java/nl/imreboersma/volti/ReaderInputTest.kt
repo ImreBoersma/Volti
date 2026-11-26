@@ -71,6 +71,8 @@ class ReaderInputTest {
         }
         compose.runOnUiThread { nav.navigate(Reader(Uri.fromFile(file).toString())) }
         waitForPage("Page 1 of 3")
+        // Keys go to the window with the focus: on a slow emulator the page shows before the window has it.
+        compose.waitUntil(10_000) { compose.activity.hasWindowFocus() }
     }
 
     @After

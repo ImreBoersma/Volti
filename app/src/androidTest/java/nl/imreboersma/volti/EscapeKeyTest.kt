@@ -23,6 +23,7 @@ class EscapeKeyTest {
     fun escFromTheSettingsGoesHome() {
         compose.onNodeWithText("Settings").performClick()
         compose.waitUntil(5_000) { showing("Crop margins") }
+        compose.waitUntil(10_000) { compose.activity.hasWindowFocus() } // Keys go to the window with the focus.
 
         InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_ESCAPE)
 
