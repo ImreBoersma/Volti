@@ -6,13 +6,16 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import nl.imreboersma.volti.Reader
 import nl.imreboersma.volti.Setlists
 import nl.imreboersma.volti.SetlistPieces
 import nl.imreboersma.volti.data.sortedByPlace
@@ -71,6 +74,26 @@ class SetlistViewModel(app: Application, handle: SavedStateHandle) : AndroidView
     /** The pieces in this order, as dragged into it. */
     fun order(fileIds: List<String>) {
         viewModelScope.launch { dao.reorder(setlistId, fileIds) }
+    }
+
+    private val _problem = MutableStateFlow<String?>(null)
+
+    /** Why Play didn't start: no piece could be opened. */
+    val problem: StateFlow<String?> = _problem.asStateFlow()
+
+    private var starting = false
+
+    /** The first piece that can be opened, from the top; once at a time. */
+    fun play(onPlay: suspend (Reader) -> Unit) {
+        if (starting) return
+        starting = true
+        _problem.value = null
+        viewModelScope.launch {
+            val reached = findPiece(getApplication(), setlistId, from = -1, step = +1)
+            val first = reached.reader
+            if (first == null) _problem.value = reached.skipped ?: "This setlist has no pieces." else onPlay(first)
+            starting = false
+        }
     }
 
     fun rename(name: String) {

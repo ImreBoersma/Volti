@@ -376,9 +376,13 @@ Checked on the Fairphone 6: a setlist made, three pieces added and one dragged d
 
 ### 2. Playing a setlist
 
-- [ ] Opening a setlist opens its first piece; turning past the last page opens the next piece at its first page, and back from the first page the previous piece at its last. Annotations, the margin crop and half-page turns as for any score. A piece not on the device yet is downloaded when reached, or skipped with a message when offline.
+- [x] Opening a setlist opens its first piece; turning past the last page opens the next piece at its first page, and back from the first page the previous piece at its last. Annotations, the margin crop and half-page turns as for any score. A piece not on the device yet is downloaded when reached, or skipped with a message when offline.
 
 Done when: a rehearsal's setlist plays through from the first page to the last without leaving the reader.
+
+Done 2026-11-26. Play in a setlist opens the first piece that can be opened. Past a piece's ends the next or previous one takes its place, so Back still goes to the setlist. A line at the bottom says "2 / 9 · name" for a few seconds. "Opening the next piece…", a skipped piece with its reason (gone from Drive, no connection, sign-in needed, over 20 seconds) and "End of the setlist" stay until I turn a page. A turn within the piece cancels a piece still being found. A piece found while the screen is off opens once I'm back. The reader only reports that a turn hit an end; `setlist/` hears it, and the reader's page turns, through `MainActivity`. The skip message travels in the reader's route, so it survives process death.
+
+Checked on the Fairphone 6: a two-piece setlist played forward into the second piece, back into the first at its last page, and back once more to "Start of the setlist". Not yet on the tablet.
 
 ## Later milestones (not planned yet)
 

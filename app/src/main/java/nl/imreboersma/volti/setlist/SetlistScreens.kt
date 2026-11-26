@@ -56,6 +56,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import nl.imreboersma.volti.Reader
 import nl.imreboersma.volti.db.EnsembleFile
 import nl.imreboersma.volti.ui.AppBackButton
 import nl.imreboersma.volti.ui.deviceName
@@ -129,10 +130,16 @@ private val ROW = 64.dp
  * Move up and Move down actions); the order is saved when it is let go.
  */
 @Composable
-fun SetlistScreen(onBack: () -> Unit, onDeleted: () -> Unit, viewModel: SetlistViewModel = viewModel()) {
+fun SetlistScreen(
+    onPlay: suspend (Reader) -> Unit,
+    onBack: () -> Unit,
+    onDeleted: () -> Unit,
+    viewModel: SetlistViewModel = viewModel(),
+) {
     val setlist by viewModel.setlist.collectAsStateWithLifecycle()
     val pieces by viewModel.pieces.collectAsStateWithLifecycle()
     val candidates by viewModel.candidates.collectAsStateWithLifecycle()
+    val problem by viewModel.problem.collectAsStateWithLifecycle()
     var adding by rememberSaveable { mutableStateOf(false) }
     var renaming by rememberSaveable { mutableStateOf(false) }
     var deleting by rememberSaveable { mutableStateOf(false) }
@@ -161,8 +168,11 @@ fun SetlistScreen(onBack: () -> Unit, onDeleted: () -> Unit, viewModel: SetlistV
                 TextButton(onClick = { deleting = true }) { Text("Delete") }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 12.dp)) {
-                Button(onClick = { adding = true }) { Text("Add pieces") }
+                // From the first piece on, turning straight into the next.
+                if (!pieces.isNullOrEmpty()) Button(onClick = { viewModel.play(onPlay) }) { Text("Play") }
+                OutlinedButton(onClick = { adding = true }) { Text("Add pieces") }
             }
+            problem?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             if (pieces?.isEmpty() == true) {
                 Text("No pieces yet. Add them from your parts.", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }

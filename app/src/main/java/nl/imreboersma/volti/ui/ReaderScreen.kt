@@ -35,6 +35,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.geometry.Size
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.geometry.Offset
@@ -72,7 +73,8 @@ data class PageOverlay(val index: Int, val area: PageArea, val bitmapWidth: Int,
 
 /**
  * The reader. [overlay] is drawn over each page and [controls] over the reader, for what the reader itself doesn't
- * know about (annotations): it only says where the page is.
+ * know about (annotations): it only says where the page is. [onEdge] hears of a turn past the last page (+1) or before
+ * the first (-1), for a score that has a next one (a setlist).
  */
 @Composable
 fun ReaderScreen(
@@ -80,9 +82,13 @@ fun ReaderScreen(
     modifier: Modifier = Modifier,
     overlay: @Composable (PageOverlay) -> Unit = {},
     controls: @Composable BoxScope.() -> Unit = {},
+    onEdge: ((Int) -> Unit)? = null,
     viewModel: ReaderViewModel = viewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    // A turn past the score's last page, or before its first: for [onEdge] to go on to the next or previous score.
+    val edge by rememberUpdatedState(onEdge)
+    LaunchedEffect(viewModel) { viewModel.edge.collect { edge?.invoke(it) } }
     val paper by viewModel.paper.collectAsStateWithLifecycle()
     // Once the score's paper colour is known, the reader takes it around the page; until then, the theme's.
     val colors = paper?.let { readerColorsOn(Color(it)) } ?: LocalReaderColors.current

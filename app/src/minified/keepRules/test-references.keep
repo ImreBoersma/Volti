@@ -1368,6 +1368,16 @@
     androidx.lifecycle.ViewModelProvider$Factory build();
 }
 #noinspection ShrinkerUnresolvedReference
+-keep class androidx.navigation.NavBackStackEntry {
+    #noinspection ShrinkerUnresolvedReference
+    androidx.navigation.NavDestination getDestination();
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.navigation.NavBackStackEntryKt {
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.Object toRoute(androidx.navigation.NavBackStackEntry, kotlin.reflect.KClass);
+}
+#noinspection ShrinkerUnresolvedReference
 -keep class androidx.navigation.NavController {
     #noinspection ShrinkerUnresolvedReference
     void navigate$default(androidx.navigation.NavController, java.lang.Object, androidx.navigation.NavOptions, androidx.navigation.Navigator$Extras, int, java.lang.Object);
@@ -1381,9 +1391,13 @@
 -keep class androidx.navigation.NavDestination {
     #noinspection ShrinkerUnresolvedReference
     androidx.navigation.NavDestination$Companion Companion;
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.String getRoute();
 }
 #noinspection ShrinkerUnresolvedReference
 -keep class androidx.navigation.NavHostController {
+    #noinspection ShrinkerUnresolvedReference
+    androidx.navigation.NavBackStackEntry getCurrentBackStackEntry();
     #noinspection ShrinkerUnresolvedReference
     androidx.navigation.NavDestination getCurrentDestination();
     #noinspection ShrinkerUnresolvedReference
@@ -1977,6 +1991,8 @@
 -keep class kotlin.io.FilesKt {
     #noinspection ShrinkerUnresolvedReference
     byte[] readBytes(java.io.File);
+    #noinspection ShrinkerUnresolvedReference
+    void writeBytes(java.io.File, byte[]);
     #noinspection ShrinkerUnresolvedReference
     void writeText$default(java.io.File, java.lang.String, java.nio.charset.Charset, int, java.lang.Object);
 }
@@ -2798,7 +2814,9 @@
 #noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.Reader {
     #noinspection ShrinkerUnresolvedReference
-    <init>(java.lang.String, java.lang.String, boolean, int, kotlin.jvm.internal.DefaultConstructorMarker);
+    <init>(java.lang.String, java.lang.String, boolean, boolean, java.lang.Long, int, java.lang.String, int, kotlin.jvm.internal.DefaultConstructorMarker);
+    #noinspection ShrinkerUnresolvedReference
+    int getPosition();
 }
 #noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.SetlistPieces {
@@ -3101,6 +3119,18 @@
     androidx.sqlite.db.SupportSQLiteOpenHelper getOpenHelper();
     #noinspection ShrinkerUnresolvedReference
     nl.imreboersma.volti.setlist.SetlistDao setlists();
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.drive.Syncer$Companion {
+    #noinspection ShrinkerUnresolvedReference
+    nl.imreboersma.volti.drive.Syncer get(android.content.Context);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.drive.Syncer {
+    #noinspection ShrinkerUnresolvedReference
+    nl.imreboersma.volti.drive.Syncer$Companion Companion;
+    #noinspection ShrinkerUnresolvedReference
+    java.io.File fileFor(java.lang.String);
 }
 #noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.render.IsolatedRendererKt {

@@ -17,6 +17,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
@@ -73,7 +76,16 @@ class ReaderViewModel @JvmOverloads constructor(
     private val openTimeoutMs: Long = 10_000,
     private val loadSettings: suspend () -> ReaderSettings = { ReaderSettingsStore(app).settings.first() },
 ) : AndroidViewModel(app) {
-    private val uri = handle.toRoute<Reader>().uri.toUri()
+    private val route = handle.toRoute<Reader>()
+    private val uri = route.uri.toUri()
+
+    private val _edge = MutableSharedFlow<Int>(extraBufferCapacity = 1)
+
+    /**
+     * A turn past the last page (+1) or back before the first (-1): the score ends there. For whoever has a score
+     * that comes next or before; the reader itself stays put.
+     */
+    val edge: SharedFlow<Int> = _edge.asSharedFlow()
 
     /** The renderer is not thread-safe: everything below this line is only touched on this one thread. */
     private val pdfThread = Dispatchers.IO.limitedParallelism(1)
@@ -145,6 +157,8 @@ class ReaderViewModel @JvmOverloads constructor(
                 open(uri).also {
                     Log.i("Volti", "Opened $uri, ${it.pageCount} pages")
                     document = it
+                    // Come back to from the score after it: its end, where I left off.
+                    if (route.fromEnd) current = (it.pageCount - 1).coerceAtLeast(0)
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -249,7 +263,7 @@ class ReaderViewModel @JvmOverloads constructor(
                     else -> false
                 }
             }
-            if (moved) showCurrent(doc, since = tapped)
+            if (moved) showCurrent(doc, since = tapped) else _edge.tryEmit(delta)
         }
     }
 

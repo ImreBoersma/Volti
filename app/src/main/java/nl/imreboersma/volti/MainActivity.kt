@@ -9,12 +9,14 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.withResumed
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -22,11 +24,17 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.map
 import kotlinx.serialization.Serializable
 import nl.imreboersma.volti.ui.EnsembleScreen
 import nl.imreboersma.volti.annotate.AnnotationControls
 import nl.imreboersma.volti.annotate.AnnotationViewModel
 import nl.imreboersma.volti.annotate.PageAnnotations
+import nl.imreboersma.volti.setlist.SetlistLine
+import nl.imreboersma.volti.setlist.SetlistPlayerViewModel
 import nl.imreboersma.volti.setlist.SetlistScreen
 import nl.imreboersma.volti.setlist.SetlistsScreen
 import nl.imreboersma.volti.ui.AddEnsembleScreen
@@ -68,10 +76,20 @@ data class SetlistPieces(val setlistId: Long)
 /**
  * [uri] is the document URI of the score, as a string. [scoreKey] is what its annotations belong to when the opener
  * knows (`drive:<file id>` for an ensemble's score); without it, the file's content decides. [previous]: this is the
- * version before a change, opened to compare my marks against.
+ * version before a change, opened to compare my marks against. [fromEnd]: open at the last page. [setlistId] and
+ * [position]: the score is piece [position] of that setlist, so turning past its ends goes on to the next or previous
+ * piece (the reader itself doesn't know; see `setlist/`). [skipped]: why the pieces before this one were passed over.
  */
 @Serializable
-data class Reader(val uri: String, val scoreKey: String? = null, val previous: Boolean = false)
+data class Reader(
+    val uri: String,
+    val scoreKey: String? = null,
+    val previous: Boolean = false,
+    val fromEnd: Boolean = false,
+    val setlistId: Long? = null,
+    val position: Int = 0,
+    val skipped: String? = null,
+)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -169,8 +187,9 @@ fun VoltiApp(navController: NavHostController = rememberNavController()) {
                 onBack = dropUnlessResumed { navController.popBackStack() },
             )
         }
-        composable<SetlistPieces> {
+        composable<SetlistPieces> { entry ->
             SetlistScreen(
+                onPlay = { reader -> entry.lifecycle.withResumed { navController.navigate(reader) } },
                 onBack = dropUnlessResumed { navController.popBackStack() },
                 onDeleted = dropUnlessResumed { navController.popBackStack() },
             )
@@ -178,6 +197,18 @@ fun VoltiApp(navController: NavHostController = rememberNavController()) {
         composable<Reader> { entry ->
             // Annotations go over the reader through its slots; the reader itself doesn't know about them.
             val annotations: AnnotationViewModel = viewModel()
+            // So does a setlist: past a piece's ends, the next or previous piece takes this one's place, so Back
+            // still goes to the setlist.
+            val inSetlist = entry.toRoute<Reader>().setlistId != null
+            val setlist: SetlistPlayerViewModel? = if (inSetlist) viewModel() else null
+            if (setlist != null) {
+                // The reader's own ViewModel, for its turns: one within the piece is heard here, not by the reader.
+                val reader: ReaderViewModel = viewModel()
+                LaunchedEffect(reader, setlist) {
+                    reader.state.filterIsInstance<ReaderState.Page>().map { it.index to it.half }.distinctUntilChanged()
+                        .drop(1).collect { setlist.turned() }
+                }
+            }
             ReaderScreen(
                 // Only while the reader is the resumed screen: a second tap during the crossfade would also pop the
                 // library and leave nothing on screen.
@@ -188,10 +219,22 @@ fun VoltiApp(navController: NavHostController = rememberNavController()) {
                         annotations,
                         onOpenPrevious = { uri ->
                             if (entry.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
-                                navController.navigate(entry.toRoute<Reader>().copy(uri = uri, previous = true))
+                                // To look at only: not as a piece of a setlist, and from its start.
+                                navController.navigate(
+                                    entry.toRoute<Reader>().copy(uri = uri, previous = true, fromEnd = false, setlistId = null, skipped = null),
+                                )
                             }
                         },
                     )
+                    // Not over the annotation toolbar, which is at the bottom too.
+                    val annotating by annotations.annotating.collectAsStateWithLifecycle()
+                    if (!annotating) setlist?.let { SetlistLine(it) }
+                },
+                onEdge = setlist?.let { player ->
+                    { step ->
+                        // Found while the screen was off: opened once I'm back, not dropped.
+                        player.go(step) { next -> entry.lifecycle.withResumed { navController.navigate(next) { popUpTo<Reader> { inclusive = true } } } }
+                    }
                 },
             )
         }
