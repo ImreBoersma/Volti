@@ -384,20 +384,51 @@ Done 2026-11-26. Play in a setlist opens the first piece that can be opened. Pas
 
 Checked on the Fairphone 6: a two-piece setlist played forward into the second piece, back into the first at its last page, and back once more to "Start of the setlist". Not yet on the tablet.
 
-## Milestone 6: display names
+## Milestone 6: one library
+
+Decided 2026-11-26: a PDF is a score in Volti however it got there, from Drive or imported, with the same annotations, parts, setlists and (milestone 7) names. Display names wait for this, so they are built once.
+
+### 0. Decisions before building
+
+- [x] Import a copy (2026-11-26): an imported PDF is copied into the app's own storage, as a Drive file is. It works offline, and a file moved or deleted on the device can't break a setlist or lose its marks. The granted folder, read in place, goes.
+- [x] Into an ensemble (2026-11-26): an ensemble's files come from its Drive folder, from imports, or both. A part the conductor emailed goes next to that orchestra's Drive files and can be in the same setlist. An ensemble without a Drive folder holds only imports (a quartet, practice material).
+- [x] Three ways in (2026-11-26): the file picker (several files), Share and Open with from other apps, and a whole folder with its subfolders as places in the ensemble.
+- [x] The folder library is replaced (2026-11-26): once, what is in the granted folder can be imported, with the marks I made on it (local annotations are keyed by content already).
+
+Structure: an imported file is an ensemble file with its own id instead of a Drive file id, in the same table and the same store by md5. A sync never touches it. Importing a file with the same name into the same place offers to replace it: a new version, as when a Drive file changes, so "the score changed under my marks" works for imports too. PDFs from other apps are as untrusted as any: same limits, rendered in the isolated process. Share and Open with need no permission, only intent filters.
+
+### 1. Importing into an ensemble
+
+- [ ] A new ensemble with or without a Drive folder. Import in any ensemble opens the file picker, several PDFs at once, into the folder I'm in. An imported file is listed, opened, marked mine, put in setlists and annotated as a Drive file is; a sync leaves it alone; it can be deleted (a Drive file can't).
+
+Done when: on the tablet, a PDF from Downloads, imported into an ensemble, plays in a setlist next to a Drive part, with marks on it.
+
+### 2. Share and Open with
+
+- [ ] Volti in the share sheet and Open with for PDFs; I pick the ensemble (and folder) it goes into.
+
+Done when: a PDF from a Gmail attachment, opened with Volti, lands in the ensemble I picked.
+
+### 3. A whole folder, and the folder library goes
+
+- [ ] Import a folder: every PDF in it and its subfolders, the subfolders kept as places. The folder library is removed; the first time after the update, Volti offers to import the granted folder into an ensemble, marks included.
+
+Done when: on the tablet, the granted folder is imported with its marks, and there is one library.
+
+## Milestone 7: display names
 
 ### 0. Decisions before building
 
 - [x] One text field (2026-11-26): a name I type in my own convention (`composer - title - tuning instrument part`), not separate fields. The convention is mine alone; nothing reads its parts.
 - [x] Pre-filled with the cleaned file name (2026-11-26): `Farandole-Hoorn_in_F.pdf` becomes `Farandole - Hoorn in F`; I add the composer. No PDF metadata: orchestras' files carry little there, and it is more parsing of untrusted input.
 - [x] Where (2026-11-26): renamed from the ensemble's file list and from a setlist's pieces. The name belongs to the file, so it shows everywhere the file does.
-- [x] Only ensemble files (2026-11-26): the name hangs off the Drive file id, as everything Volti adds does. A local file's name is its file name, which I can change myself.
+- [x] Every file (2026-11-26, after milestone 6 was put first): every score is an ensemble file by then, so every score can have a name, kept per file id.
 
 The Drive name stays as it is: Volti never writes to the folder. Search finds a file by either name.
 
 ### 1. My names for my files
 
-- [ ] Rename a file in an ensemble or a setlist, pre-filled with the cleaned Drive name; clearing the name goes back to the Drive name. Shown in the ensemble, its search, setlists, the reader's setlist line and skip messages. Kept through syncs, a new version in Drive and a rename in Drive.
+- [ ] Rename a file in an ensemble or a setlist, pre-filled with the cleaned file name; clearing the name goes back to it. Shown in the ensemble, its search, setlists, the reader's setlist line and skip messages. Kept through syncs, a new version and a rename in Drive.
 
 Done when: on the tablet, a part renamed in its ensemble shows under that name in a setlist and while playing it, also after a sync.
 
@@ -409,7 +440,6 @@ Done when: on the tablet, a part renamed in its ensemble shows under that name i
 - Remember the page per score, also across process death. (Was milestone 2, step 2; not wanted now.)
 - Page-turner pedal: Bluetooth page turners send key presses. (Was milestone 2, step 3; not wanted now.)
 - Play order and jump markers, stored alongside the PDF.
-- Import: share and open-with target for PDFs.
 - System-by-system view.
 - MusicXML as a second document type.
 
