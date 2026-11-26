@@ -46,8 +46,11 @@ jobs:
           target: google_apis
           arch: x86_64
           disable-animations: true
-          # On a failure, also what had the focus and what the screen showed: a system dialog eats key presses.
+          # The system's "Viewing full screen" notice, shown the first time the reader hides the bars, takes the
+          # focus and with it the key presses of whichever test comes first: seen already, as on a used tablet.
+          # On a failure, also what had the focus and what the screen showed.
           script: >-
+            adb shell settings put secure immersive_mode_confirmations confirmed &&
             ./gradlew connectedMinifiedAndroidTest ||
             { d=app/build/reports/androidTests/connected; mkdir -p $d;
             adb shell dumpsys window | grep -E 'mCurrentFocus|mFocusedApp' > $d/focus.txt;
