@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import nl.imreboersma.volti.db.VoltiDatabase
+import nl.imreboersma.volti.db.fileKey
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -104,7 +105,7 @@ class AnnotationViewModelTest {
     }
 
     private suspend fun openDrive(fileId: String): AnnotationViewModel {
-        val vm = withContext(Dispatchers.Main) { AnnotationViewModel(app, SavedStateHandle(mapOf("uri" to "file:///none.pdf", "scoreKey" to "drive:$fileId"))) }
+        val vm = withContext(Dispatchers.Main) { AnnotationViewModel(app, SavedStateHandle(mapOf("uri" to "file:///none.pdf", "scoreKey" to fileKey(fileId)))) }
         vm.ready.first { it }
         repeat(50) { if (vm.change.value != null) return vm; kotlinx.coroutines.delay(20) }
         return vm
@@ -114,7 +115,7 @@ class AnnotationViewModelTest {
     fun aChangedScoreWithMyMarksSaysSo() = runBlocking {
         val fileId = "file" + UUID.randomUUID().toString().take(8)
         val ensemble = changedDriveScore(fileId)
-        db.annotations().addSymbols(listOf(AnnotationSymbol("s-$fileId", "drive:$fileId", 0, "Fermata", 1f, 1f, 0)))
+        db.annotations().addSymbols(listOf(AnnotationSymbol("s-$fileId", fileKey(fileId), 0, "Fermata", 1f, 1f, 0)))
         try {
             val vm = openDrive(fileId)
             assertTrue(vm.change.value is ScoreChange.Changed)

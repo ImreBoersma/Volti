@@ -20,7 +20,8 @@ const val KEEP_FREE_BYTES = 500L * 1024 * 1024
  *   (downloads and opening the score change those);
  * - what is no longer there is dropped, unless I opened it or marked it mine: then it stays, marked removed;
  * - unless the walk was not [complete]: then what it didn't reach is left as it is;
- * - new PDFs get [addedAt]: null on the ensemble's first sync, where nothing counts as new.
+ * - new PDFs get [addedAt]: null on the ensemble's first sync, where nothing counts as new;
+ * - imported files aren't Drive's: they stay exactly as they are.
  * PDFs without a well-formed checksum are left out (Drive gives one for every uploaded file; it becomes a file name),
  * and a PDF in two subfolders counts once, in the first.
  */
@@ -31,7 +32,8 @@ fun reconcile(
     complete: Boolean = true,
     addedAt: Long? = null,
 ): List<EnsembleFile> {
-    val before = old.associateBy { it.fileId }
+    val (imported, fromDrive) = old.partition { it.imported }
+    val before = fromDrive.associateBy { it.fileId }
     val now = found.filter { it.file.md5Checksum?.matches(MD5) == true }.distinctBy { it.file.id }.map { entry ->
         val file = entry.file
         val size = file.size?.toLongOrNull() ?: 0
@@ -45,8 +47,8 @@ fun reconcile(
         ) ?: EnsembleFile(ensembleId, file.id, file.resourceKey, file.name, entry.folders, file.md5Checksum!!, size, addedAt = addedAt)
     }
     val seen = now.mapTo(HashSet()) { it.fileId }
-    val missing = old.filter { it.fileId !in seen }
-    return now + when {
+    val missing = fromDrive.filter { it.fileId !in seen }
+    return imported + now + when {
         !complete -> missing
         // Mine but never downloaded: nothing to play from, so it goes like the rest.
         else -> missing.filter { it.seenMd5 != null || (it.mine && it.localMd5 != null) }.map { it.copy(removed = true) }
@@ -55,14 +57,25 @@ fun reconcile(
 
 private val MD5 = Regex("[0-9a-f]{32}")
 
-class DownloadRejected(message: String) : IOException(message)
+/** Why a PDF wasn't taken in, downloaded or imported. */
+enum class Rejection { TooLarge, NotAPdf, WrongChecksum, NoSpace, Unreadable }
+
+class DownloadRejected(val reason: Rejection, message: String) : IOException(message)
+
+/** [name], or with " (2)", " (3)"… before its extension when [taken] has it: two files in a folder never share a name. */
+fun freeName(name: String, taken: Set<String>): String {
+    if (name !in taken) return name
+    val dot = name.lastIndexOf('.').takeIf { it > 0 } ?: name.length
+    return generateSequence(2) { it + 1 }.map { "${name.take(dot)} ($it)${name.drop(dot)}" }.first { it !in taken }
+}
 
 /**
  * Copies [input] to [target]: at most [limit] bytes, starting like a PDF (`%PDF-` within the first 1024 bytes, as
- * the format allows), with md5 [expectedMd5]. Anything else is deleted and rejected: what lands on the tablet is what
- * Drive said it would be. [check] runs between buffers and may throw to stop (a cancelled sync).
+ * the format allows), with md5 [expectedMd5] when given. Anything else is deleted and rejected: what lands on the
+ * tablet is what Drive said it would be. [check] runs between buffers and may throw to stop (a cancelled sync).
+ * Returns the md5.
  */
-fun copyChecked(input: InputStream, target: File, expectedMd5: String, limit: Long = MAX_PDF_BYTES, check: () -> Unit = {}) {
+fun copyChecked(input: InputStream, target: File, expectedMd5: String?, limit: Long = MAX_PDF_BYTES, check: () -> Unit = {}): String {
     val digest = MessageDigest.getInstance("MD5")
     try {
         target.outputStream().use { out ->
@@ -75,7 +88,7 @@ fun copyChecked(input: InputStream, target: File, expectedMd5: String, limit: Lo
                 val n = input.read(buffer)
                 if (n < 0) break
                 total += n
-                if (total > limit) throw DownloadRejected("Larger than ${limit / 1024 / 1024} MB")
+                if (total > limit) throw DownloadRejected(Rejection.TooLarge, "Larger than ${limit / 1024 / 1024} MB")
                 if (headSize < head.size) {
                     val take = minOf(n, head.size - headSize)
                     System.arraycopy(buffer, 0, head, headSize, take)
@@ -84,10 +97,11 @@ fun copyChecked(input: InputStream, target: File, expectedMd5: String, limit: Lo
                 digest.update(buffer, 0, n)
                 out.write(buffer, 0, n)
             }
-            if (!head.copyOf(headSize).decodeToString().contains("%PDF-")) throw DownloadRejected("Not a PDF")
+            if (!head.copyOf(headSize).decodeToString().contains("%PDF-")) throw DownloadRejected(Rejection.NotAPdf, "Not a PDF")
         }
         val md5 = digest.digest().joinToString("") { "%02x".format(it) }
-        if (!md5.equals(expectedMd5, ignoreCase = true)) throw DownloadRejected("Checksum doesn't match")
+        if (expectedMd5 != null && !md5.equals(expectedMd5, ignoreCase = true)) throw DownloadRejected(Rejection.WrongChecksum, "Checksum doesn't match")
+        return md5
     } catch (e: Exception) {
         target.delete()
         throw e
@@ -106,13 +120,43 @@ class PdfStore(private val dir: File, private val freeBytes: () -> Long) {
     /** Downloads into a temporary file and moves it into place only once it passed [copyChecked]. */
     fun store(md5: String, size: Long, input: InputStream, check: () -> Unit = {}) {
         dir.mkdirs()
-        if (freeBytes() < size + KEEP_FREE_BYTES) throw DownloadRejected("Not enough space on this device")
+        if (freeBytes() < size + KEEP_FREE_BYTES) throw DownloadRejected(Rejection.NoSpace, "Not enough space on this device")
         val temp = File(dir, "download-${UUID.randomUUID()}.tmp")
         copyChecked(input, temp, md5, check = check)
         if (!temp.renameTo(fileFor(md5))) {
             temp.delete()
             throw IOException("Couldn't store the download")
         }
+    }
+
+    /** Where imports are copied first: outside the store, so a clean-up can't sweep one away mid-copy. */
+    private val incoming = File(dir.parentFile, "${dir.name}-incoming")
+
+    /**
+     * Copies a PDF from the device or another app next to the store, under the same limits as a download: the copy,
+     * and its md5. Slow input (a cloud provider) holds up nothing; [keep] then takes it in.
+     */
+    fun receive(input: InputStream): Pair<File, String> {
+        incoming.mkdirs()
+        if (freeBytes() < KEEP_FREE_BYTES) throw DownloadRejected(Rejection.NoSpace, "Not enough space on this device")
+        val temp = File(incoming, "${UUID.randomUUID()}.tmp")
+        return temp to copyChecked(input, temp, expectedMd5 = null)
+    }
+
+    /** A [receive]d copy into the store, named by its [md5]; the same PDF twice is stored once. */
+    fun keep(copy: File, md5: String) {
+        dir.mkdirs()
+        if (has(md5)) {
+            copy.delete()
+        } else if (!copy.renameTo(fileFor(md5))) {
+            copy.delete()
+            throw IOException("Can't store an imported PDF")
+        }
+    }
+
+    /** Copies an ended process left behind. Only while no import runs. */
+    fun clearIncoming() {
+        incoming.listFiles()?.forEach { it.delete() }
     }
 
     /** Deletes every version not in [inUse], and downloads that never finished. */

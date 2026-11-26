@@ -9,7 +9,9 @@ import android.util.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -26,6 +28,8 @@ import nl.imreboersma.volti.db.EnsembleFile
 import nl.imreboersma.volti.db.VoltiDatabase
 import java.io.File
 import java.io.IOException
+import java.io.InputStream
+import java.util.UUID
 
 sealed interface SyncState {
     data object Idle : SyncState
@@ -88,6 +92,7 @@ class Syncer private constructor(context: Context) {
         job = scope.launch {
             for (id in ids) {
                 val ensemble = db.ensembles().get(id) ?: continue
+                if (ensemble.folderId == null) continue // Only imports: nothing in Drive.
                 val last = ensemble.lastSynced
                 if (!force && last != null && System.currentTimeMillis() - last < RESYNC_AFTER_MS) continue
                 val state = guarded { syncWithAccess(ensemble) } ?: break // Waiting for consent: the rest waits too.
@@ -130,11 +135,16 @@ class Syncer private constructor(context: Context) {
      */
     suspend fun fetch(ensembleId: Long, fileId: String, open: Boolean): String? = try {
         // Here already and only to open: no need for Google at all, so it works offline.
-        val here = storeLock.withLock {
-            val file = db.files().all(ensembleId).firstOrNull { it.fileId == fileId }
-            file?.localMd5?.also { if (open) db.files().opened(ensembleId, fileId, it) }
+        val file = storeLock.withLock {
+            db.files().all(ensembleId).firstOrNull { it.fileId == fileId }?.also { file ->
+                file.localMd5?.let { if (open) db.files().opened(ensembleId, fileId, it) }
+            }
         }
-        if (here != null && open) null else fetchWithAccess(ensembleId, fileId, open, retry = true)
+        when {
+            file?.localMd5 != null && (open || file.imported) -> null
+            file?.imported == true -> "This file is gone." // An import only ever was here.
+            else -> fetchWithAccess(ensembleId, fileId, open, retry = true)
+        }
     } catch (e: CancellationException) {
         throw e
     } catch (e: DriveException) {
@@ -147,6 +157,74 @@ class Syncer private constructor(context: Context) {
         // Play services' own errors (offline with an expired token, among others): a message, not a crash.
         Log.w("Volti", "Fetching a file failed", e)
         "Couldn't reach Google Drive."
+    }
+
+    /** One import at a time; the first also clears what an ended process left half copied. */
+    private val importLock = Mutex()
+    private var incomingCleared = false
+
+    /**
+     * Copies the PDFs [sources] (name and how to read it) into ensemble [ensembleId], in the folder [folders]. Here,
+     * not in the screen's scope: leaving the screen doesn't stop it. Each one is in as soon as it is copied; the
+     * store's lock is held only to take it in, not while another app is read. With [replace], one that has the name
+     * of an imported file in that folder is a new version of it, as when a Drive file changes: its marks stay, and I'm
+     * told the score changed under them. Without, it gets a name of its own. Completes with what wasn't imported.
+     */
+    fun import(
+        ensembleId: Long,
+        folders: List<String>,
+        sources: List<Pair<String, () -> InputStream>>,
+        replace: Boolean,
+    ): Deferred<List<Pair<String, Rejection>>> = scope.async {
+        importLock.withLock {
+            if (!incomingCleared) {
+                withContext(Dispatchers.IO) { store.clearIncoming() }
+                incomingCleared = true
+            }
+            val problems = mutableListOf<Pair<String, Rejection>>()
+            for ((name, open) in sources) {
+                try {
+                    val (copy, md5) = withContext(Dispatchers.IO) { open().use(store::receive) }
+                    storeLock.withLock {
+                        withContext(Dispatchers.IO) { store.keep(copy, md5) }
+                        val here = db.files().all(ensembleId).filter { it.folders == folders }
+                        val replaced = if (replace) here.firstOrNull { it.imported && it.name == name } else null
+                        val size = store.fileFor(md5).length()
+                        db.files().save(listOf(
+                            replaced?.copy(md5 = md5, localMd5 = md5, size = size) ?: EnsembleFile(
+                                ensembleId, UUID.randomUUID().toString(), null, freeName(name, here.mapTo(HashSet()) { it.name }),
+                                folders, md5, size, localMd5 = md5, addedAt = System.currentTimeMillis(), imported = true,
+                            ),
+                        ))
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: DownloadRejected) {
+                    Log.w("Volti", "Can't import a PDF", e) // Not the name: it may be private.
+                    problems += name to e.reason
+                } catch (e: Exception) {
+                    // Another app's provider can fail in any way: that file isn't imported, the rest are.
+                    Log.w("Volti", "Can't import a PDF", e)
+                    problems += name to Rejection.Unreadable
+                }
+            }
+            problems
+        }
+    }
+
+    /** An imported file goes: its row, its place in setlists and its marks. The PDF goes at the next clean-up. */
+    suspend fun delete(file: EnsembleFile) {
+        if (!file.imported) return // Drive's files come and go with the folder.
+        storeLock.withLock {
+            db.deleteImported(file)
+            cleanUp() // An ensemble of imports never syncs, so its clean-up is here.
+        }
+    }
+
+    /** Of [names], those an import into [folders] of ensemble [ensembleId] would replace. */
+    suspend fun alreadyImported(ensembleId: Long, folders: List<String>, names: List<String>): List<String> {
+        val here = db.files().all(ensembleId).filter { it.imported && it.folders == folders }.mapTo(HashSet()) { it.name }
+        return names.filter { it in here }
     }
 
     /** Marked mine: download it now, not at the next sync. Here, so leaving the screen doesn't stop it. */
@@ -228,7 +306,7 @@ class Syncer private constructor(context: Context) {
     /** Throws [DriveException] 401 when the token ran out; every other failure is a [SyncState.Failed]. */
     private suspend fun syncOne(ensemble: Ensemble, token: String): SyncState {
         val id = ensemble.id
-        val folder = DriveFolderLink(ensemble.folderId, ensemble.resourceKey)
+        val folder = DriveFolderLink(ensemble.folderId ?: return SyncState.Idle, ensemble.resourceKey)
         val api = DriveApi(token)
         return try {
             set(id, SyncState.Listing)
@@ -240,12 +318,13 @@ class Syncer private constructor(context: Context) {
                 // lastSynced: a first sync stopped during its downloads has listed already.
                 val now = System.currentTimeMillis()
                 files.replace(id) { old ->
-                    reconcile(id, old, listing.pdfs, complete = !listing.stopped, addedAt = now.takeIf { old.isNotEmpty() })
+                    // Imports don't count: the first listing of Drive's files still finds nothing new.
+                    reconcile(id, old, listing.pdfs, complete = !listing.stopped, addedAt = now.takeIf { old.any { !it.imported } })
                 }
                 val all = files.all(id)
                 // Only what I play, and what I have opened, stays on the device; the rest comes when I open it. Until
                 // I have marked parts in an ensemble, nothing that is here goes: it may be all I have offline.
-                if (all.any { it.mine }) files.forgetUnused(id)
+                if (all.any { it.mine && !it.imported }) files.forgetUnused(id)
                 files.all(id).filter { !it.removed && it.localMd5 != it.md5 && (it.mine || it.seenMd5 != null) }
             }
             var failed = 0

@@ -24,6 +24,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nl.imreboersma.volti.Reader
 import nl.imreboersma.volti.db.VoltiDatabase
+import nl.imreboersma.volti.db.fileIdOf
 import nl.imreboersma.volti.drive.Syncer
 import android.net.Uri
 import java.io.ByteArrayInputStream
@@ -152,7 +153,7 @@ class AnnotationViewModel(app: Application, handle: SavedStateHandle) : AndroidV
      * there is nothing to check, and the previous version is let go at once.
      */
     private suspend fun changeOf(key: String): ScoreChange? {
-        val fileId = key.removePrefix("drive:").takeIf { key.startsWith("drive:") } ?: return null
+        val fileId = fileIdOf(key) ?: return null
         val previous = files.previousOf(fileId) ?: return null
         if (_strokes.value.values.all { it.isEmpty() } && _symbols.value.values.all { it.isEmpty() }) {
             files.checked(fileId)
@@ -170,7 +171,8 @@ class AnnotationViewModel(app: Application, handle: SavedStateHandle) : AndroidV
     fun marksChecked() {
         val key = scoreKey ?: return
         _change.value = null
-        viewModelScope.launch { files.checked(key.removePrefix("drive:")) }
+        val fileId = fileIdOf(key) ?: return
+        viewModelScope.launch { files.checked(fileId) }
     }
 
     fun start() {

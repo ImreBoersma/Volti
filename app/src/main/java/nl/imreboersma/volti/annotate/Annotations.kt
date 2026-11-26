@@ -6,10 +6,11 @@ import androidx.room.Index
 import androidx.room.Insert
 import androidx.room.PrimaryKey
 import androidx.room.Query
+import androidx.room.Transaction
 import kotlin.math.hypot
 
 /**
- * One pen stroke on one page of a score. [scoreKey] says which score: `drive:<file id>` for an ensemble's, so a new
+ * One pen stroke on one page of a score. [scoreKey] says which score: `file:<file id>` for an ensemble's, so a new
  * version keeps it; `local:<md5>` for a local file, so a rename keeps it. [inputs] is the stroke's input points in
  * page units, in androidx.ink's own format; the stroke is drawn again from those, its [color] and [size].
  */
@@ -58,6 +59,19 @@ interface AnnotationDao {
 
     @Query("DELETE FROM annotation_symbol WHERE id IN (:ids)")
     suspend fun removeSymbols(ids: List<String>)
+
+    @Query("DELETE FROM annotation_stroke WHERE scoreKey = :scoreKey")
+    suspend fun removeStrokesOf(scoreKey: String)
+
+    @Query("DELETE FROM annotation_symbol WHERE scoreKey = :scoreKey")
+    suspend fun removeSymbolsOf(scoreKey: String)
+
+    /** Every mark on a score. */
+    @Transaction
+    suspend fun removeScore(scoreKey: String) {
+        removeStrokesOf(scoreKey)
+        removeSymbolsOf(scoreKey)
+    }
 }
 
 /** Whether a stroke through [points] passes within [radius] of [at]: the eraser touches it. All in page units. */

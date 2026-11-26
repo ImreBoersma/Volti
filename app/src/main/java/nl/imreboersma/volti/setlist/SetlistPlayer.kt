@@ -33,6 +33,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import nl.imreboersma.volti.Reader
 import nl.imreboersma.volti.db.VoltiDatabase
+import nl.imreboersma.volti.db.fileKey
 import nl.imreboersma.volti.drive.Syncer
 import nl.imreboersma.volti.ui.theme.LocalReaderColors
 import kotlin.time.Duration.Companion.seconds
@@ -63,7 +64,7 @@ suspend fun findPiece(app: Application, setlistId: Long, from: Int, step: Int): 
         if (md5 != null) {
             val uri = Uri.fromFile(syncer.fileFor(md5)).toString()
             val why = skipped.joinToString("\n").ifEmpty { null }
-            return Reached(Reader(uri, "drive:${piece.fileId}", fromEnd = step < 0, setlistId = setlistId, position = position, skipped = why), why)
+            return Reached(Reader(uri, fileKey(piece.fileId), fromEnd = step < 0, setlistId = setlistId, position = position, skipped = why), why)
         }
         skipped += "${piece.file?.name?.removeSuffix(".pdf") ?: "A piece"} skipped. ${problem ?: "It couldn't be opened."}"
         position += step

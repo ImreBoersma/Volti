@@ -1588,6 +1588,8 @@
     #noinspection ShrinkerUnresolvedReference
     void execSQL(java.lang.String, java.lang.Object[]);
     #noinspection ShrinkerUnresolvedReference
+    android.database.Cursor query(java.lang.String);
+    #noinspection ShrinkerUnresolvedReference
     android.database.Cursor query(java.lang.String, java.lang.Object[]);
 }
 #noinspection ShrinkerUnresolvedReference
@@ -2798,6 +2800,11 @@
     nl.imreboersma.volti.AddEnsemble INSTANCE;
 }
 #noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.EnsembleFiles {
+    #noinspection ShrinkerUnresolvedReference
+    <init>(long);
+}
+#noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.Home
 #noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.LocalLibrary {
@@ -3048,9 +3055,11 @@
 #noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.db.EnsembleFile {
     #noinspection ShrinkerUnresolvedReference
-    <init>(long, java.lang.String, java.lang.String, java.lang.String, java.util.List, java.lang.String, long, java.lang.String, java.lang.String, boolean, java.lang.Long, boolean, boolean, java.lang.String, int, kotlin.jvm.internal.DefaultConstructorMarker);
+    <init>(long, java.lang.String, java.lang.String, java.lang.String, java.util.List, java.lang.String, long, java.lang.String, java.lang.String, boolean, java.lang.Long, boolean, boolean, java.lang.String, boolean, int, kotlin.jvm.internal.DefaultConstructorMarker);
     #noinspection ShrinkerUnresolvedReference
-    nl.imreboersma.volti.db.EnsembleFile copy$default(nl.imreboersma.volti.db.EnsembleFile, long, java.lang.String, java.lang.String, java.lang.String, java.util.List, java.lang.String, long, java.lang.String, java.lang.String, boolean, java.lang.Long, boolean, boolean, java.lang.String, int, java.lang.Object);
+    nl.imreboersma.volti.db.EnsembleFile copy$default(nl.imreboersma.volti.db.EnsembleFile, long, java.lang.String, java.lang.String, java.lang.String, java.util.List, java.lang.String, long, java.lang.String, java.lang.String, boolean, java.lang.Long, boolean, boolean, java.lang.String, boolean, int, java.lang.Object);
+    #noinspection ShrinkerUnresolvedReference
+    boolean getChanged();
     #noinspection ShrinkerUnresolvedReference
     boolean getDecided();
     #noinspection ShrinkerUnresolvedReference
@@ -3060,9 +3069,13 @@
     #noinspection ShrinkerUnresolvedReference
     java.lang.String getLocalMd5();
     #noinspection ShrinkerUnresolvedReference
+    java.lang.String getMd5();
+    #noinspection ShrinkerUnresolvedReference
     boolean getMine();
     #noinspection ShrinkerUnresolvedReference
     java.lang.String getName();
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.String getScoreKey();
     #noinspection ShrinkerUnresolvedReference
     java.lang.String getSeenMd5();
 }
@@ -3121,6 +3134,16 @@
     nl.imreboersma.volti.setlist.SetlistDao setlists();
 }
 #noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.db.VoltiDatabaseKt {
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.String fileKey(java.lang.String);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.drive.Rejection {
+    #noinspection ShrinkerUnresolvedReference
+    nl.imreboersma.volti.drive.Rejection NotAPdf;
+}
+#noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.drive.Syncer$Companion {
     #noinspection ShrinkerUnresolvedReference
     nl.imreboersma.volti.drive.Syncer get(android.content.Context);
@@ -3130,7 +3153,11 @@
     #noinspection ShrinkerUnresolvedReference
     nl.imreboersma.volti.drive.Syncer$Companion Companion;
     #noinspection ShrinkerUnresolvedReference
+    java.lang.Object delete(nl.imreboersma.volti.db.EnsembleFile, kotlin.coroutines.Continuation);
+    #noinspection ShrinkerUnresolvedReference
     java.io.File fileFor(java.lang.String);
+    #noinspection ShrinkerUnresolvedReference
+    kotlinx.coroutines.Deferred import(long, java.util.List, java.util.List, boolean);
 }
 #noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.render.IsolatedRendererKt {

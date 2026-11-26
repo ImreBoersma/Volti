@@ -27,6 +27,50 @@ class LocalCopyTest {
         EnsembleFile(1, id, null, "$id.pdf", emptyList(), md5, 100, local, seen, removed)
 
     @Test
+    fun anImportedFileIsLeftExactlyAsItIs() {
+        val imported = row("mine", v3).copy(imported = true, folders = listOf("Emailed"))
+        // Not in Drive, and Drive has nothing by its id: it stays, not marked removed.
+        val rows = reconcile(1, listOf(imported, row("a", v1)), listOf(found("a", v2)))
+        assertEquals(listOf(imported), rows.filter { it.imported })
+        assertEquals(listOf("a"), rows.filter { !it.imported }.map { it.fileId })
+    }
+
+    @Test
+    fun anImportIsStoredByItsMd5AndTheSamePdfOnce() {
+        val store = PdfStore(tmp.newFolder("store")) { Long.MAX_VALUE }
+        val pdf = "%PDF-1.4 imported".toByteArray()
+        val (copy, md5) = store.receive(pdf.inputStream())
+        assertEquals(md5(pdf), md5)
+        assertFalse("copied outside the store", store.has(md5))
+        store.keep(copy, md5)
+        assertTrue(store.has(md5))
+        val (again, sameMd5) = store.receive(pdf.inputStream()) // Again: the same file, nothing left behind.
+        store.keep(again, sameMd5)
+        assertEquals(listOf("$md5.pdf"), tmp.root.resolve("store").list()!!.toList())
+        assertTrue(tmp.root.resolve("store-incoming").list()!!.isEmpty())
+    }
+
+    @Test
+    fun anImportThatIsNoPdfIsRejected() {
+        val dir = tmp.newFolder("rejected")
+        try {
+            PdfStore(dir) { Long.MAX_VALUE }.receive("<html>not a score</html>".toByteArray().inputStream())
+            fail("imported")
+        } catch (e: DownloadRejected) {
+            assertEquals(Rejection.NotAPdf, e.reason)
+        }
+        assertTrue(tmp.root.resolve("rejected-incoming").list()!!.isEmpty())
+    }
+
+    @Test
+    fun aSecondFileOfTheSameNameGetsANumber() {
+        assertEquals("Part.pdf", freeName("Part.pdf", setOf("Other.pdf")))
+        assertEquals("Part (2).pdf", freeName("Part.pdf", setOf("Part.pdf")))
+        assertEquals("Part (3).pdf", freeName("Part.pdf", setOf("Part.pdf", "Part (2).pdf")))
+        assertEquals("README (2)", freeName("README", setOf("README")))
+    }
+
+    @Test
     fun aNewPdfIsAddedNotYetDownloaded() {
         val rows = reconcile(1, emptyList(), listOf(found("a", v1, folders = listOf("Hoorn"))))
         assertEquals(listOf(EnsembleFile(1, "a", null, "a.pdf", listOf("Hoorn"), v1, 100)), rows)

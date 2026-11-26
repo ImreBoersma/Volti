@@ -399,9 +399,13 @@ Structure: an imported file is an ensemble file with its own id instead of a Dri
 
 ### 1. Importing into an ensemble
 
-- [ ] A new ensemble with or without a Drive folder. Import in any ensemble opens the file picker, several PDFs at once, into the folder I'm in. An imported file is listed, opened, marked mine, put in setlists and annotated as a Drive file is; a sync leaves it alone; it can be deleted (a Drive file can't).
+- [x] A new ensemble with or without a Drive folder. Import in any ensemble opens the file picker, several PDFs at once, into the folder I'm in. An imported file is listed, opened, marked mine, put in setlists and annotated as a Drive file is; a sync leaves it alone; it can be deleted (a Drive file can't).
 
 Done when: on the tablet, a PDF from Downloads, imported into an ensemble, plays in a setlist next to a Drive part, with marks on it.
+
+Done 2026-11-26. The Drive link is optional when adding an ensemble; one without is "Imported files only" on the home screen and never syncs. Import opens the picker; each PDF is copied next to the store under the download limits (200 MB, starts like a PDF) and taken in under the store's lock only once copied, so a slow provider holds up nothing. It runs on when I leave the screen. A name already imported in that folder asks: Replace (a new version, so my marks stay and I'm told the score changed) or Keep both (the new one gets " (2)"). What can't be imported is said per file, with why. Delete, on imported files only, also takes it out of its setlists and drops its marks. Imports don't count for Drive's "new" or "mine" rules. Annotation keys are now `file:<id>` for every ensemble file (database version 9 rewrote the `drive:` ones).
+
+Checked on the emulator: an ensemble without a link, a PDF from Downloads imported through the picker, suggested as my part and opened in the reader. Not yet on the tablet.
 
 ### 2. Share and Open with
 

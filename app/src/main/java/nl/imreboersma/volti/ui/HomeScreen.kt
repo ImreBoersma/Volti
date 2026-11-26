@@ -176,7 +176,11 @@ fun HomeScreen(
                         Text(ensemble.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
                         Text(ensemble.instrument, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text(
-                            syncText(syncStates[ensemble.id] ?: SyncState.Idle, ensemble.lastSynced, System.currentTimeMillis()),
+                            if (ensemble.folderId == null) {
+                                "Imported files only"
+                            } else {
+                                syncText(syncStates[ensemble.id] ?: SyncState.Idle, ensemble.lastSynced, System.currentTimeMillis())
+                            },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

@@ -18,6 +18,9 @@ import androidx.room.Transaction
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
 import androidx.room.Upsert
+import androidx.room.migration.AutoMigrationSpec
+import androidx.room.withTransaction
+import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.json.Json
 import nl.imreboersma.volti.annotate.AnnotationDao
@@ -27,13 +30,16 @@ import nl.imreboersma.volti.setlist.Setlist
 import nl.imreboersma.volti.setlist.SetlistDao
 import nl.imreboersma.volti.setlist.SetlistEntry
 
-/** An orchestra's shared Drive folder, and what I play in it. */
+/**
+ * An orchestra, and what I play in it. Its files come from its shared Drive folder ([folderId]), from imports, or
+ * both; without a folder, only from imports.
+ */
 @Entity(tableName = "ensemble", indices = [Index(value = ["folderId"], unique = true)])
 data class Ensemble(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
     val instrument: String,
-    val folderId: String,
+    val folderId: String? = null,
     val resourceKey: String? = null,
     /** When the last sync finished; null until the first. */
     val lastSynced: Long? = null,
@@ -45,7 +51,7 @@ data class Ensemble(
 data class NewFiles(val ensembleId: Long, val count: Int)
 
 /**
- * A PDF in an ensemble's Drive folder, and which versions of it are on the tablet. The PDFs themselves are stored by
+ * A PDF in an ensemble, from its Drive folder or imported, and which versions of it are on the tablet. The PDFs themselves are stored by
  * checksum (see PdfStore), so a version is its md5. Kept on the tablet: [localMd5], and [seenMd5] until I open the
  * newer one.
  */
@@ -83,8 +89,31 @@ data class EnsembleFile(
      * checked. Null when there is nothing to check.
      */
     val previousMd5: String? = null,
+    /** Imported from the device or another app, not from Drive: [fileId] is Volti's own, and a sync leaves it alone. */
+    @ColumnInfo(defaultValue = "0") val imported: Boolean = false,
 ) {
     val changed get() = seenMd5 != null && localMd5 != null && seenMd5 != localMd5
+
+    /** What its annotations belong to: the file, so they stay with it through new versions. */
+    val scoreKey get() = fileKey(fileId)
+}
+
+/** The annotation key of an ensemble's file [fileId]. */
+fun fileKey(fileId: String) = "file:$fileId"
+
+/** The ensemble file an annotation key [key] belongs to; null for a local score's. */
+fun fileIdOf(key: String): String? = key.removePrefix("file:").takeIf { key.startsWith("file:") }
+
+/**
+ * Annotation keys said `drive:` while every ensemble file came from Drive; now that imports are ensemble files too,
+ * `file:`.
+ */
+class DriveKeysToFileKeys : AutoMigrationSpec {
+    override fun onPostMigrate(db: SupportSQLiteDatabase) {
+        listOf("annotation_stroke", "annotation_symbol").forEach { table ->
+            db.execSQL("UPDATE $table SET scoreKey = 'file:' || substr(scoreKey, 7) WHERE scoreKey LIKE 'drive:%'")
+        }
+    }
 }
 
 class Converters {
@@ -170,9 +199,12 @@ interface EnsembleFileDao {
     @Query("UPDATE ensemble_file SET localMd5 = :md5 WHERE ensembleId = :ensembleId AND fileId = :fileId AND md5 = :md5")
     suspend fun downloaded(ensembleId: Long, fileId: String, md5: String)
 
-    /** Neither mine nor opened: not kept on the device. It is downloaded again when I open it. */
-    @Query("UPDATE ensemble_file SET localMd5 = NULL WHERE ensembleId = :ensembleId AND mine = 0 AND seenMd5 IS NULL")
+    /** From Drive, neither mine nor opened: not kept on the device. It is downloaded again when I open it. */
+    @Query("UPDATE ensemble_file SET localMd5 = NULL WHERE ensembleId = :ensembleId AND mine = 0 AND seenMd5 IS NULL AND imported = 0")
     suspend fun forgetUnused(ensembleId: Long)
+
+    @Query("DELETE FROM ensemble_file WHERE ensembleId = :ensembleId AND fileId = :fileId")
+    suspend fun remove(ensembleId: Long, fileId: String)
 
     /** Every version some row still needs on the tablet. */
     @Query(
@@ -192,7 +224,7 @@ interface EnsembleFileDao {
 
 @Database(
     entities = [Ensemble::class, EnsembleFile::class, AnnotationStroke::class, AnnotationSymbol::class, Setlist::class, SetlistEntry::class],
-    version = 8,
+    version = 9,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
@@ -201,6 +233,7 @@ interface EnsembleFileDao {
         AutoMigration(from = 5, to = 6),
         AutoMigration(from = 6, to = 7),
         AutoMigration(from = 7, to = 8),
+        AutoMigration(from = 8, to = 9, spec = DriveKeysToFileKeys::class),
     ],
 )
 @TypeConverters(Converters::class)
@@ -212,6 +245,13 @@ abstract class VoltiDatabase : RoomDatabase() {
     abstract fun annotations(): AnnotationDao
 
     abstract fun setlists(): SetlistDao
+
+    /** An imported file, with its places in setlists and its marks, in one go: nothing of it is left half. */
+    suspend fun deleteImported(file: EnsembleFile) = withTransaction {
+        files().remove(file.ensembleId, file.fileId)
+        setlists().removeEverywhere(file.ensembleId, file.fileId)
+        annotations().removeScore(file.scoreKey)
+    }
 
     companion object {
         @Volatile

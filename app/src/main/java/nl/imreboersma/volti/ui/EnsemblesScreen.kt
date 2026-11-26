@@ -35,6 +35,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -51,6 +52,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import nl.imreboersma.volti.data.EnsembleRow
 import nl.imreboersma.volti.db.EnsembleFile
 import nl.imreboersma.volti.drive.SyncState
+import nl.imreboersma.volti.drive.MAX_PDF_BYTES
+import nl.imreboersma.volti.drive.Rejection
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 
 /** A form to add an ensemble from a shared folder's link. */
@@ -79,7 +82,7 @@ fun AddEnsembleScreen(onAdded: (Long) -> Unit, onBack: () -> Unit, viewModel: En
             OutlinedTextField(
                 value = link,
                 onValueChange = { link = it },
-                label = { Text("Link to the shared Drive folder") },
+                label = { Text("Link to the shared Drive folder, if there is one") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
             )
@@ -128,6 +131,15 @@ fun EnsembleScreen(
     val suggestions by viewModel.suggestions.collectAsStateWithLifecycle()
     val fetching by viewModel.fetching.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
+    val pending by viewModel.pending.collectAsStateWithLifecycle()
+    val importing by viewModel.importing.collectAsStateWithLifecycle()
+    val notImported by viewModel.notImported.collectAsStateWithLifecycle()
+    var deleting by remember { mutableStateOf<EnsembleFile?>(null) }
+    // Into the folder I'm in; from my parts or a search, into the ensemble's top.
+    val into = if (view is EnsembleView.Folder) path else emptyList()
+    val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        viewModel.import(uris, into)
+    }
     // The suggestions as they were when I tapped Review: a sync may change the list meanwhile, and only what I saw is
     // decided. A suggestion that arrives during the review waits for the next one.
     var reviewing by rememberSaveable { mutableStateOf<List<String>?>(null) }
@@ -179,9 +191,13 @@ fun EnsembleScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                ensemble?.let { OutlinedButton(onClick = { onOpenSetlists(it.id) }) { Text("Setlists") } }
+                OutlinedButton(onClick = { pick.launch(arrayOf("application/pdf")) }, enabled = !importing) { Text("Import") }
+                ensemble?.let {
+                    OutlinedButton(onClick = { onOpenSetlists(it.id) }, modifier = Modifier.padding(start = 8.dp)) { Text("Setlists") }
+                }
             }
-            SyncLine(
+            // Only imports: nothing to sync.
+            if (ensemble?.folderId != null) SyncLine(
                 // Signed out: still say how old the copy here is.
                 text = syncText(
                     if (needsConsent != null) SyncState.Failed("Signed out of Google Drive.") else sync,
@@ -205,7 +221,18 @@ fun EnsembleScreen(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                 )
             }
+            if (importing) Text("Importing…", modifier = Modifier.padding(bottom = 8.dp))
             message?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(bottom = 8.dp)) }
+            if (notImported.isNotEmpty()) {
+                Text(notImportedText(notImported, deviceName()), color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(bottom = 8.dp))
+            }
+            pending?.let { ImportReplaces(it.replacing, onReplace = { viewModel.confirmImport(true) }, onKeep = { viewModel.confirmImport(false) }, onCancel = viewModel::cancelImport) }
+            deleting?.let { file ->
+                DeleteImported(file, onDelete = {
+                    viewModel.delete(file)
+                    deleting = null
+                }, onCancel = { deleting = null })
+            }
             val anyMine = files.orEmpty().any { it.mine }
             if (anyMine && query.isBlank()) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 8.dp)) {
@@ -246,7 +273,10 @@ fun EnsembleScreen(
             val open = { file: EnsembleFile -> viewModel.open(file, onOpenScore) }
             val isNew = { file: EnsembleFile -> file.addedAt != null && file.addedAt > since }
             val rowFor = @Composable { file: EnsembleFile, folders: String? ->
-                FileRow(file, isNew(file), folders, fetching = file.fileId == fetching, onOpen = open, onMine = { viewModel.setMine(file, it) })
+                FileRow(
+                    file, isNew(file), folders, fetching = file.fileId == fetching, onOpen = open,
+                    onMine = { viewModel.setMine(file, it) }, onDelete = { deleting = file },
+                )
             }
             // Pulled: sync now, also if it just did.
             PullToRefreshBox(
@@ -259,7 +289,9 @@ fun EnsembleScreen(
                 is EnsembleView.Folder ->
                     if (v.rows.isEmpty()) {
                         // Before the first sync has brought anything in, or a folder without PDFs.
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("No PDFs here yet.") }
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(if (ensemble?.folderId == null) "No PDFs yet. Import them from this ${deviceName()}." else "No PDFs here yet.")
+                        }
                     } else {
                         RowList(v.rows, onOpenFolder = viewModel::open, file = { rowFor(it, null) })
                     }
@@ -352,6 +384,7 @@ private fun FileRow(
     fetching: Boolean,
     onOpen: (EnsembleFile) -> Unit,
     onMine: (Boolean) -> Unit,
+    onDelete: () -> Unit,
 ) {
     val downloaded = file.localMd5 != null
     Row(
@@ -382,7 +415,47 @@ private fun FileRow(
             label = { Text("Mine") },
             modifier = Modifier.padding(start = 12.dp),
         )
+        // A Drive file comes and goes with the folder; only what I imported is mine to delete.
+        if (file.imported) TextButton(onClick = onDelete, modifier = Modifier.padding(start = 4.dp)) { Text("Delete") }
     }
+}
+
+/** Per PDF that an import couldn't take in, why, in my terms. */
+private fun notImportedText(problems: List<Pair<String, Rejection>>, device: String) = problems.joinToString("\n") { (name, why) ->
+    "$name wasn't imported: " + when (why) {
+        Rejection.TooLarge -> "it's larger than ${MAX_PDF_BYTES / 1024 / 1024} MB."
+        Rejection.NotAPdf, Rejection.WrongChecksum -> "it isn't a PDF."
+        Rejection.NoSpace -> "there isn't enough space on this $device."
+        Rejection.Unreadable -> "it couldn't be read."
+    }
+}
+
+/** Some picked PDFs have the name of an imported file in that folder: new versions of them, or next to them? */
+@Composable
+private fun ImportReplaces(names: List<String>, onReplace: () -> Unit, onKeep: () -> Unit, onCancel: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onCancel,
+        title = { Text(if (names.size == 1) "${names[0]} is here already" else "${names.size} of these are here already") },
+        text = { Text("Replace: the new one takes its place, and my marks stay on it. Keep both: it comes in next to it, with (2) after its name.") },
+        confirmButton = { TextButton(onClick = onReplace) { Text("Replace") } },
+        dismissButton = {
+            Row {
+                TextButton(onClick = onCancel) { Text("Cancel") }
+                TextButton(onClick = onKeep) { Text("Keep both") }
+            }
+        },
+    )
+}
+
+@Composable
+private fun DeleteImported(file: EnsembleFile, onDelete: () -> Unit, onCancel: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onCancel,
+        title = { Text("Delete ${file.name}?") },
+        text = { Text("It goes from this ensemble and its setlists, with my marks on it.") },
+        confirmButton = { TextButton(onClick = onDelete) { Text("Delete") } },
+        dismissButton = { TextButton(onClick = onCancel) { Text("Cancel") } },
+    )
 }
 
 /** The suggested parts, all ticked: I untick what isn't mine. What I leave unticked isn't suggested again. */

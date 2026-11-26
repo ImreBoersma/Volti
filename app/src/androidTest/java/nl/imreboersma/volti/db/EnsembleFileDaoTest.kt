@@ -168,7 +168,7 @@ class EnsembleFileDaoTest {
         migrations.createDatabase(name, 1).use {
             it.execSQL("INSERT INTO ensemble (name, instrument, folderId) VALUES ('Harmonie', 'Horn', 'folderAAAAAA')")
         }
-        migrations.runMigrationsAndValidate(name, 8, true).close()
+        migrations.runMigrationsAndValidate(name, 9, true).close()
         val migrated = Room.databaseBuilder(context, VoltiDatabase::class.java, name).build()
         try {
             val all = runBlocking { migrated.ensembles().all().first() }
@@ -177,5 +177,21 @@ class EnsembleFileDaoTest {
             migrated.close()
             context.deleteDatabase(name)
         }
+    }
+
+    @Test
+    fun marksOnADriveFileKeepTheirFileAfterVersion9() {
+        val name = "migration-keys"
+        migrations.createDatabase(name, 8).use {
+            it.execSQL("INSERT INTO annotation_symbol (id, scoreKey, page, symbol, x, y, color) VALUES ('s', 'drive:abc', 0, 'Fermata', 1, 1, 0)")
+            it.execSQL("INSERT INTO annotation_symbol (id, scoreKey, page, symbol, x, y, color) VALUES ('l', 'local:123', 0, 'Fermata', 1, 1, 0)")
+        }
+        migrations.runMigrationsAndValidate(name, 9, true).use {
+            it.query("SELECT id, scoreKey FROM annotation_symbol ORDER BY id").use { c ->
+                val keys = buildMap { while (c.moveToNext()) put(c.getString(0), c.getString(1)) }
+                assertEquals(mapOf("l" to "local:123", "s" to fileKey("abc")), keys)
+            }
+        }
+        context.deleteDatabase(name)
     }
 }

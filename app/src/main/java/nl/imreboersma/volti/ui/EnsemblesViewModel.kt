@@ -8,7 +8,9 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -29,8 +31,11 @@ import nl.imreboersma.volti.db.VoltiDatabase
 import nl.imreboersma.volti.drive.parseFolderLink
 import nl.imreboersma.volti.drive.SyncState
 import nl.imreboersma.volti.drive.Syncer
+import nl.imreboersma.volti.drive.Rejection
 import kotlinx.coroutines.flow.map
 import android.net.Uri
+import android.provider.OpenableColumns
+import java.io.IOException
 import nl.imreboersma.volti.db.EnsembleFile
 
 class EnsemblesViewModel(app: Application) : AndroidViewModel(app) {
@@ -41,24 +46,27 @@ class EnsemblesViewModel(app: Application) : AndroidViewModel(app) {
 
     private var adding: Job? = null
 
-    /** Adds the ensemble and calls [onAdded] with its id, or sets [error] and leaves the form as it is. */
+    /**
+     * Adds the ensemble and calls [onAdded] with its id, or sets [error] and leaves the form as it is. Without a
+     * [link], its files are only what I import.
+     */
     fun add(link: String, name: String, instrument: String, onAdded: (Long) -> Unit) {
         if (adding?.isActive == true) return // A second tap on Add.
-        val folder = parseFolderLink(link)
+        val folder = link.takeIf { it.isNotBlank() }?.let(::parseFolderLink)
         _error.value = when {
-            folder == null -> "That isn't a link to a Drive folder."
+            link.isNotBlank() && folder == null -> "That isn't a link to a Drive folder."
             name.isBlank() -> "Give the ensemble a name."
             instrument.isBlank() -> "Say what you play in it."
             else -> null
         }
-        if (folder == null || _error.value != null) return
+        if (_error.value != null) return
         adding = viewModelScope.launch {
             try {
                 val ensemble = Ensemble(
                     name = name.trim(),
                     instrument = instrument.trim(),
-                    folderId = folder.id,
-                    resourceKey = folder.resourceKey,
+                    folderId = folder?.id,
+                    resourceKey = folder?.resourceKey,
                 )
                 onAdded(dao.add(ensemble))
             } catch (_: SQLiteConstraintException) {
@@ -208,10 +216,79 @@ class EnsembleViewModel(app: Application, private val handle: SavedStateHandle) 
             val here = db.files().all(id).firstOrNull { it.fileId == file.fileId }?.seenMd5
             when {
                 problem != null -> _message.value = problem
-                // Its annotations belong to the Drive file, so they stay with it through new versions.
-                here != null -> onOpen(Uri.fromFile(syncer.fileFor(here)).toString(), "drive:${file.fileId}")
+                here != null -> onOpen(Uri.fromFile(syncer.fileFor(here)).toString(), file.scoreKey)
             }
         }
+    }
+
+    /** PDFs picked to import into [folders], waiting for me to say whether [replacing] are new versions. */
+    class PendingImport(val uris: List<Uri>, val names: List<String>, val folders: List<String>, val replacing: List<String>)
+
+    private val _pending = MutableStateFlow<PendingImport?>(null)
+    val pending: StateFlow<PendingImport?> = _pending.asStateFlow()
+
+    private val _importing = MutableStateFlow(false)
+    val importing: StateFlow<Boolean> = _importing.asStateFlow()
+
+    /** PDFs picked to import into [folders]; when some have the name of an imported file there, I'm asked first. */
+    fun import(uris: List<Uri>, folders: List<String>) {
+        if (uris.isEmpty() || _importing.value) return
+        _message.value = null
+        _notImported.value = emptyList()
+        viewModelScope.launch {
+            val names = withContext(Dispatchers.IO) { uris.map(::nameOf) }
+            val replacing = syncer.alreadyImported(id, folders, names)
+            val picked = PendingImport(uris, names, folders, replacing)
+            if (replacing.isEmpty()) copy(picked, replace = false) else _pending.value = picked
+        }
+    }
+
+    /** [replace]: the ones with a name already here are new versions; else they come in next to them. */
+    fun confirmImport(replace: Boolean) {
+        val picked = _pending.value ?: return
+        _pending.value = null
+        viewModelScope.launch { copy(picked, replace) }
+    }
+
+    fun cancelImport() {
+        _pending.value = null
+    }
+
+    private val _notImported = MutableStateFlow<List<Pair<String, Rejection>>>(emptyList())
+
+    /** What the last import couldn't take in, and why. */
+    val notImported: StateFlow<List<Pair<String, Rejection>>> = _notImported.asStateFlow()
+
+    private suspend fun copy(picked: PendingImport, replace: Boolean) {
+        _importing.value = true
+        _notImported.value = emptyList()
+        val resolver = getApplication<Application>().contentResolver
+        val sources = picked.names.zip(picked.uris) { name, uri ->
+            name to { resolver.openInputStream(uri) ?: throw IOException("Can't read a picked PDF") }
+        }
+        // The import goes on when I leave the screen; only what it says about it is lost then.
+        _notImported.value = try {
+            syncer.import(id, picked.folders, sources, replace).await()
+        } finally {
+            _importing.value = false
+        }
+    }
+
+    /** The name the other app gives it; the end of its address if it gives none, or can't say. */
+    private fun nameOf(uri: Uri): String {
+        val resolver = getApplication<Application>().contentResolver
+        // Any app's provider answers this, and may throw instead.
+        val name = runCatching {
+            resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use {
+                if (it.moveToFirst()) it.getString(0) else null
+            }
+        }.getOrNull()
+        return name ?: uri.lastPathSegment ?: "Imported.pdf"
+    }
+
+    /** An imported file goes, from its setlists too, with its marks. */
+    fun delete(file: EnsembleFile) {
+        viewModelScope.launch { syncer.delete(file) }
     }
 
     /** The screen shows: sync, unless it did a minute ago. [force]: pulled, sync anyway. */
