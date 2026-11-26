@@ -114,12 +114,22 @@ class EnsembleFileDaoTest {
     }
 
     @Test
+    fun strokesAreKeptPerScore() = runBlocking {
+        val strokes = db.annotations()
+        fun stroke(id: String, score: String) = nl.imreboersma.volti.annotate.AnnotationStroke(id, score, 0, 0, 3f, byteArrayOf(1, 2))
+        strokes.add(listOf(stroke("a", "drive:x"), stroke("b", "drive:x"), stroke("c", "local:y")))
+        assertEquals(setOf("a", "b"), strokes.forScore("drive:x").map { it.id }.toSet())
+        strokes.remove(listOf("a"))
+        assertEquals(listOf("b"), strokes.forScore("drive:x").map { it.id })
+    }
+
+    @Test
     fun ensemblesSurviveTheMigrations() {
         val name = "migration-test"
         migrations.createDatabase(name, 1).use {
             it.execSQL("INSERT INTO ensemble (name, instrument, folderId) VALUES ('Harmonie', 'Horn', 'folderAAAAAA')")
         }
-        migrations.runMigrationsAndValidate(name, 4, true).close()
+        migrations.runMigrationsAndValidate(name, 5, true).close()
         val migrated = Room.databaseBuilder(context, VoltiDatabase::class.java, name).build()
         try {
             val all = runBlocking { migrated.ensembles().all().first() }

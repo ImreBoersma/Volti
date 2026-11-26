@@ -22,6 +22,9 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import kotlinx.serialization.Serializable
 import nl.imreboersma.volti.ui.EnsembleScreen
+import nl.imreboersma.volti.annotate.AnnotationControls
+import nl.imreboersma.volti.annotate.AnnotationViewModel
+import nl.imreboersma.volti.annotate.PageAnnotations
 import nl.imreboersma.volti.ui.AddEnsembleScreen
 import nl.imreboersma.volti.ui.HomeScreen
 import nl.imreboersma.volti.ui.SettingsScreen
@@ -50,9 +53,12 @@ object Settings
 @Serializable
 data class EnsembleFiles(val id: Long)
 
-/** [uri] is the document URI of the score, as a string. */
+/**
+ * [uri] is the document URI of the score, as a string. [scoreKey] is what its annotations belong to when the opener
+ * knows (`drive:<file id>` for an ensemble's score); without it, the file's content decides.
+ */
 @Serializable
-data class Reader(val uri: String)
+data class Reader(val uri: String, val scoreKey: String? = null)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -124,8 +130,10 @@ fun VoltiApp(navController: NavHostController = rememberNavController()) {
         }
         composable<EnsembleFiles> { entry ->
             EnsembleScreen(
-                onOpenScore = { uri ->
-                    if (entry.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) navController.navigate(Reader(uri))
+                onOpenScore = { uri, scoreKey ->
+                    if (entry.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                        navController.navigate(Reader(uri, scoreKey))
+                    }
                 },
                 onBack = dropUnlessResumed { navController.popBackStack() },
             )
@@ -133,7 +141,13 @@ fun VoltiApp(navController: NavHostController = rememberNavController()) {
         composable<Reader> {
             // Only while the reader is the resumed screen: a second tap during the crossfade would also pop the
             // library and leave nothing on screen.
-            ReaderScreen(onBack = dropUnlessResumed { navController.popBackStack() })
+            // Annotations go over the reader through its slots; the reader itself doesn't know about them.
+            val annotations: AnnotationViewModel = viewModel()
+            ReaderScreen(
+                onBack = dropUnlessResumed { navController.popBackStack() },
+                overlay = { page -> PageAnnotations(page, annotations) },
+                controls = { AnnotationControls(annotations) },
+            )
         }
     }
 }

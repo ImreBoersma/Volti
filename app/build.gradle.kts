@@ -86,6 +86,12 @@ dependencies {
     ksp(libs.androidx.room.compiler)
     implementation(libs.play.services.auth)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.androidx.ink.authoring)
+    implementation(libs.androidx.ink.rendering)
+    implementation(libs.androidx.ink.brush)
+    implementation(libs.androidx.ink.strokes)
+    implementation(libs.androidx.ink.geometry)
+    implementation(libs.androidx.ink.storage)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

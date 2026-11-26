@@ -81,7 +81,7 @@ Done when: page one is sharp, has the correct aspect ratio, and rotation does no
 - [x] Keep three bitmaps: previous, current, next.
 - [x] After each turn, render the new neighbour in the background and reuse the dropped bitmap.
 
-Measured 2026-11-25, release build, 20-page 200 dpi scan: a page renders in about 100 ms. Turning at a normal pace, the next page is ready 1 ms after the tap. In a burst of taps about 100 ms apart, every page was still ready; the tap waits up to 43 ms behind the prefetch.
+Measured 2026-11-25, release build, 20-page 200 dpi scan: a page renders in about 100 MS. Turning at a normal pace, the next page is ready 1 ms after the tap. In a burst of taps about 100 ms apart, every page was still ready; the tap waits up to 43 ms behind the prefetch.
 
 A dropped bitmap is only drawn into once the screen is done with it: the reader reports each page it records (`onDrawn`) and each frame the render thread commits (`onPresented`, via `registerFrameCommitCallback`), and a bitmap is reused at least 50 ms after a newer frame replaced it on screen. Counting from the state alone failed on the CI emulator, where a busy main thread kept an old page on screen.
 
@@ -102,7 +102,7 @@ Test files are in `app/src/androidTest/assets/hostile/`, made by `make_hostile_p
 
 - [x] Password-protected PDF: "This PDF is password-protected." The renderer's `SecurityException` becomes `PasswordProtectedException`, so a lost folder grant (also a `SecurityException`) is not mistaken for a password.
 - [x] Corrupt, truncated or non-PDF file with a `.pdf` name: "Can't open this file."
-- [x] Absurd page dimensions: the bitmap never exceeds the view. A 1,000,000,000 x 1 page renders as a 1600 x 1 strip: no crash, but effectively blank.
+- [x] Absurd page dimensions: the bitmap never exceeds the view. A 1,000,000,000 x 1-page renders as a 1600 x 1 strip: no crash, but effectively blank.
 - [x] A PDF with zero pages: "Can't open this file." A 0 x 0 page: PDFium substitutes a default page size and renders it.
 - [x] One broken page in a good score: shows "Can't show page N.", the other pages stay readable. Proven only with a fake document: with the real renderer a broken content stream does not throw, PDFium draws what it can, so the message is never reached.
 - [x] A provider that hands out a non-seekable descriptor (a pipe): any exception from opening gives "Can't open this file." Tested with a fake; no such provider on the tablet.
@@ -245,7 +245,7 @@ Rules for the network:
 - [x] Private or public folder: private (2026-11-25). Google sign-in with the `drive.readonly` scope, through Google Play services' Authorization API, which hands the app an access token; Volti stores no password or token itself.
 - [x] Drive only, or Drive next to the local folder: next to it (2026-11-25). If the sync lets you down, a PDF can still go on the tablet directly.
 - [x] Library top level: ensembles (2026-11-26).
-- [x] No weekly sign-in (2026-11-26): in Testing, Google ends a sign-in after 7 days. Instead the app is published ("In production") without verification, which Google allows for personal use (under 100 users), restricted scope included. The cost: a one-time "Google hasn't verified this app" screen at the first sign-in.
+- [x] No weekly sign-in (2026-11-26): in Testing, Google ends a sign-in after 7 days. Instead, the app is published ("In production") without verification, which Google allows for personal use (under 100 users), restricted scope included. The cost: a one-time "Google hasn't verified this app" screen at the first sign-in.
 
 Setup in Google Cloud, once, by me (Volti only needs the result):
 
@@ -273,7 +273,7 @@ The names in that folder show why my parts can't be detected: "F-hoorn 1", "Fren
 
 Done 2026-11-26. PDFs are stored by checksum (`files/drive/<md5>.pdf`), so a version is its md5, an old and a new version are two files, and one PDF in two ensembles is stored once. Per file the database keeps the version in Drive, the newest on the tablet and the one I last opened; opening a score records it, and it stays until I open a newer one ("Changed" until then), also while a sync brings that newer one in. Gone from Drive: dropped, unless I opened it, then kept as "Removed in Drive". A listing stopped at 5,000 entries drops nothing it didn't reach. A download must be at most 200 MB, start like a PDF and match Drive's md5, and leaves 500 MB free; one that fails is tried again next sync. The sync runs only while the ensemble shows: it stops for the reader or another app and picks up on return.
 
-Checked on the emulator: 32 PDFs (16 MB) downloaded, a score opened with airplane mode on. After clearing the app's data, Play services asked which Google account to use: so with several accounts it asks, it doesn't pick one.
+Checked on the emulator: 32 PDFs (16 MB) downloaded, a score opened with aeroplane mode on. After clearing the app's data, Play services asked which Google account to use: so with several accounts it asks, it doesn't pick one.
 
 ### 3. The library from the copy
 
@@ -297,13 +297,13 @@ Done 2026-11-26. One sync service for the app: the home screen syncs every ensem
 
 Done 2026-11-26. Every file has a "Mine" toggle; once there are any, the ensemble opens on "My parts", with "All files" next to it. Files that look like my part and that I haven't decided on are offered in a list, all ticked; what I untick is not suggested again, and neither is anything I toggled myself. A file of mine is kept when it leaves Drive. Changing what I play (in settings) suggests again among the files I haven't decided on.
 
-The matching is deliberately simple, a fixed check rather than anything clever: a word list per instrument (Dutch, English, abbreviations: hoorn, horn, hn, cor), whole words only (a flugelhorn is not a horn), part numbers read right after the instrument ("hoorn13" is parts 1 and 3, "1-2" and "1_2" are 1 and 2, "1-3" is 1 to 3), Roman numerals ("Corno II") and ordinals in front ("2e hoorn", "1st horn") count too; no number means a part for everyone. Next to the instrument, a key other than mine (Es hoorn for an F horn) or a voice I didn't name (bas klarinet for a clarinet) means another instrument; a title's "Alto" doesn't count. An instrument not in the list matches by its own words. On the Brummen horn folder it suggested exactly the 14 horn 1 parts.
+The matching is deliberately simple, a fixed check rather than anything clever: a word list per instrument (Dutch, English, abbreviations: hoorn, horn, hn, cor), whole words only (a flügelhorn is not a horn), part numbers read right after the instrument ("hoorn13" is parts 1 and 3, "1-2" and "1_2" are 1 and 2, "1-3" is 1 to 3), Roman numerals ("Corno II") and ordinals in front ("2e hoorn", "1st horn") count too; no number means a part for everyone. Next to the instrument, a key other than mine (Es hoorn for an F horn) or a voice I didn't name (bas klarinet for a clarinet) means another instrument; a title's "Alto" doesn't count. An instrument not in the list matches by its own words. On the Brummen horn folder it suggested exactly the 14 horn 1 parts.
 
 Then, 2026-11-26: only my parts are downloaded. A sync downloads my parts and new versions of files I have opened, and removes the rest from the device; any other file is downloaded when I open it (a second on the phone), and then stays. Until I mark parts in an ensemble, nothing already on the device is removed, so the first sync after this change didn't empty an offline library. Offline, a file that isn't here says so. No "download everything" switch: I have a connection nearly everywhere. Also, the text names the device: "this phone" or "this tablet" (600 dp on the narrow side), "this device" otherwise.
 
-Checked on a Fairphone 6 (Android 16, release build) with my Koperensemble: a score added in Drive showed up as new after a pull, I marked it mine, and scores opened in airplane mode; non-mine parts were removed and came back on a tap. Cold start: first frame 195-255 ms, fully drawn 215-285 ms. The 74 instrumented tests pass on the phone too. On the tablet still to do.
+Checked on a Fairphone 6 (Android 16, release build) with my Koperensemble: a score added in Drive showed up as new after a pull, I marked it mine, and scores opened in aeroplane mode; non-mine parts were removed and came back on a tap. Cold start: first frame 195-255 ms, fully drawn 215-285 ms. The 74 instrumented tests pass on the phone too. On the tablet still to do.
 
-Also a settings screen, from the library: crop margins and half-page turns (moved off the library), and per ensemble its name, what I play, and removing it (with a confirmation; moved off the ensemble screen).
+Also, a settings screen, from the library: crop margins and half-page turns (moved off the library), and per ensemble its name, what I play, and removing it (with a confirmation; moved off the ensemble screen).
 
 Done when: a score added to a shared folder in Drive shows up on the tablet after pulling the library, I can mark it as mine, and every score opens with the network off.
 
@@ -315,7 +315,7 @@ The reason the IMSLP app is still needed. No import of my existing IMSLP annotat
 
 - [x] Backup: none for now (2026-11-26). Annotations live only on the device: a lost or reset device loses them. Known and accepted; a backup can come later (a file in my own Drive with the `drive.file` scope, or an export).
 - [x] Input (2026-11-26): a pen writes, a finger turns pages, with no mode on the tablet. On a device without a pen (my phone), an Annotate button in the reader makes a finger draw until it is switched off.
-- [x] Tools in the first version (2026-11-26): pen and eraser, and music symbols. Highlighter and text later, if I miss them.
+- [x] Tools in the first version (2026-11-26): pen and rubber, and music symbols. Highlighter and text later, if I miss them.
 - [x] Which scores (2026-11-26): ensemble scores and local ones. An ensemble score's annotations belong to its Drive file id; a local score's to its content (md5), so a rename keeps them and an edited PDF starts clean.
 - [x] Ink: Jetpack `androidx.ink` 1.0.0 (stable since December 2025), for low-latency strokes, their geometry (erasing) and their storage format.
 
@@ -327,9 +327,9 @@ Structure, because this could easily spread through the reader (decided 2026-11-
 - A score's identity for annotations is decided once, when it opens (Drive file id, or local content md5), and passed in; nothing downstream asks where a score came from.
 - The review of each step also looks at this: annotation logic outside `annotate/`, or the reader growing, counts as a finding.
 
-### 1. Pen and eraser
+### 1. Pen and rubber
 
-- [ ] Strokes over the page: pen with a few colours, eraser by stroke, undo. A pen draws at once; without a pen, the Annotate button. Stored per score and page, in whole-page coordinates.
+- [ ] Strokes over the page: pen with a few colours, rubber by stroke, undo. A pen draws at once; without a pen, the Annotate button. Stored per score and page, in whole-page coordinates.
 
 ### 2. Music symbols
 

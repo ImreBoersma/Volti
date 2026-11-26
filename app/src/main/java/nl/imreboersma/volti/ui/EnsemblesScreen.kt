@@ -108,7 +108,7 @@ fun AddEnsembleScreen(onAdded: (Long) -> Unit, onBack: () -> Unit, viewModel: En
  */
 @Composable
 fun EnsembleScreen(
-    onOpenScore: (String) -> Unit,
+    onOpenScore: (uri: String, scoreKey: String) -> Unit,
     onBack: () -> Unit,
     viewModel: EnsembleViewModel = viewModel(),
 ) {

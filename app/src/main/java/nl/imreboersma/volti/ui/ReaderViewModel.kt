@@ -52,6 +52,8 @@ sealed interface ReaderState {
         val pageCount: Int,
         val half: Boolean = false,
         val top: Bitmap? = null,
+        /** The part of each page the bitmaps show: the score's margin crop. */
+        val area: PageArea = PageArea.WHOLE,
     ) : ReaderState {
         /** Everything this state puts on screen. */
         val bitmaps get() = listOfNotNull(bitmap, top)
@@ -260,7 +262,7 @@ class ReaderViewModel @JvmOverloads constructor(
         val ready = shown.all { it in window || it in brokenPages }
         val bitmap = window[current] ?: renderInto(doc, current)
         val top = if (half) window[current + 1] ?: renderInto(doc, current + 1) else null
-        publish(ReaderState.Page(bitmap, current, doc.pageCount, half, top))
+        publish(ReaderState.Page(bitmap, current, doc.pageCount, half, top, scoreArea ?: PageArea.WHOLE))
         Log.d("Volti", "Page ${current + 1}${if (half) "½" else ""}: ${if (ready) "ready" else "rendered"} ${SystemClock.uptimeMillis() - since} ms after the tap")
         // Forward first: reading forward is the common case.
         for (i in (current + 1..windowRange.last) + (current - 1)) {

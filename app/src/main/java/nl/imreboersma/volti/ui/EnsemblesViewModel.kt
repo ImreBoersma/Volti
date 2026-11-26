@@ -194,7 +194,7 @@ class EnsembleViewModel(app: Application, private val handle: SavedStateHandle) 
      * while a later sync brings a newer one. One that isn't here is downloaded first. The sync has stopped by the
      * time the reader shows: none runs while reading.
      */
-    fun open(file: EnsembleFile, onOpen: (String) -> Unit) {
+    fun open(file: EnsembleFile, onOpen: (uri: String, scoreKey: String) -> Unit) {
         if (_fetching.value != null) return // One at a time; a second tap waits.
         _message.value = null
         viewModelScope.launch {
@@ -208,7 +208,8 @@ class EnsembleViewModel(app: Application, private val handle: SavedStateHandle) 
             val here = db.files().all(id).firstOrNull { it.fileId == file.fileId }?.seenMd5
             when {
                 problem != null -> _message.value = problem
-                here != null -> onOpen(Uri.fromFile(syncer.fileFor(here)).toString())
+                // Its annotations belong to the Drive file, so they stay with it through new versions.
+                here != null -> onOpen(Uri.fromFile(syncer.fileFor(here)).toString(), "drive:${file.fileId}")
             }
         }
     }

@@ -31,6 +31,7 @@ import kotlin.time.Duration.Companion.seconds
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.geometry.Size
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
@@ -47,13 +48,27 @@ import androidx.compose.ui.platform.LocalView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import nl.imreboersma.volti.data.PixelSize
+import nl.imreboersma.volti.data.PageArea
+import androidx.compose.foundation.layout.BoxScope
 import nl.imreboersma.volti.ui.theme.LocalReaderColors
 import nl.imreboersma.volti.ui.theme.readerColorsOn
 
+/**
+ * Where a page is on screen, for whatever is drawn over it (annotations): page [index], showing [area] of it as a
+ * [bitmapWidth] x [bitmapHeight] bitmap fitted in the box, seen in [region]. Only a [Region.Whole] page takes input.
+ */
+data class PageOverlay(val index: Int, val area: PageArea, val bitmapWidth: Int, val bitmapHeight: Int, val region: Region)
+
+/**
+ * The reader. [overlay] is drawn over each page and [controls] over the reader, for what the reader itself doesn't
+ * know about (annotations): it only says where the page is.
+ */
 @Composable
 fun ReaderScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    overlay: @Composable (PageOverlay) -> Unit = {},
+    controls: @Composable BoxScope.() -> Unit = {},
     viewModel: ReaderViewModel = viewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -84,8 +99,9 @@ fun ReaderScreen(
                     },
                     color = LocalReaderColors.current.message,
                 )
-                is ReaderState.Page -> PageView(s, viewModel)
+                is ReaderState.Page -> PageView(s, viewModel, overlay)
             }
+            controls()
             BackButton(onBack, Modifier.align(Alignment.TopStart))
         }
     }
@@ -97,7 +113,30 @@ fun ReaderScreen(
  * in the corner brings it back. Either way the corner takes its own taps, so it doesn't turn the page back.
  */
 @Composable
-private fun BackButton(onBack: () -> Unit, modifier: Modifier = Modifier) {
+private fun BackButton(onBack: () -> Unit, modifier: Modifier = Modifier) =
+    CornerButton("Back to the library", "Show the back button", onBack, modifier) { ink ->
+        val stroke = 2.5.dp.toPx()
+        val arrow = Size(20.dp.toPx(), 20.dp.toPx())
+        val left = (size.width - arrow.width) / 2
+        val mid = size.height / 2
+        drawLine(ink, Offset(left + arrow.width, mid), Offset(left, mid), stroke, StrokeCap.Round)
+        drawLine(ink, Offset(left, mid), Offset(left + arrow.width * 0.45f, mid - arrow.height * 0.4f), stroke, StrokeCap.Round)
+        drawLine(ink, Offset(left, mid), Offset(left + arrow.width * 0.45f, mid + arrow.height * 0.4f), stroke, StrokeCap.Round)
+    }
+
+/**
+ * A round button in a corner of the reader, over the music: it shows for [SHOWN] and then gets out of the way; a tap
+ * in its corner brings it back. [glyph] is drawn in the reader's ink (or cream, whichever reads on this paper), on a
+ * disc of the paper itself with a ring, so it has the full contrast of the reader's text. Drawn: no icon library.
+ */
+@Composable
+fun CornerButton(
+    label: String,
+    showLabel: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    glyph: DrawScope.(ink: Color) -> Unit,
+) {
     val colors = LocalReaderColors.current
     var shown by remember { mutableStateOf(true) }
     LaunchedEffect(shown) {
@@ -112,26 +151,18 @@ private fun BackButton(onBack: () -> Unit, modifier: Modifier = Modifier) {
             .size(48.dp)
             .clip(CircleShape)
             .clickable(
-                onClickLabel = if (shown) "Back to the library" else "Show the back button",
+                onClickLabel = if (shown) label else showLabel,
                 role = Role.Button,
-                onClick = { if (shown) onBack() else shown = true },
+                onClick = { if (shown) onClick() else shown = true },
             )
-            .semantics { contentDescription = "Back to the library" },
+            .semantics { contentDescription = label },
         contentAlignment = Alignment.Center,
     ) {
         if (shown) {
-            // Ink or cream (whichever reads on this paper) on a disc of the paper itself, with a ring: the arrow
-            // has the full contrast of the reader's text. Drawn: no icon library for one glyph.
             Canvas(modifier = Modifier.fillMaxSize()) {
-                val stroke = 2.5.dp.toPx()
                 drawCircle(colors.surround)
                 drawCircle(colors.message, style = Stroke(1.5.dp.toPx()), radius = size.minDimension / 2 - 1.dp.toPx())
-                val arrow = Size(20.dp.toPx(), 20.dp.toPx())
-                val left = (size.width - arrow.width) / 2
-                val mid = size.height / 2
-                drawLine(colors.message, Offset(left + arrow.width, mid), Offset(left, mid), stroke, StrokeCap.Round)
-                drawLine(colors.message, Offset(left, mid), Offset(left + arrow.width * 0.45f, mid - arrow.height * 0.4f), stroke, StrokeCap.Round)
-                drawLine(colors.message, Offset(left, mid), Offset(left + arrow.width * 0.45f, mid + arrow.height * 0.4f), stroke, StrokeCap.Round)
+                glyph(colors.message)
             }
         }
     }
@@ -145,7 +176,7 @@ private val SHOWN = 3.seconds
  * with a line between them; the bottom half still shows the end of this page.
  */
 @Composable
-private fun PageView(page: ReaderState.Page, viewModel: ReaderViewModel) {
+private fun PageView(page: ReaderState.Page, viewModel: ReaderViewModel, overlay: @Composable (PageOverlay) -> Unit) {
     val view = LocalView.current
     // Once no page is drawn any more (an error message, leaving the reader), say so when that frame is on
     // screen, so the last bitmaps can be reused.
@@ -174,7 +205,9 @@ private fun PageView(page: ReaderState.Page, viewModel: ReaderViewModel) {
                 view.viewTreeObserver.registerFrameCommitCallback { viewModel.onPresented(shown) }
             },
     ) {
-        PageImage(page.bitmap, page.index, if (page.half) Region.BottomHalf else Region.Whole)
+        val region = if (page.half) Region.BottomHalf else Region.Whole
+        PageImage(page.bitmap, page.index, region)
+        page.bitmap?.let { overlay(PageOverlay(page.index, page.area, it.width, it.height, region)) }
         if (page.half) {
             Box(
                 modifier = Modifier
@@ -188,13 +221,14 @@ private fun PageView(page: ReaderState.Page, viewModel: ReaderViewModel) {
                     },
             ) {
                 PageImage(page.top, page.index + 1, Region.TopHalf)
+                page.top?.let { overlay(PageOverlay(page.index + 1, page.area, it.width, it.height, Region.TopHalf)) }
             }
         }
     }
 }
 
 /** Where on screen a page is seen: in a half turn, each page only shows in one half. */
-private enum class Region { Whole, TopHalf, BottomHalf }
+enum class Region { Whole, TopHalf, BottomHalf }
 
 /**
  * A rendered page, or a message if it couldn't be rendered, centred in the [region] where it is seen. The bitmap

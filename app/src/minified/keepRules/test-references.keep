@@ -1526,6 +1526,10 @@
 -keep class androidx.sqlite.db.SupportSQLiteDatabase {
     #noinspection ShrinkerUnresolvedReference
     void execSQL(java.lang.String);
+    #noinspection ShrinkerUnresolvedReference
+    void execSQL(java.lang.String, java.lang.Object[]);
+    #noinspection ShrinkerUnresolvedReference
+    android.database.Cursor query(java.lang.String, java.lang.Object[]);
 }
 #noinspection ShrinkerUnresolvedReference
 -keep class androidx.sqlite.db.SupportSQLiteOpenHelper$Callback { *; }
@@ -1554,7 +1558,12 @@
     androidx.sqlite.db.SupportSQLiteOpenHelper create(androidx.sqlite.db.SupportSQLiteOpenHelper$Configuration);
 }
 #noinspection ShrinkerUnresolvedReference
--keep class androidx.sqlite.db.SupportSQLiteOpenHelper
+-keep class androidx.sqlite.db.SupportSQLiteOpenHelper {
+    #noinspection ShrinkerUnresolvedReference
+    androidx.sqlite.db.SupportSQLiteDatabase getReadableDatabase();
+    #noinspection ShrinkerUnresolvedReference
+    androidx.sqlite.db.SupportSQLiteDatabase getWritableDatabase();
+}
 #noinspection ShrinkerUnresolvedReference
 -keep class androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory {
     #noinspection ShrinkerUnresolvedReference
@@ -1572,6 +1581,25 @@
     #noinspection ShrinkerUnresolvedReference
     <init>(androidx.sqlite.db.SupportSQLiteOpenHelper);
 }
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.test.espresso.IdlingRegistry {
+    #noinspection ShrinkerUnresolvedReference
+    androidx.test.espresso.IdlingRegistry getInstance();
+    #noinspection ShrinkerUnresolvedReference
+    java.util.Collection getLoopers();
+    #noinspection ShrinkerUnresolvedReference
+    java.util.Collection getResources();
+    #noinspection ShrinkerUnresolvedReference
+    boolean register(androidx.test.espresso.IdlingResource[]);
+    #noinspection ShrinkerUnresolvedReference
+    void registerLooperAsIdlingResource(android.os.Looper);
+    #noinspection ShrinkerUnresolvedReference
+    boolean unregister(androidx.test.espresso.IdlingResource[]);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.test.espresso.IdlingResource$ResourceCallback { *; }
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.test.espresso.IdlingResource { *; }
 #noinspection ShrinkerUnresolvedReference
 -keep class androidx.tracing.Trace {
     #noinspection ShrinkerUnresolvedReference
@@ -1680,6 +1708,8 @@
 }
 #noinspection ShrinkerUnresolvedReference
 -keep class kotlin.collections.ArraysKt {
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.String joinToString$default(byte[], java.lang.CharSequence, java.lang.CharSequence, java.lang.CharSequence, int, java.lang.CharSequence, kotlin.jvm.functions.Function1, int, java.lang.Object);
     #noinspection ShrinkerUnresolvedReference
     java.lang.String joinToString$default(java.lang.Object[], java.lang.CharSequence, java.lang.CharSequence, java.lang.CharSequence, int, java.lang.CharSequence, kotlin.jvm.functions.Function1, int, java.lang.Object);
     #noinspection ShrinkerUnresolvedReference
@@ -1900,6 +1930,8 @@
 }
 #noinspection ShrinkerUnresolvedReference
 -keep class kotlin.io.FilesKt {
+    #noinspection ShrinkerUnresolvedReference
+    byte[] readBytes(java.io.File);
     #noinspection ShrinkerUnresolvedReference
     void writeText$default(java.io.File, java.lang.String, java.nio.charset.Charset, int, java.lang.Object);
 }
@@ -2717,10 +2749,26 @@
 #noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.Reader {
     #noinspection ShrinkerUnresolvedReference
-    <init>(java.lang.String);
+    <init>(java.lang.String, java.lang.String, int, kotlin.jvm.internal.DefaultConstructorMarker);
 }
 #noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.Settings
+#noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.annotate.AnnotationDao {
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.Object add(java.util.List, kotlin.coroutines.Continuation);
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.Object forScore(java.lang.String, kotlin.coroutines.Continuation);
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.Object remove(java.util.List, kotlin.coroutines.Continuation);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.annotate.AnnotationStroke {
+    #noinspection ShrinkerUnresolvedReference
+    <init>(java.lang.String, java.lang.String, int, int, float, byte[]);
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.String getId();
+}
 #noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.data.DocumentRow {
     #noinspection ShrinkerUnresolvedReference
@@ -2899,15 +2947,26 @@
     int getCount();
 }
 #noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.db.VoltiDatabase$Companion {
+    #noinspection ShrinkerUnresolvedReference
+    nl.imreboersma.volti.db.VoltiDatabase get(android.content.Context);
+}
+#noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.db.VoltiDatabase {
     #noinspection ShrinkerUnresolvedReference
     int $stable;
+    #noinspection ShrinkerUnresolvedReference
+    nl.imreboersma.volti.db.VoltiDatabase$Companion Companion;
+    #noinspection ShrinkerUnresolvedReference
+    nl.imreboersma.volti.annotate.AnnotationDao annotations();
     #noinspection ShrinkerUnresolvedReference
     void close();
     #noinspection ShrinkerUnresolvedReference
     nl.imreboersma.volti.db.EnsembleDao ensembles();
     #noinspection ShrinkerUnresolvedReference
     nl.imreboersma.volti.db.EnsembleFileDao files();
+    #noinspection ShrinkerUnresolvedReference
+    androidx.sqlite.db.SupportSQLiteOpenHelper getOpenHelper();
 }
 #noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.render.IsolatedRendererKt {
@@ -2926,7 +2985,7 @@
 #noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.ui.ReaderState$Page {
     #noinspection ShrinkerUnresolvedReference
-    <init>(android.graphics.Bitmap, int, int, boolean, android.graphics.Bitmap, int, kotlin.jvm.internal.DefaultConstructorMarker);
+    <init>(android.graphics.Bitmap, int, int, boolean, android.graphics.Bitmap, nl.imreboersma.volti.data.PageArea, int, kotlin.jvm.internal.DefaultConstructorMarker);
     #noinspection ShrinkerUnresolvedReference
     android.graphics.Bitmap getBitmap();
     #noinspection ShrinkerUnresolvedReference
