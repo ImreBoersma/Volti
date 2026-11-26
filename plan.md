@@ -81,7 +81,7 @@ Done when: page one is sharp, has the correct aspect ratio, and rotation does no
 - [x] Keep three bitmaps: previous, current, next.
 - [x] After each turn, render the new neighbour in the background and reuse the dropped bitmap.
 
-Measured 2026-11-25, release build, 20-page 200 dpi scan: a page renders in about 100 MS. Turning at a normal pace, the next page is ready 1 ms after the tap. In a burst of taps about 100 ms apart, every page was still ready; the tap waits up to 43 ms behind the prefetch.
+Measured 2026-11-25, release build, 20-page 200 dpi scan: a page renders in about 100 ms. Turning at a normal pace, the next page is ready 1 ms after the tap. In a burst of taps about 100 ms apart, every page was still ready; the tap waits up to 43 ms behind the prefetch.
 
 A dropped bitmap is only drawn into once the screen is done with it: the reader reports each page it records (`onDrawn`) and each frame the render thread commits (`onPresented`, via `registerFrameCommitCallback`), and a bitmap is reused at least 50 ms after a newer frame replaced it on screen. Counting from the state alone failed on the CI emulator, where a busy main thread kept an old page on screen.
 
@@ -102,7 +102,7 @@ Test files are in `app/src/androidTest/assets/hostile/`, made by `make_hostile_p
 
 - [x] Password-protected PDF: "This PDF is password-protected." The renderer's `SecurityException` becomes `PasswordProtectedException`, so a lost folder grant (also a `SecurityException`) is not mistaken for a password.
 - [x] Corrupt, truncated or non-PDF file with a `.pdf` name: "Can't open this file."
-- [x] Absurd page dimensions: the bitmap never exceeds the view. A 1,000,000,000 x 1-page renders as a 1600 x 1 strip: no crash, but effectively blank.
+- [x] Absurd page dimensions: the bitmap never exceeds the view. A 1,000,000,000 x 1 page renders as a 1600 x 1 strip: no crash, but effectively blank.
 - [x] A PDF with zero pages: "Can't open this file." A 0 x 0 page: PDFium substitutes a default page size and renders it.
 - [x] One broken page in a good score: shows "Can't show page N.", the other pages stay readable. Proven only with a fake document: with the real renderer a broken content stream does not throw, PDFium draws what it can, so the message is never reached.
 - [x] A provider that hands out a non-seekable descriptor (a pipe): any exception from opening gives "Can't open this file." Tested with a fake; no such provider on the tablet.
@@ -329,7 +329,13 @@ Structure, because this could easily spread through the reader (decided 2026-11-
 
 ### 1. Pen and rubber
 
-- [ ] Strokes over the page: pen with a few colours, rubber by stroke, undo. A pen draws at once; without a pen, the Annotate button. Stored per score and page, in whole-page coordinates.
+- [x] Strokes over the page: pen with a few colours, rubber by stroke, undo. A pen draws at once; without a pen, the Annotate button. Stored per score and page, in whole-page coordinates.
+
+Done 2026-11-26. A pen draws straight away; a finger turns pages, or draws while the toolbar is out (the pencil in the top-right corner, which hides like the back button: black, red, blue, eraser, undo, done). The pen's eraser end or its button erases. Strokes are erased whole, stored as androidx.ink input in page units, so a crop or a half turn never moves them; in a half turn they show but don't take input. Writing starts once the score's identity and its stored strokes are loaded. A hand resting on the glass while writing is left alone and turns no page, also when the system hands it back as a new pointer after the pen lifts (an instrumented test injects that). Two things learned about androidx.ink: its drawing surface must be set up before the first stroke (`eagerInit()`), or that stroke is never drawn and never finishes; and its renderer draws in the canvas's own coordinates, the transform only says the resolution.
+
+Structure as planned: everything in `annotate/`; the reader gained a per-page overlay slot, a controls slot, the page's crop area, and a shared `CornerButton`.
+
+Checked on the Fairphone 6 (release build, finger and simulated pen): a stroke lands where drawn, survives a restart, erases and undoes. With the S Pen on the tablet still to do.
 
 ### 2. Music symbols
 
