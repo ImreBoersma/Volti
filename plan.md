@@ -357,8 +357,24 @@ Done when: a part annotated with the S Pen on the tablet keeps its marks across 
 
 ## Milestone 5: setlists
 
-- [ ] Setlists per ensemble: an ordered list of my parts.
-- [ ] In a setlist, turning past the last page opens the next piece.
+### 0. Decisions before building
+
+- [x] Per ensemble (2026-11-26): each ensemble has its own setlists (a concert, a rehearsal), made from its files. No mixing ensembles or local scores.
+- [x] By hand (2026-11-26): pick pieces from my parts (or all files), drag to reorder. Not read from a programme in Drive.
+- [x] Past the last page (2026-11-26): straight into the next piece, like one book; back from a piece's first page goes to the previous piece's last page. A line says which piece I'm in.
+- [x] No extras in the first version (2026-11-26): no breaks, notes per entry, repeated pieces or home-screen shortcut. Each is easy to add once I miss it.
+
+Structure, as for annotations: setlists in their own package with their own tables; the reader learns only "there is a next and a previous score" through its existing ways in, not what a setlist is.
+
+### 1. Making setlists
+
+- [ ] In an ensemble: its setlists, a new one, its pieces picked from my parts (or all files), dragged into order, renamed and removed. A piece removed from Drive stays in the setlist, marked, while it is on the device.
+
+### 2. Playing a setlist
+
+- [ ] Opening a setlist opens its first piece; turning past the last page opens the next piece at its first page, and back from the first page the previous piece at its last. Annotations, the margin crop and half-page turns as for any score. A piece not on the device yet is downloaded when reached, or skipped with a message when offline.
+
+Done when: a rehearsal's setlist plays through from the first page to the last without leaving the reader.
 
 ## Later milestones (not planned yet)
 
