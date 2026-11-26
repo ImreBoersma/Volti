@@ -11,8 +11,8 @@ class SyncStatusTest {
     @Test
     fun howLongAgo() {
         assertEquals("just now", ago(now - 30_000, now))
-        assertEquals("1 minute ago", ago(before(1), now))
-        assertEquals("59 minutes ago", ago(before(59), now))
+        assertEquals("1 min ago", ago(before(1), now))
+        assertEquals("59 min ago", ago(before(59), now))
         assertEquals("1 hour ago", ago(before(60), now))
         assertEquals("23 hours ago", ago(before(23 * 60 + 59), now))
         assertEquals("2 days ago", ago(before(48 * 60), now))
@@ -22,7 +22,7 @@ class SyncStatusTest {
     @Test
     fun whatTheSyncLineSays() {
         assertEquals("Not synced yet", syncText(SyncState.Idle, null, now))
-        assertEquals("Synced 5 minutes ago", syncText(SyncState.Idle, before(5), now))
+        assertEquals("Synced 5 min ago", syncText(SyncState.Idle, before(5), now))
         assertEquals("Downloading 3 of 10…", syncText(SyncState.Downloading(2, 10), null, now))
         assertEquals("Up to date", syncText(SyncState.Done(stopped = false, failed = 0), now, now))
         assertEquals(
@@ -34,7 +34,7 @@ class SyncStatusTest {
     @Test
     fun offlineItSaysHowOldTheCopyIs() {
         val offline = SyncState.Failed("No connection to Google Drive.")
-        assertEquals("No connection to Google Drive. What was synced 2 hours ago is here.", syncText(offline, before(120), now))
-        assertEquals("No connection to Google Drive. Nothing has been synced yet.", syncText(offline, null, now))
+        assertEquals("No connection to Google Drive. Synced 2 hours ago.", syncText(offline, before(120), now))
+        assertEquals("No connection to Google Drive. Nothing synced yet.", syncText(offline, null, now))
     }
 }
