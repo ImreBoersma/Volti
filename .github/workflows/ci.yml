@@ -46,6 +46,7 @@ jobs:
           # Gesture navigation: the image defaults to three buttons, and an edge swipe is then no Back.
           script: |
             adb shell cmd overlay enable com.android.internal.systemui.navbar.gestural
+            adb shell cmd overlay list android | grep navbar
             ./gradlew connectedMinifiedAndroidTest
       - if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

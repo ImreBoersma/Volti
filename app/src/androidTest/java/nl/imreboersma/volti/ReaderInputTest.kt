@@ -30,6 +30,7 @@ import nl.imreboersma.volti.data.ReaderSettingsStore
 import org.junit.After
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -201,6 +202,10 @@ class ReaderInputTest {
 
     @Test
     fun anEdgeSwipeWhileReadingStillGoesBack() {
+        // With three-button navigation an edge swipe is no Back: nothing to keep working.
+        val res = instrumentation.targetContext.resources
+        val mode = res.getIdentifier("config_navBarInteractionMode", "integer", "android").takeIf { it != 0 }?.let(res::getInteger)
+        assumeTrue("needs gesture navigation, is in mode $mode", mode == 2)
         swipeFromTheLeftEdge() // Shows the system bars,
         swipeFromTheLeftEdge() // then goes Back.
         compose.waitUntil(5_000) { !inReader() }
