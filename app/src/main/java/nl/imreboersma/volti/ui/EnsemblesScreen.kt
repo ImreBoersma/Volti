@@ -43,6 +43,8 @@ import androidx.lifecycle.compose.currentStateAsState
 import androidx.lifecycle.viewmodel.compose.viewModel
 import nl.imreboersma.volti.data.EnsembleRow
 import nl.imreboersma.volti.db.EnsembleFile
+import nl.imreboersma.volti.drive.SyncState
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 
 /** A form to add an ensemble from a shared folder's link. */
 @Composable
@@ -112,12 +114,14 @@ fun EnsembleScreen(
     val query by viewModel.query.collectAsStateWithLifecycle()
     val view by viewModel.rows.collectAsStateWithLifecycle()
     val sync by viewModel.sync.collectAsStateWithLifecycle()
+    val needsConsent by viewModel.consent.collectAsStateWithLifecycle()
+    val since by viewModel.since.collectAsStateWithLifecycle()
     val consent = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) {
         viewModel.consented(it.data)
     }
     // Syncs while this screen shows, and only then. The consent screen also stops it; coming back syncs again.
-    LifecycleEventEffect(Lifecycle.Event.ON_START) { viewModel.load() }
-    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.pause() }
+    LifecycleEventEffect(Lifecycle.Event.ON_START) { viewModel.sync() }
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.left() }
 
     // Back clears the search first, then goes up a folder, then back to the library: the button does the same.
     // Only while this is the active screen: during the crossfade into the reader, back must close the score.
@@ -161,10 +165,16 @@ fun EnsembleScreen(
                 OutlinedButton(onClick = { viewModel.remove(onRemoved) }) { Text("Remove") }
             }
             SyncLine(
-                sync = sync,
-                count = files?.size ?: 0,
+                // Signed out: still say how old the copy here is.
+                text = syncText(
+                    if (needsConsent != null) SyncState.Failed("Signed out of Google Drive.") else sync,
+                    ensemble?.lastSynced,
+                    System.currentTimeMillis(),
+                ),
+                consent = needsConsent,
+                failed = sync is SyncState.Failed,
                 onConsent = { consent.launch(IntentSenderRequest.Builder(it).build()) },
-                onRetry = viewModel::load,
+                onRetry = { viewModel.sync(force = true) },
             )
             if (!files.isNullOrEmpty()) {
                 OutlinedTextField(
@@ -179,6 +189,13 @@ fun EnsembleScreen(
                 )
             }
             val open = { file: EnsembleFile -> viewModel.open(file, onOpenScore) }
+            val isNew = { file: EnsembleFile -> file.addedAt != null && file.addedAt > since }
+            // Pulled: sync now, also if it just did.
+            PullToRefreshBox(
+                isRefreshing = sync is SyncState.Listing || sync is SyncState.Downloading,
+                onRefresh = { viewModel.sync(force = true) },
+                modifier = Modifier.fillMaxSize(),
+            ) {
             when (val v = view) {
                 null -> Unit
                 is EnsembleView.Folder ->
@@ -186,7 +203,7 @@ fun EnsembleScreen(
                         // Before the first sync has brought anything in, or a folder without PDFs.
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("No PDFs here yet.") }
                     } else {
-                        RowList(v.rows, onOpenFolder = viewModel::open, onOpen = open)
+                        RowList(v.rows, isNew, onOpenFolder = viewModel::open, onOpen = open)
                     }
                 is EnsembleView.Found ->
                     if (v.files.isEmpty()) {
@@ -194,8 +211,9 @@ fun EnsembleScreen(
                             Text("Nothing found for \"$query\".")
                         }
                     } else {
-                        FoundList(v.files, onOpen = open)
+                        FoundList(v.files, isNew, onOpen = open)
                     }
+            }
             }
         }
     }
@@ -203,8 +221,9 @@ fun EnsembleScreen(
 
 @Composable
 private fun SyncLine(
-    sync: SyncState,
-    count: Int,
+    text: String,
+    consent: PendingIntent?,
+    failed: Boolean,
     onConsent: (PendingIntent) -> Unit,
     onRetry: () -> Unit,
 ) {
@@ -214,31 +233,24 @@ private fun SyncLine(
         modifier = Modifier.padding(vertical = 16.dp),
     ) {
         Text(
-            text = when (sync) {
-                SyncState.Idle, SyncState.Listing -> "Checking Google Drive…"
-                is SyncState.Downloading -> "Downloading ${sync.done + 1} of ${sync.total}…"
-                is SyncState.NeedsConsent -> "Volti needs read-only access to Google Drive to sync this folder."
-                is SyncState.Failed -> sync.message
-                is SyncState.Done -> buildString {
-                    append(if (count == 1) "1 PDF" else "$count PDFs")
-                    append(", up to date")
-                    if (sync.failed > 0) append(". ${sync.failed} couldn't be downloaded; they are tried again next time")
-                    if (sync.stopped) append(". Stopped at 5,000 entries: the deepest files are left out")
-                }
-            },
+            text,
             modifier = Modifier.weight(1f, fill = false),
         )
-        when (sync) {
-            is SyncState.NeedsConsent -> Button(onClick = { onConsent(sync.intent) }) { Text("Sign in to Google Drive") }
-            is SyncState.Failed -> OutlinedButton(onClick = onRetry) { Text("Try again") }
-            else -> Unit
+        when {
+            consent != null -> Button(onClick = { onConsent(consent) }) { Text("Sign in to Google Drive") }
+            failed -> OutlinedButton(onClick = onRetry) { Text("Try again") }
         }
     }
 }
 
 /** A folder's rows, styled as the library's: folders in bold with a trailing slash, the way a path reads. */
 @Composable
-private fun RowList(rows: List<EnsembleRow>, onOpenFolder: (String) -> Unit, onOpen: (EnsembleFile) -> Unit) {
+private fun RowList(
+    rows: List<EnsembleRow>,
+    isNew: (EnsembleFile) -> Boolean,
+    onOpenFolder: (String) -> Unit,
+    onOpen: (EnsembleFile) -> Unit,
+) {
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         items(rows, key = { row ->
             when (row) {
@@ -256,7 +268,7 @@ private fun RowList(rows: List<EnsembleRow>, onOpenFolder: (String) -> Unit, onO
                         .clickable { onOpenFolder(row.name) }
                         .padding(vertical = 16.dp),
                 )
-                is EnsembleRow.Pdf -> FileRow(row.file, folders = null, onOpen = onOpen)
+                is EnsembleRow.Pdf -> FileRow(row.file, isNew(row.file), folders = null, onOpen = onOpen)
             }
             HorizontalDivider()
         }
@@ -264,10 +276,10 @@ private fun RowList(rows: List<EnsembleRow>, onOpenFolder: (String) -> Unit, onO
 }
 
 @Composable
-private fun FoundList(files: List<EnsembleFile>, onOpen: (EnsembleFile) -> Unit) {
+private fun FoundList(files: List<EnsembleFile>, isNew: (EnsembleFile) -> Boolean, onOpen: (EnsembleFile) -> Unit) {
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         items(files, key = { it.fileId }) { file ->
-            FileRow(file, folders = file.folders.takeIf { it.isNotEmpty() }?.joinToString(" / "), onOpen = onOpen)
+            FileRow(file, isNew(file), folders = file.folders.takeIf { it.isNotEmpty() }?.joinToString(" / "), onOpen = onOpen)
             HorizontalDivider()
         }
     }
@@ -275,7 +287,7 @@ private fun FoundList(files: List<EnsembleFile>, onOpen: (EnsembleFile) -> Unit)
 
 /** A PDF: openable once it is on the tablet, with what changed about it. */
 @Composable
-private fun FileRow(file: EnsembleFile, folders: String?, onOpen: (EnsembleFile) -> Unit) {
+private fun FileRow(file: EnsembleFile, new: Boolean, folders: String?, onOpen: (EnsembleFile) -> Unit) {
     val downloaded = file.localMd5 != null
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -296,6 +308,7 @@ private fun FileRow(file: EnsembleFile, folders: String?, onOpen: (EnsembleFile)
             !downloaded -> Text("Not downloaded yet", color = MaterialTheme.colorScheme.onSurfaceVariant)
             file.removed -> Text("Removed in Drive", color = MaterialTheme.colorScheme.onSurfaceVariant)
             file.changed -> Text("Changed", color = MaterialTheme.colorScheme.secondary)
+            new -> Text("New", color = MaterialTheme.colorScheme.secondary)
         }
     }
 }

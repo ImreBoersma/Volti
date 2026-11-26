@@ -19,11 +19,18 @@ const val KEEP_FREE_BYTES = 500L * 1024 * 1024
  * - names, folders and the version in Drive follow Drive; what is on the tablet, and what I saw, stay as they were
  *   (downloads and opening the score change those);
  * - what is no longer there is dropped, unless I opened it: then it stays, marked removed, to play from;
- * - unless the walk was not [complete]: then what it didn't reach is left as it is.
+ * - unless the walk was not [complete]: then what it didn't reach is left as it is;
+ * - new PDFs get [addedAt]: null on the ensemble's first sync, where nothing counts as new.
  * PDFs without a well-formed checksum are left out (Drive gives one for every uploaded file; it becomes a file name),
  * and a PDF in two subfolders counts once, in the first.
  */
-fun reconcile(ensembleId: Long, old: List<EnsembleFile>, found: List<DriveEntry>, complete: Boolean = true): List<EnsembleFile> {
+fun reconcile(
+    ensembleId: Long,
+    old: List<EnsembleFile>,
+    found: List<DriveEntry>,
+    complete: Boolean = true,
+    addedAt: Long? = null,
+): List<EnsembleFile> {
     val before = old.associateBy { it.fileId }
     val now = found.filter { it.file.md5Checksum?.matches(MD5) == true }.distinctBy { it.file.id }.map { entry ->
         val file = entry.file
@@ -35,7 +42,7 @@ fun reconcile(ensembleId: Long, old: List<EnsembleFile>, found: List<DriveEntry>
             md5 = file.md5Checksum!!,
             size = size,
             removed = false,
-        ) ?: EnsembleFile(ensembleId, file.id, file.resourceKey, file.name, entry.folders, file.md5Checksum!!, size)
+        ) ?: EnsembleFile(ensembleId, file.id, file.resourceKey, file.name, entry.folders, file.md5Checksum!!, size, addedAt = addedAt)
     }
     val seen = now.mapTo(HashSet()) { it.fileId }
     val missing = old.filter { it.fileId !in seen }
@@ -52,9 +59,9 @@ class DownloadRejected(message: String) : IOException(message)
 /**
  * Copies [input] to [target]: at most [limit] bytes, starting like a PDF (`%PDF-` within the first 1024 bytes, as
  * the format allows), with md5 [expectedMd5]. Anything else is deleted and rejected: what lands on the tablet is what
- * Drive said it would be.
+ * Drive said it would be. [check] runs between buffers and may throw to stop (a cancelled sync).
  */
-fun copyChecked(input: InputStream, target: File, expectedMd5: String, limit: Long = MAX_PDF_BYTES) {
+fun copyChecked(input: InputStream, target: File, expectedMd5: String, limit: Long = MAX_PDF_BYTES, check: () -> Unit = {}) {
     val digest = MessageDigest.getInstance("MD5")
     try {
         target.outputStream().use { out ->
@@ -63,6 +70,7 @@ fun copyChecked(input: InputStream, target: File, expectedMd5: String, limit: Lo
             var headSize = 0
             var total = 0L
             while (true) {
+                check()
                 val n = input.read(buffer)
                 if (n < 0) break
                 total += n
@@ -95,11 +103,11 @@ class PdfStore(private val dir: File, private val freeBytes: () -> Long) {
     fun has(md5: String) = fileFor(md5).isFile
 
     /** Downloads into a temporary file and moves it into place only once it passed [copyChecked]. */
-    fun store(md5: String, size: Long, input: InputStream) {
+    fun store(md5: String, size: Long, input: InputStream, check: () -> Unit = {}) {
         dir.mkdirs()
         if (freeBytes() < size + KEEP_FREE_BYTES) throw DownloadRejected("Not enough space on the tablet")
         val temp = File(dir, "download-${UUID.randomUUID()}.tmp")
-        copyChecked(input, temp, md5)
+        copyChecked(input, temp, md5, check = check)
         if (!temp.renameTo(fileFor(md5))) {
             temp.delete()
             throw IOException("Couldn't store the download")

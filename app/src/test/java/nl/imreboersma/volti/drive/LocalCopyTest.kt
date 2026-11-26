@@ -33,6 +33,13 @@ class LocalCopyTest {
     }
 
     @Test
+    fun theFirstSyncFindsNothingNewLaterOnesDo() {
+        assertNull(reconcile(1, emptyList(), listOf(found("a", v1))).single().addedAt)
+        val later = reconcile(1, listOf(row("a", v1)), listOf(found("a", v2), found("b", v1)), addedAt = 500)
+        assertEquals(listOf("a" to null, "b" to 500L), later.map { it.fileId to it.addedAt }) // A change isn't new.
+    }
+
+    @Test
     fun aChangedPdfKeepsWhatIsOnTheTabletAndWhatISaw() {
         val rows = reconcile(1, listOf(row("a", v1, seen = v1)), listOf(found("a", v2)))
         assertEquals(v2, rows.single().md5)
@@ -104,6 +111,18 @@ class LocalCopyTest {
         val html = "<html>Sign in</html>".toByteArray()
         assertEquals("Not a PDF", rejected(html, md5(html)))
         assertEquals("Larger than 0 MB", rejected(pdf, md5(pdf), limit = 10))
+    }
+
+    @Test
+    fun aStoppedDownloadStopsAndLeavesNothing() {
+        val target = File(tmp.root, "stopped.pdf")
+        var reads = 0
+        try {
+            copyChecked(pdf.inputStream(), target, md5(pdf)) { if (++reads > 0) throw java.util.concurrent.CancellationException() }
+            fail("kept going")
+        } catch (_: java.util.concurrent.CancellationException) {
+        }
+        assertFalse(target.exists())
     }
 
     @Test

@@ -285,8 +285,10 @@ Search found "hoorn 1" in "hoorn13" and "hoorn12" (horns 1 and 3, 1 and 2), but 
 
 ### 4. Sync
 
-- [ ] Sync when the library opens and on pull-to-refresh; show progress and when the last sync was. Offline or signed out: the last copy, and say so.
-- [ ] New and changed files since I last looked are marked as such.
+- [x] Sync when the library opens and on pull-to-refresh; show progress and when the last sync was. Offline or signed out: the last copy, and say so.
+- [x] New and changed files since I last looked are marked as such.
+
+Done 2026-11-26. One sync service for the app: the home screen syncs every ensemble while it shows, an ensemble's screen its own; both pull to refresh. Opening a screen skips an ensemble synced in the last minute, pulling never does. It stops for the reader and when leaving the app, and a download in progress stops within 64 KB; a screen only stops its own sync, since in a crossfade the next one starts first. Each ensemble says "Up to date", "Downloading 3 of 10…" or "Synced 5 minutes ago"; offline or signed out, how old the copy here is. "New": added since I last left the ensemble, marked for the whole visit (reader included), counted on the home screen; an ensemble's first listing marks nothing. "Changed" stays a newer version of a score I opened. Checked on the emulator with a file made to look new by deleting its row: "1 new" on home, "New" in the ensemble, gone after leaving.
 
 ### 5. My parts
 

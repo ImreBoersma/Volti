@@ -77,12 +77,23 @@ class EnsembleFileDaoTest {
     }
 
     @Test
-    fun ensemblesSurviveTheMigrationToVersion2() {
+    fun newFilesAreTheOnesAddedSinceILastLooked() = runBlocking {
+        val id = ensemble()
+        files.save(listOf(file(id, "baseline"), file(id, "early").copy(addedAt = 100), file(id, "late").copy(addedAt = 300)))
+        assertEquals(2, db.ensembles().newFiles().first().single().count) // Never looked: all added ones.
+        db.ensembles().looked(id, 200)
+        assertEquals(1, db.ensembles().newFiles().first().single().count)
+        db.ensembles().looked(id, 400)
+        assertTrue(db.ensembles().newFiles().first().isEmpty())
+    }
+
+    @Test
+    fun ensemblesSurviveTheMigrations() {
         val name = "migration-test"
         migrations.createDatabase(name, 1).use {
             it.execSQL("INSERT INTO ensemble (name, instrument, folderId) VALUES ('Harmonie', 'Horn', 'folderAAAAAA')")
         }
-        migrations.runMigrationsAndValidate(name, 2, true).close()
+        migrations.runMigrationsAndValidate(name, 3, true).close()
         val migrated = Room.databaseBuilder(context, VoltiDatabase::class.java, name).build()
         try {
             val all = runBlocking { migrated.ensembles().all().first() }

@@ -1,6 +1,19 @@
 package nl.imreboersma.volti.ui
 
 import android.app.Application
+import android.app.PendingIntent
+import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material3.Button
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.ui.Alignment
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import kotlinx.coroutines.flow.first
+import nl.imreboersma.volti.drive.SyncState
+import nl.imreboersma.volti.drive.Syncer
 import androidx.activity.compose.ReportDrawnWhen
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -50,9 +63,36 @@ sealed interface LocalFolder {
 
 class HomeViewModel(app: Application) : AndroidViewModel(app) {
     private val readerSettings = ReaderSettingsStore(app)
+    private val syncer = Syncer.get(app)
+    private val dao = VoltiDatabase.get(app).ensembles()
 
-    val ensembles: StateFlow<List<Ensemble>?> = VoltiDatabase.get(app).ensembles().all()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    val ensembles: StateFlow<List<Ensemble>?> =
+        dao.all().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** Per ensemble id, how many files are new since I last looked. */
+    val newFiles: StateFlow<Map<Long, Int>> = dao.newFiles().map { list -> list.associate { it.ensembleId to it.count } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+
+    val syncStates: StateFlow<Map<Long, SyncState>> = syncer.states
+    val consent: StateFlow<PendingIntent?> = syncer.consent
+
+    /** The library shows: sync every ensemble, skipping those synced a minute ago unless [force]d (pulled). */
+    fun syncAll(force: Boolean = false) {
+        shown = true
+        viewModelScope.launch {
+            val ids = dao.all().first().map { it.id }
+            if (shown) syncer.sync(ids, owner = this@HomeViewModel, force = force) // Not if I left meanwhile.
+        }
+    }
+
+    private var shown = false
+
+    fun left() {
+        shown = false
+        syncer.stop(owner = this)
+    }
+
+    fun consented(data: Intent?) = syncer.consented(data)
 
     val localFolder: StateFlow<LocalFolder?> = FolderStore(app).folder
         .map { uri ->
@@ -100,11 +140,26 @@ fun HomeScreen(
     val ensembles by viewModel.ensembles.collectAsStateWithLifecycle()
     val local by viewModel.localFolder.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
+    val newFiles by viewModel.newFiles.collectAsStateWithLifecycle()
+    val syncStates by viewModel.syncStates.collectAsStateWithLifecycle()
+    val needsConsent by viewModel.consent.collectAsStateWithLifecycle()
+    val consent = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) {
+        viewModel.consented(it.data)
+    }
     // Tells Android when the home screen is really there: logged as "Fully drawn" at cold start.
     ReportDrawnWhen { ensembles != null && local != null }
+    // Syncs every ensemble while the library shows, and only then.
+    LifecycleEventEffect(Lifecycle.Event.ON_START) { viewModel.syncAll() }
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.left() }
+    val syncing = syncStates.values.any { it is SyncState.Listing || it is SyncState.Downloading }
 
     Scaffold(modifier = Modifier.fillMaxSize()) { padding ->
-        LazyColumn(modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp)) {
+        PullToRefreshBox(
+            isRefreshing = syncing,
+            onRefresh = { viewModel.syncAll(force = true) },
+            modifier = Modifier.fillMaxSize().padding(padding),
+        ) {
+        LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp)) {
             item { Text("Library", style = MaterialTheme.typography.headlineLarge) }
             item {
                 // How scores open. Read when a score opens, so a change applies to the next one.
@@ -122,15 +177,35 @@ fun HomeScreen(
                 }
             }
             item { Heading("Ensembles") }
+            needsConsent?.let { intent ->
+                item {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Text("Volti needs read-only access to Google Drive to sync.", modifier = Modifier.weight(1f, fill = false))
+                        Button(onClick = { consent.launch(IntentSenderRequest.Builder(intent).build()) }) {
+                            Text("Sign in to Google Drive")
+                        }
+                    }
+                }
+            }
             items(ensembles.orEmpty(), key = { it.id }) { ensemble ->
-                Column(
+                val new = newFiles[ensemble.id] ?: 0
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { onOpenEnsemble(ensemble.id) }
                         .padding(vertical = 12.dp),
                 ) {
-                    Text(ensemble.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-                    Text(ensemble.instrument, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(ensemble.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                        Text(ensemble.instrument, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            syncText(syncStates[ensemble.id] ?: SyncState.Idle, ensemble.lastSynced, System.currentTimeMillis()),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    if (new > 0) Text("$new new", color = MaterialTheme.colorScheme.secondary)
                 }
                 HorizontalDivider()
             }
@@ -157,6 +232,7 @@ fun HomeScreen(
                 }
                 HorizontalDivider()
             }
+        }
         }
     }
 }

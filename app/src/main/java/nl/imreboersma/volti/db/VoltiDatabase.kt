@@ -28,7 +28,14 @@ data class Ensemble(
     val instrument: String,
     val folderId: String,
     val resourceKey: String? = null,
+    /** When the last sync finished; null until the first. */
+    val lastSynced: Long? = null,
+    /** When I last left the ensemble's screen: files added after that are new. */
+    val lookedAt: Long? = null,
 )
+
+/** How many files are new in an ensemble: added since I last looked. */
+data class NewFiles(val ensembleId: Long, val count: Int)
 
 /**
  * A PDF in an ensemble's Drive folder, and which versions of it are on the tablet. The PDFs themselves are stored by
@@ -58,6 +65,8 @@ data class EnsembleFile(
     val seenMd5: String? = null,
     /** Gone from Drive, but I had opened it: kept, so it can still be played from. */
     val removed: Boolean = false,
+    /** When a sync added it; null for what the first sync of the ensemble found, which is not new. */
+    val addedAt: Long? = null,
 ) {
     val changed get() = seenMd5 != null && localMd5 != null && seenMd5 != localMd5
 }
@@ -77,6 +86,21 @@ interface EnsembleDao {
 
     @Query("SELECT * FROM ensemble WHERE id = :id")
     suspend fun get(id: Long): Ensemble?
+
+    @Query("SELECT * FROM ensemble WHERE id = :id")
+    fun observe(id: Long): Flow<Ensemble?>
+
+    @Query("UPDATE ensemble SET lastSynced = :time WHERE id = :id")
+    suspend fun synced(id: Long, time: Long)
+
+    @Query("UPDATE ensemble SET lookedAt = :time WHERE id = :id")
+    suspend fun looked(id: Long, time: Long)
+
+    @Query(
+        "SELECT f.ensembleId AS ensembleId, COUNT(*) AS count FROM ensemble_file f JOIN ensemble e ON e.id = f.ensembleId " +
+            "WHERE f.addedAt IS NOT NULL AND (e.lookedAt IS NULL OR f.addedAt > e.lookedAt) GROUP BY f.ensembleId",
+    )
+    fun newFiles(): Flow<List<NewFiles>>
 
     /** Throws [android.database.sqlite.SQLiteConstraintException] when the folder is already an ensemble. */
     @Insert
@@ -122,8 +146,8 @@ interface EnsembleFileDao {
 
 @Database(
     entities = [Ensemble::class, EnsembleFile::class],
-    version = 2,
-    autoMigrations = [AutoMigration(from = 1, to = 2)],
+    version = 3,
+    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3)],
 )
 @TypeConverters(Converters::class)
 abstract class VoltiDatabase : RoomDatabase() {

@@ -2822,7 +2822,7 @@
 #noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.db.Ensemble {
     #noinspection ShrinkerUnresolvedReference
-    <init>(long, java.lang.String, java.lang.String, java.lang.String, java.lang.String, int, kotlin.jvm.internal.DefaultConstructorMarker);
+    <init>(long, java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.lang.Long, java.lang.Long, int, kotlin.jvm.internal.DefaultConstructorMarker);
     #noinspection ShrinkerUnresolvedReference
     java.lang.String getName();
     #noinspection ShrinkerUnresolvedReference
@@ -2837,12 +2837,18 @@
     #noinspection ShrinkerUnresolvedReference
     java.lang.Object get(long, kotlin.coroutines.Continuation);
     #noinspection ShrinkerUnresolvedReference
+    java.lang.Object looked(long, long, kotlin.coroutines.Continuation);
+    #noinspection ShrinkerUnresolvedReference
+    kotlinx.coroutines.flow.Flow newFiles();
+    #noinspection ShrinkerUnresolvedReference
     java.lang.Object remove(nl.imreboersma.volti.db.Ensemble, kotlin.coroutines.Continuation);
 }
 #noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.db.EnsembleFile {
     #noinspection ShrinkerUnresolvedReference
-    <init>(long, java.lang.String, java.lang.String, java.lang.String, java.util.List, java.lang.String, long, java.lang.String, java.lang.String, boolean);
+    <init>(long, java.lang.String, java.lang.String, java.lang.String, java.util.List, java.lang.String, long, java.lang.String, java.lang.String, boolean, java.lang.Long, int, kotlin.jvm.internal.DefaultConstructorMarker);
+    #noinspection ShrinkerUnresolvedReference
+    nl.imreboersma.volti.db.EnsembleFile copy$default(nl.imreboersma.volti.db.EnsembleFile, long, java.lang.String, java.lang.String, java.lang.String, java.util.List, java.lang.String, long, java.lang.String, java.lang.String, boolean, java.lang.Long, int, java.lang.Object);
     #noinspection ShrinkerUnresolvedReference
     java.lang.String getFileId();
     #noinspection ShrinkerUnresolvedReference
@@ -2868,6 +2874,11 @@
     kotlinx.coroutines.flow.Flow shown(long);
     #noinspection ShrinkerUnresolvedReference
     java.lang.Object versionsInUse(kotlin.coroutines.Continuation);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.db.NewFiles {
+    #noinspection ShrinkerUnresolvedReference
+    int getCount();
 }
 #noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.db.VoltiDatabase {
