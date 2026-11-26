@@ -112,6 +112,7 @@ fun AddEnsembleScreen(onAdded: (Long) -> Unit, onBack: () -> Unit, viewModel: En
 @Composable
 fun EnsembleScreen(
     onOpenScore: (uri: String, scoreKey: String) -> Unit,
+    onOpenSetlists: (ensembleId: Long) -> Unit,
     onBack: () -> Unit,
     viewModel: EnsembleViewModel = viewModel(),
 ) {
@@ -178,6 +179,7 @@ fun EnsembleScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+                ensemble?.let { OutlinedButton(onClick = { onOpenSetlists(it.id) }) { Text("Setlists") } }
             }
             SyncLine(
                 // Signed out: still say how old the copy here is.

@@ -2801,6 +2801,11 @@
     <init>(java.lang.String, java.lang.String, boolean, int, kotlin.jvm.internal.DefaultConstructorMarker);
 }
 #noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.SetlistPieces {
+    #noinspection ShrinkerUnresolvedReference
+    <init>(long);
+}
+#noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.Settings
 #noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.annotate.AnnotationDao {
@@ -3039,6 +3044,8 @@
     #noinspection ShrinkerUnresolvedReference
     boolean getMine();
     #noinspection ShrinkerUnresolvedReference
+    java.lang.String getName();
+    #noinspection ShrinkerUnresolvedReference
     java.lang.String getSeenMd5();
 }
 #noinspection ShrinkerUnresolvedReference
@@ -3092,11 +3099,44 @@
     nl.imreboersma.volti.db.EnsembleFileDao files();
     #noinspection ShrinkerUnresolvedReference
     androidx.sqlite.db.SupportSQLiteOpenHelper getOpenHelper();
+    #noinspection ShrinkerUnresolvedReference
+    nl.imreboersma.volti.setlist.SetlistDao setlists();
 }
 #noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.render.IsolatedRendererKt {
     #noinspection ShrinkerUnresolvedReference
     nl.imreboersma.volti.data.ScoreDocument openIsolated(android.content.Context, android.net.Uri);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.setlist.Setlist {
+    #noinspection ShrinkerUnresolvedReference
+    <init>(long, long, java.lang.String, long, int, kotlin.jvm.internal.DefaultConstructorMarker);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.setlist.SetlistDao {
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.Object add(nl.imreboersma.volti.setlist.Setlist, kotlin.coroutines.Continuation);
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.Object addPieces(long, java.util.List, kotlin.coroutines.Continuation);
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.Object fileIds(long, kotlin.coroutines.Continuation);
+    #noinspection ShrinkerUnresolvedReference
+    kotlinx.coroutines.flow.Flow forEnsemble(long);
+    #noinspection ShrinkerUnresolvedReference
+    kotlinx.coroutines.flow.Flow pieces(long);
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.Object removePiece(long, java.lang.String, kotlin.coroutines.Continuation);
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.Object reorder(long, java.util.List, kotlin.coroutines.Continuation);
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.Object setPieces(long, java.util.List, kotlin.coroutines.Continuation);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.setlist.SetlistPiece {
+    #noinspection ShrinkerUnresolvedReference
+    nl.imreboersma.volti.db.EnsembleFile getFile();
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.String getFileId();
 }
 #noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.ui.ReaderState$Failed {

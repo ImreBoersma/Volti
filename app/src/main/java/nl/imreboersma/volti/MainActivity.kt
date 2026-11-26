@@ -27,6 +27,8 @@ import nl.imreboersma.volti.ui.EnsembleScreen
 import nl.imreboersma.volti.annotate.AnnotationControls
 import nl.imreboersma.volti.annotate.AnnotationViewModel
 import nl.imreboersma.volti.annotate.PageAnnotations
+import nl.imreboersma.volti.setlist.SetlistScreen
+import nl.imreboersma.volti.setlist.SetlistsScreen
 import nl.imreboersma.volti.ui.AddEnsembleScreen
 import nl.imreboersma.volti.ui.HomeScreen
 import nl.imreboersma.volti.ui.SettingsScreen
@@ -54,6 +56,14 @@ object Settings
 /** One ensemble's files; [id] is its row in the database. */
 @Serializable
 data class EnsembleFiles(val id: Long)
+
+/** An ensemble's setlists. */
+@Serializable
+data class Setlists(val ensembleId: Long)
+
+/** One setlist's pieces. */
+@Serializable
+data class SetlistPieces(val setlistId: Long)
 
 /**
  * [uri] is the document URI of the score, as a string. [scoreKey] is what its annotations belong to when the opener
@@ -145,7 +155,24 @@ fun VoltiApp(navController: NavHostController = rememberNavController()) {
                         navController.navigate(Reader(uri, scoreKey))
                     }
                 },
+                onOpenSetlists = { id ->
+                    if (entry.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) navController.navigate(Setlists(id))
+                },
                 onBack = dropUnlessResumed { navController.popBackStack() },
+            )
+        }
+        composable<Setlists> { entry ->
+            SetlistsScreen(
+                onOpen = { id ->
+                    if (entry.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) navController.navigate(SetlistPieces(id))
+                },
+                onBack = dropUnlessResumed { navController.popBackStack() },
+            )
+        }
+        composable<SetlistPieces> {
+            SetlistScreen(
+                onBack = dropUnlessResumed { navController.popBackStack() },
+                onDeleted = dropUnlessResumed { navController.popBackStack() },
             )
         }
         composable<Reader> { entry ->

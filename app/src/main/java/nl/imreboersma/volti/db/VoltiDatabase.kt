@@ -23,6 +23,9 @@ import kotlinx.serialization.json.Json
 import nl.imreboersma.volti.annotate.AnnotationDao
 import nl.imreboersma.volti.annotate.AnnotationStroke
 import nl.imreboersma.volti.annotate.AnnotationSymbol
+import nl.imreboersma.volti.setlist.Setlist
+import nl.imreboersma.volti.setlist.SetlistDao
+import nl.imreboersma.volti.setlist.SetlistEntry
 
 /** An orchestra's shared Drive folder, and what I play in it. */
 @Entity(tableName = "ensemble", indices = [Index(value = ["folderId"], unique = true)])
@@ -188,8 +191,8 @@ interface EnsembleFileDao {
 }
 
 @Database(
-    entities = [Ensemble::class, EnsembleFile::class, AnnotationStroke::class, AnnotationSymbol::class],
-    version = 7,
+    entities = [Ensemble::class, EnsembleFile::class, AnnotationStroke::class, AnnotationSymbol::class, Setlist::class, SetlistEntry::class],
+    version = 8,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
@@ -197,6 +200,7 @@ interface EnsembleFileDao {
         AutoMigration(from = 4, to = 5),
         AutoMigration(from = 5, to = 6),
         AutoMigration(from = 6, to = 7),
+        AutoMigration(from = 7, to = 8),
     ],
 )
 @TypeConverters(Converters::class)
@@ -206,6 +210,8 @@ abstract class VoltiDatabase : RoomDatabase() {
     abstract fun files(): EnsembleFileDao
 
     abstract fun annotations(): AnnotationDao
+
+    abstract fun setlists(): SetlistDao
 
     companion object {
         @Volatile

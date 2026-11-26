@@ -368,7 +368,11 @@ Structure, as for annotations: setlists in their own package with their own tabl
 
 ### 1. Making setlists
 
-- [ ] In an ensemble: its setlists, a new one, its pieces picked from my parts (or all files), dragged into order, renamed and removed. A piece removed from Drive stays in the setlist, marked, while it is on the device.
+- [x] In an ensemble: its setlists, a new one, its pieces picked from my parts (or all files), dragged into order, renamed and removed. A piece removed from Drive stays in the setlist, marked, while it is on the device.
+
+Done 2026-11-26. A Setlists button in each ensemble leads to its setlists, newest first; a new one gets a name, then pieces from my parts (or all files), and each piece has a handle to drag it into place (TalkBack: Move up, Move down). Rename and delete (only the setlist; its pieces stay in the ensemble). A piece whose file left the ensemble shows as "No longer in Drive". Each change starts from the pieces as stored, in one transaction, so quick changes can't undo each other, and a reorder can only reorder. In `setlist/`, with its own two tables (database version 8). Not yet: scrolling a long list by dragging to its edge.
+
+Checked on the Fairphone 6: a setlist made, three pieces added and one dragged down two places, then deleted.
 
 ### 2. Playing a setlist
 
