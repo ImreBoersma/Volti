@@ -46,7 +46,12 @@ jobs:
           target: google_apis
           arch: x86_64
           disable-animations: true
-          script: ./gradlew connectedMinifiedAndroidTest
+          # On a failure, also what had the focus and what the screen showed: a system dialog eats key presses.
+          script: >-
+            ./gradlew connectedMinifiedAndroidTest ||
+            { d=app/build/reports/androidTests/connected; mkdir -p $d;
+            adb shell dumpsys window | grep -E 'mCurrentFocus|mFocusedApp' > $d/focus.txt;
+            adb exec-out screencap -p > $d/screen.png; adb logcat -d > $d/logcat.txt; exit 1; }
       - if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
