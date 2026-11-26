@@ -311,10 +311,35 @@ Done when: a score added to a shared folder in Drive shows up on the tablet afte
 
 The reason the IMSLP app is still needed. No import of my existing IMSLP annotations: not worth it.
 
-- [ ] Write with the S Pen, turn with a finger: no annotation mode to switch into. Pen, highlighter, eraser, a few colours. Jetpack's `androidx.ink` is the candidate for low-latency ink.
-- [ ] Stored next to the PDF, never in it: the PDFs are shared and read-only. Kept per Drive file id and page, in coordinates of the whole page, not of the cropped view, so a change in the margin crop doesn't move them.
+### 0. Decisions before building
+
+- [x] Backup: none for now (2026-11-26). Annotations live only on the device: a lost or reset device loses them. Known and accepted; a backup can come later (a file in my own Drive with the `drive.file` scope, or an export).
+- [x] Input (2026-11-26): a pen writes, a finger turns pages, with no mode on the tablet. On a device without a pen (my phone), an Annotate button in the reader makes a finger draw until it is switched off.
+- [x] Tools in the first version (2026-11-26): pen and eraser, and music symbols. Highlighter and text later, if I miss them.
+- [x] Which scores (2026-11-26): ensemble scores and local ones. An ensemble score's annotations belong to its Drive file id; a local score's to its content (md5), so a rename keeps them and an edited PDF starts clean.
+- [x] Ink: Jetpack `androidx.ink` 1.0.0 (stable since December 2025), for low-latency strokes, their geometry (erasing) and their storage format.
+
+Structure, because this could easily spread through the reader (decided 2026-11-26):
+
+- Everything for annotations lives in its own package, `annotate/`, with its own ViewModel and its own tables. `ReaderViewModel` and the rendering don't learn about annotations; the reader only says where the page is on screen.
+- The reader shows one overlay per page: given the score, the page and where that page sits on screen, the overlay does input, drawing and saving itself.
+- Page to screen and back (with the margin crop and half-page turns) is one pure function with unit tests: annotations are stored in coordinates of the whole page, so a crop change or a half turn never moves them.
+- A score's identity for annotations is decided once, when it opens (Drive file id, or local content md5), and passed in; nothing downstream asks where a score came from.
+- The review of each step also looks at this: annotation logic outside `annotate/`, or the reader growing, counts as a finding.
+
+### 1. Pen and eraser
+
+- [ ] Strokes over the page: pen with a few colours, eraser by stroke, undo. A pen draws at once; without a pen, the Annotate button. Stored per score and page, in whole-page coordinates.
+
+### 2. Music symbols
+
+- [ ] Stamps for the marks I write most: breath mark, fermata, glasses (watch the conductor), dynamics, accidentals. Placed with a tap, erased like strokes.
+
+### 3. A changed score
+
 - [ ] A new version of an annotated PDF: show it with my annotations on top and say the score changed, with the previous version still available. I check; Volti doesn't try to move marks to where it thinks they belong. Happens now and then, mostly in smaller ensembles.
-- [ ] Backup: annotations are the one thing a lost or reset tablet can't download again. Decide first: a file in my own Drive (the `drive.file` scope, only files Volti created; this would be Volti's first upload) or an export I keep myself.
+
+Done when: a part annotated with the S Pen on the tablet keeps its marks across a restart, a crop change, half-page turns and a new version from Drive.
 
 ## Milestone 5: setlists
 
