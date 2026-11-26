@@ -1245,6 +1245,51 @@
     java.lang.Object edit(androidx.datastore.core.DataStore, kotlin.jvm.functions.Function2, kotlin.coroutines.Continuation);
 }
 #noinspection ShrinkerUnresolvedReference
+-keep class androidx.ink.brush.Brush$Companion {
+    #noinspection ShrinkerUnresolvedReference
+    androidx.ink.brush.Brush createWithColorIntArgb(androidx.ink.brush.BrushFamily, int, float, float);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.ink.brush.Brush {
+    #noinspection ShrinkerUnresolvedReference
+    androidx.ink.brush.Brush$Companion Companion;
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.ink.brush.BrushFamily
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.ink.brush.InputToolType
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.ink.brush.StockBrushes$PressurePenVersion
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.ink.brush.StockBrushes {
+    #noinspection ShrinkerUnresolvedReference
+    androidx.ink.brush.BrushFamily pressurePen$default(androidx.ink.brush.StockBrushes$PressurePenVersion, int, java.lang.Object);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.ink.strokes.MutableStrokeInputBatch {
+    #noinspection ShrinkerUnresolvedReference
+    <init>();
+    #noinspection ShrinkerUnresolvedReference
+    androidx.ink.strokes.MutableStrokeInputBatch add(androidx.ink.strokes.StrokeInput);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.ink.strokes.Stroke {
+    #noinspection ShrinkerUnresolvedReference
+    <init>(androidx.ink.brush.Brush, androidx.ink.strokes.StrokeInputBatch);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.ink.strokes.StrokeInput$Companion {
+    #noinspection ShrinkerUnresolvedReference
+    androidx.ink.strokes.StrokeInput create$default(androidx.ink.strokes.StrokeInput$Companion, float, float, long, androidx.ink.brush.InputToolType, float, float, float, float, int, java.lang.Object);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.ink.strokes.StrokeInput {
+    #noinspection ShrinkerUnresolvedReference
+    androidx.ink.strokes.StrokeInput$Companion Companion;
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.ink.strokes.StrokeInputBatch
+#noinspection ShrinkerUnresolvedReference
 -keep class androidx.lifecycle.Lifecycle$Event {
     #noinspection ShrinkerUnresolvedReference
     androidx.lifecycle.Lifecycle$Event ON_RESUME;
@@ -2758,9 +2803,15 @@
     #noinspection ShrinkerUnresolvedReference
     java.lang.Object add(java.util.List, kotlin.coroutines.Continuation);
     #noinspection ShrinkerUnresolvedReference
+    java.lang.Object addSymbols(java.util.List, kotlin.coroutines.Continuation);
+    #noinspection ShrinkerUnresolvedReference
     java.lang.Object forScore(java.lang.String, kotlin.coroutines.Continuation);
     #noinspection ShrinkerUnresolvedReference
     java.lang.Object remove(java.util.List, kotlin.coroutines.Continuation);
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.Object removeSymbols(java.util.List, kotlin.coroutines.Continuation);
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.Object symbolsForScore(java.lang.String, kotlin.coroutines.Continuation);
 }
 #noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.annotate.AnnotationStroke {
@@ -2768,6 +2819,61 @@
     <init>(java.lang.String, java.lang.String, int, int, float, byte[]);
     #noinspection ShrinkerUnresolvedReference
     java.lang.String getId();
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.annotate.AnnotationSymbol {
+    #noinspection ShrinkerUnresolvedReference
+    <init>(java.lang.String, java.lang.String, int, java.lang.String, float, float, int);
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.String getId();
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.String getSymbol();
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.annotate.AnnotationViewModel {
+    #noinspection ShrinkerUnresolvedReference
+    <init>(android.app.Application, androidx.lifecycle.SavedStateHandle);
+    #noinspection ShrinkerUnresolvedReference
+    void eraseAt(int, nl.imreboersma.volti.annotate.Point);
+    #noinspection ShrinkerUnresolvedReference
+    void eraseEnd();
+    #noinspection ShrinkerUnresolvedReference
+    void eraseStart();
+    #noinspection ShrinkerUnresolvedReference
+    void finished(int, androidx.ink.strokes.Stroke);
+    #noinspection ShrinkerUnresolvedReference
+    kotlinx.coroutines.flow.StateFlow getReady();
+    #noinspection ShrinkerUnresolvedReference
+    kotlinx.coroutines.flow.StateFlow getStrokes();
+    #noinspection ShrinkerUnresolvedReference
+    kotlinx.coroutines.flow.StateFlow getSymbols();
+    #noinspection ShrinkerUnresolvedReference
+    void place(int, nl.imreboersma.volti.annotate.Point, nl.imreboersma.volti.annotate.Symbol);
+    #noinspection ShrinkerUnresolvedReference
+    void undo();
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.annotate.AnnotationViewModelKt {
+    #noinspection ShrinkerUnresolvedReference
+    java.util.List getPEN_COLORS();
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.annotate.Point {
+    #noinspection ShrinkerUnresolvedReference
+    <init>(float, float);
+    #noinspection ShrinkerUnresolvedReference
+    float getX();
+    #noinspection ShrinkerUnresolvedReference
+    float getY();
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.annotate.Symbol {
+    #noinspection ShrinkerUnresolvedReference
+    nl.imreboersma.volti.annotate.Symbol Breath;
+    #noinspection ShrinkerUnresolvedReference
+    nl.imreboersma.volti.annotate.Symbol Fermata;
+    #noinspection ShrinkerUnresolvedReference
+    nl.imreboersma.volti.annotate.Symbol MF;
 }
 #noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.data.DocumentRow {

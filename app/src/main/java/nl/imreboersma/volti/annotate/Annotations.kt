@@ -27,6 +27,18 @@ data class AnnotationStroke(
     override fun hashCode() = id.hashCode()
 }
 
+/** A music symbol stamped on a page: which one ([Symbol] by name), its centre in page units, and its colour. */
+@Entity(tableName = "annotation_symbol", indices = [Index(value = ["scoreKey"])])
+data class AnnotationSymbol(
+    @PrimaryKey val id: String,
+    val scoreKey: String,
+    val page: Int,
+    val symbol: String,
+    val x: Float,
+    val y: Float,
+    val color: Int,
+)
+
 @Dao
 interface AnnotationDao {
     @Query("SELECT * FROM annotation_stroke WHERE scoreKey = :scoreKey")
@@ -37,6 +49,15 @@ interface AnnotationDao {
 
     @Query("DELETE FROM annotation_stroke WHERE id IN (:ids)")
     suspend fun remove(ids: List<String>)
+
+    @Query("SELECT * FROM annotation_symbol WHERE scoreKey = :scoreKey")
+    suspend fun symbolsForScore(scoreKey: String): List<AnnotationSymbol>
+
+    @Insert
+    suspend fun addSymbols(symbols: List<AnnotationSymbol>)
+
+    @Query("DELETE FROM annotation_symbol WHERE id IN (:ids)")
+    suspend fun removeSymbols(ids: List<String>)
 }
 
 /** Whether a stroke through [points] passes within [radius] of [at]: the eraser touches it. All in page units. */
@@ -44,6 +65,9 @@ fun touches(points: List<Point>, at: Point, radius: Float): Boolean {
     if (points.size == 1) return hypot(points[0].x - at.x, points[0].y - at.y) <= radius
     return points.zipWithNext().any { (a, b) -> distanceToSegment(at, a, b) <= radius }
 }
+
+/** Whether the eraser at [at], [radius] wide, touches a symbol centred on [center]. All in page units. */
+fun touchesSymbol(center: Point, at: Point, radius: Float) = hypot(center.x - at.x, center.y - at.y) <= radius + SYMBOL_SIZE / 2
 
 private fun distanceToSegment(p: Point, a: Point, b: Point): Float {
     val dx = b.x - a.x

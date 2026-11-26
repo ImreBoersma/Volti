@@ -1,6 +1,8 @@
 package nl.imreboersma.volti.annotate
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -18,6 +20,23 @@ class EraserTest {
     fun beyondTheEndsIsMeasuredToTheEnd() {
         assertTrue(touches(line, Point(-8f, 0f), 10f))
         assertFalse(touches(line, Point(-15f, 0f), 10f))
+    }
+
+    @Test
+    fun theEraserTouchesASymbolAnywhereOnIt() {
+        val center = Point(100f, 100f)
+        assertTrue(touchesSymbol(center, Point(100f, 100f), 0f))
+        assertTrue(touchesSymbol(center, Point(100f + SYMBOL_SIZE / 2, 100f), 0f)) // Its edge.
+        assertTrue(touchesSymbol(center, Point(100f + SYMBOL_SIZE / 2 + 9f, 100f), 10f)) // Just beside, with the eraser's width.
+        assertFalse(touchesSymbol(center, Point(100f + SYMBOL_SIZE, 100f), 10f))
+    }
+
+    @Test
+    fun aStoredSymbolIsReadByNameAndAnUnknownOneIsLeftOut() {
+        assertEquals(Symbol.Fermata, Symbol.named("Fermata"))
+        assertNull(Symbol.named("Coda")) // From a later version, say.
+        assertTrue(Symbol.MF.dynamic)
+        assertFalse(Symbol.Sharp.dynamic)
     }
 
     @Test

@@ -38,13 +38,20 @@ private const val PEN_SIZE = 3f
 /** How close the eraser must come to a stroke, in page units. */
 private const val ERASER_RADIUS = 12f
 
-enum class Tool { Pen, Eraser }
+/** What a pen (or, while annotating, a finger) does on the page. */
+sealed interface Tool {
+    data object Pen : Tool
+    data object Eraser : Tool
+
+    /** Each tap places [symbol]. */
+    data class Stamp(val symbol: Symbol) : Tool
+}
 
 /** A stroke on a page: what is stored, the ink stroke drawn from it, and its points for the eraser. */
 class Drawn(val row: AnnotationStroke, val stroke: Stroke, val points: List<Point>)
 
 /**
- * The annotations of the score in the reader: its strokes per page, the pen, and undo. Strokes are kept here and
+ * The annotations of the score in the reader: its strokes and symbols per page, the tools, and undo. Strokes are kept here and
  * written to the database behind them, so a finished stroke shows at once. The score is the reader's route: a Drive
  * file id it was opened with, or else the file's content.
  */
@@ -57,6 +64,11 @@ class AnnotationViewModel(app: Application, handle: SavedStateHandle) : AndroidV
     /** Per page index. */
     val strokes: StateFlow<Map<Int, List<Drawn>>> = _strokes.asStateFlow()
 
+    private val _symbols = MutableStateFlow<Map<Int, List<AnnotationSymbol>>>(emptyMap())
+
+    /** Per page index. */
+    val symbols: StateFlow<Map<Int, List<AnnotationSymbol>>> = _symbols.asStateFlow()
+
     private val _ready = MutableStateFlow(false)
 
     /** The score's identity is known and its stored strokes are loaded: from now on a stroke can be kept. */
@@ -67,26 +79,21 @@ class AnnotationViewModel(app: Application, handle: SavedStateHandle) : AndroidV
     /** The toolbar is out, and a finger draws instead of turning pages. A pen always draws. */
     val annotating: StateFlow<Boolean> = _annotating.asStateFlow()
 
-    private val _tool = MutableStateFlow(Tool.Pen)
+    private val _tool = MutableStateFlow<Tool>(Tool.Pen)
     val tool: StateFlow<Tool> = _tool.asStateFlow()
 
     private val _color = MutableStateFlow(PEN_COLORS.first())
     val color: StateFlow<Int> = _color.asStateFlow()
 
-    /** What undo takes back: strokes added, or strokes erased in one go. */
-    private sealed interface Change {
-        val rows: List<AnnotationStroke>
-
-        class Added(override val rows: List<AnnotationStroke>) : Change
-        class Erased(override val rows: List<AnnotationStroke>) : Change
-    }
+    /** What undo takes back: marks added, or marks erased in one go. */
+    private class Change(val added: Boolean, val strokes: List<AnnotationStroke>, val symbols: List<AnnotationSymbol>)
 
     private val changes = ArrayDeque<Change>()
     private val _canUndo = MutableStateFlow(false)
     val canUndo: StateFlow<Boolean> = _canUndo.asStateFlow()
 
     /** Erased by the eraser now down; one undo brings them all back. */
-    private var erasing: MutableList<AnnotationStroke>? = null
+    private var erasing: Pair<MutableList<AnnotationStroke>, MutableList<AnnotationSymbol>>? = null
 
     init {
         val route = handle.toRoute<Reader>()
@@ -96,6 +103,7 @@ class AnnotationViewModel(app: Application, handle: SavedStateHandle) : AndroidV
             val rows = dao.forScore(key)
             val drawn = withContext(Dispatchers.Default) { rows.mapNotNull(::draw) }
             _strokes.value = drawn.groupBy { it.row.page }
+            _symbols.value = dao.symbolsForScore(key).filter { Symbol.named(it.symbol) != null }.groupBy { it.page }
             _ready.value = true
         }
     }
@@ -130,9 +138,10 @@ class AnnotationViewModel(app: Application, handle: SavedStateHandle) : AndroidV
         _tool.value = Tool.Pen
     }
 
-    fun pick(color: Int) {
+    /** The colour of what comes next: the pen, or the symbol being stamped. From the eraser, back to the pen. */
+    fun pickColor(color: Int) {
         _color.value = color
-        _tool.value = Tool.Pen
+        if (_tool.value == Tool.Eraser) _tool.value = Tool.Pen
     }
 
     fun pick(tool: Tool) {
@@ -148,44 +157,68 @@ class AnnotationViewModel(app: Application, handle: SavedStateHandle) : AndroidV
     fun finished(page: Int, stroke: Stroke) {
         val key = scoreKey ?: return // Not reached: input only starts once the key is known.
         val row = AnnotationStroke(UUID.randomUUID().toString(), key, page, stroke.brush.colorIntArgb, stroke.brush.size, encode(stroke))
-        _strokes.update { it + (page to it[page].orEmpty() + Drawn(row, stroke, points(stroke.inputs))) }
-        record(Change.Added(listOf(row)))
-        viewModelScope.launch { dao.add(listOf(row)) }
+        // The stroke ink handed over, as it is: not decoded again, in the frame that must not flicker.
+        add(listOf(Drawn(row, stroke, points(stroke.inputs))), emptyList())
+        record(Change(added = true, listOf(row), emptyList()))
+    }
+
+    /** [symbol] stamped on [page] at [at], in page units, in the pen's colour. */
+    fun place(page: Int, at: Point, symbol: Symbol) {
+        val key = scoreKey ?: return
+        val row = AnnotationSymbol(UUID.randomUUID().toString(), key, page, symbol.name, at.x, at.y, _color.value)
+        add(emptyList(), listOf(row))
+        record(Change(added = true, emptyList(), listOf(row)))
     }
 
     fun eraseStart() {
-        erasing = mutableListOf()
+        erasing = mutableListOf<AnnotationStroke>() to mutableListOf()
     }
 
-    /** The eraser at [at] on [page], in page units: every stroke it touches goes. */
+    /** The eraser at [at] on [page], in page units: every stroke and symbol it touches goes. */
     fun eraseAt(page: Int, at: Point) {
-        val hits = _strokes.value[page].orEmpty().filter { touches(it.points, at, ERASER_RADIUS) }
-        if (hits.isEmpty()) return
-        _strokes.update { it + (page to it[page].orEmpty() - hits.toSet()) }
-        erasing?.addAll(hits.map { it.row })
-        viewModelScope.launch { dao.remove(hits.map { it.row.id }) }
+        val strokes = _strokes.value[page].orEmpty().filter { touches(it.points, at, ERASER_RADIUS) }.map { it.row }
+        val symbols = _symbols.value[page].orEmpty().filter { touchesSymbol(Point(it.x, it.y), at, ERASER_RADIUS) }
+        if (strokes.isEmpty() && symbols.isEmpty()) return
+        remove(strokes, symbols)
+        erasing?.let { (s, y) ->
+            s += strokes
+            y += symbols
+        }
     }
 
     fun eraseEnd() {
-        erasing?.takeIf { it.isNotEmpty() }?.let { record(Change.Erased(it)) }
+        erasing?.let { (strokes, symbols) ->
+            if (strokes.isNotEmpty() || symbols.isNotEmpty()) record(Change(added = false, strokes, symbols))
+        }
         erasing = null
     }
 
     fun undo() {
         val change = changes.removeLastOrNull() ?: return
         _canUndo.value = changes.isNotEmpty()
-        val rows = change.rows
-        when (change) {
-            is Change.Added -> {
-                val ids = rows.map { it.id }.toSet()
-                _strokes.update { pages -> pages.mapValues { (_, list) -> list.filter { it.row.id !in ids } } }
-                viewModelScope.launch { dao.remove(ids.toList()) }
-            }
-            is Change.Erased -> {
-                val back = rows.mapNotNull(::draw)
-                _strokes.update { pages -> back.groupBy { it.row.page }.entries.fold(pages) { acc, (page, list) -> acc + (page to acc[page].orEmpty() + list) } }
-                viewModelScope.launch { dao.add(rows) }
-            }
+        // Erased strokes come back from their stored form; one that can't be read stays out, also of the database.
+        if (change.added) remove(change.strokes, change.symbols) else add(change.strokes.mapNotNull(::draw), change.symbols)
+    }
+
+    /** Onto the pages at once, into the database behind. */
+    private fun add(drawn: List<Drawn>, symbols: List<AnnotationSymbol>) {
+        val strokes = drawn.map { it.row }
+        _strokes.update { pages -> drawn.groupBy { it.row.page }.entries.fold(pages) { acc, (page, list) -> acc + (page to acc[page].orEmpty() + list) } }
+        _symbols.update { pages -> symbols.groupBy { it.page }.entries.fold(pages) { acc, (page, list) -> acc + (page to acc[page].orEmpty() + list) } }
+        viewModelScope.launch {
+            if (strokes.isNotEmpty()) dao.add(strokes)
+            if (symbols.isNotEmpty()) dao.addSymbols(symbols)
+        }
+    }
+
+    private fun remove(strokes: List<AnnotationStroke>, symbols: List<AnnotationSymbol>) {
+        val strokeIds = strokes.map { it.id }.toSet()
+        val symbolIds = symbols.map { it.id }.toSet()
+        _strokes.update { pages -> pages.mapValues { (_, list) -> list.filter { it.row.id !in strokeIds } } }
+        _symbols.update { pages -> pages.mapValues { (_, list) -> list.filter { it.id !in symbolIds } } }
+        viewModelScope.launch {
+            if (strokeIds.isNotEmpty()) dao.remove(strokeIds.toList())
+            if (symbolIds.isNotEmpty()) dao.removeSymbols(symbolIds.toList())
         }
     }
 

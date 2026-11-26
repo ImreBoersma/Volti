@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.json.Json
 import nl.imreboersma.volti.annotate.AnnotationDao
 import nl.imreboersma.volti.annotate.AnnotationStroke
+import nl.imreboersma.volti.annotate.AnnotationSymbol
 
 /** An orchestra's shared Drive folder, and what I play in it. */
 @Entity(tableName = "ensemble", indices = [Index(value = ["folderId"], unique = true)])
@@ -163,13 +164,14 @@ interface EnsembleFileDao {
 }
 
 @Database(
-    entities = [Ensemble::class, EnsembleFile::class, AnnotationStroke::class],
-    version = 5,
+    entities = [Ensemble::class, EnsembleFile::class, AnnotationStroke::class, AnnotationSymbol::class],
+    version = 6,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
         AutoMigration(from = 3, to = 4),
         AutoMigration(from = 4, to = 5),
+        AutoMigration(from = 5, to = 6),
     ],
 )
 @TypeConverters(Converters::class)

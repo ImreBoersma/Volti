@@ -8,7 +8,16 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Column
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -72,6 +81,7 @@ private fun PageGeometry.pageToScreen() = Matrix().apply { setValues(pageToScree
 @Composable
 fun PageAnnotations(page: PageOverlay, viewModel: AnnotationViewModel) {
     val strokes by viewModel.strokes.collectAsStateWithLifecycle()
+    val symbols by viewModel.symbols.collectAsStateWithLifecycle()
     var box by remember { mutableStateOf(IntSize.Zero) }
     val geometry = remember(page, box) {
         if (box == IntSize.Zero) null
@@ -86,6 +96,11 @@ fun PageAnnotations(page: PageOverlay, viewModel: AnnotationViewModel) {
                 canvas.nativeCanvas.withMatrix(toScreen) {
                     strokes[page.index]?.forEach { renderer.draw(this, it.stroke, toScreen) }
                 }
+            }
+            symbols[page.index]?.forEach { mark ->
+                val symbol = Symbol.named(mark.symbol) ?: return@forEach
+                val at = geometry.toScreen(Point(mark.x, mark.y))
+                drawSymbol(symbol, Offset(at.x, at.y), SYMBOL_SIZE * geometry.scale, Color(mark.color))
             }
         }
         // Input only once the score's identity and its stored strokes are here: a stroke before then would be lost.
@@ -185,9 +200,12 @@ private fun InkInput(pageIndex: Int, geometry: PageGeometry, viewModel: Annotati
                             // The pen's eraser end, its button held, or the eraser picked in the toolbar.
                             erasing = down.type == PointerType.Eraser || event.buttons.isSecondaryPressed ||
                                 viewModel.tool.value == Tool.Eraser
+                            val stamp = viewModel.tool.value as? Tool.Stamp
                             if (erasing) {
                                 viewModel.eraseStart()
                                 viewModel.eraseAt(index, pagePoint(down.position))
+                            } else if (stamp != null) {
+                                viewModel.place(index, pagePoint(down.position), stamp.symbol) // On the touch; the rest of it does nothing.
                             } else {
                                 stroke = ink.startStroke(input(down.position, down.uptimeMillis, down), viewModel.brush(), g.pageToScreen())
                                     .also { startedOn[it] = index }
@@ -251,41 +269,118 @@ fun BoxScope.AnnotationControls(viewModel: AnnotationViewModel) {
     val tool by viewModel.tool.collectAsStateWithLifecycle()
     val color by viewModel.color.collectAsStateWithLifecycle()
     val canUndo by viewModel.canUndo.collectAsStateWithLifecycle()
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier
-            .align(Alignment.TopCenter)
-            .padding(top = 12.dp)
-            .clip(RoundedCornerShape(24.dp))
-            .background(colors.surround)
-            .border(1.5.dp, colors.message, RoundedCornerShape(24.dp))
-            .padding(horizontal = 12.dp, vertical = 4.dp),
-    ) {
-        PEN_COLORS.forEach { pen ->
-            val picked = tool == Tool.Pen && color == pen
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .border(if (picked) 3.dp else 1.dp, colors.message, CircleShape)
-                    .padding(6.dp)
-                    .clip(CircleShape)
-                    .background(Color(pen))
-                    .clickable(role = Role.RadioButton) { viewModel.pick(pen) }
-                    .semantics {
-                        contentDescription = "Pen, ${colorName(pen)}"
-                        selected = picked
-                    },
-            )
+    // At the bottom: the top has the back and annotate buttons, and on phones the camera. Moved to the top (below
+    // those) to reach the last staff.
+    var atTop by rememberSaveable { mutableStateOf(false) }
+    // The palette is out only while choosing: it would cover more music than it needs to.
+    var choosing by rememberSaveable { mutableStateOf(false) }
+    val shape = RoundedCornerShape(24.dp)
+    // A touch in a gap between a panel's buttons must not reach the page: having touch handling at all keeps it from
+    // the page underneath, and taking the release that no button took keeps it from being a page turn. Down and move
+    // are the buttons' own: taking those would cancel their clicks.
+    fun Modifier.panel() = clip(shape)
+        .background(colors.surround)
+        .border(1.5.dp, colors.message, shape)
+        .pointerInput(Unit) {
+            awaitPointerEventScope {
+                while (true) {
+                    awaitPointerEvent().changes.forEach { if (it.previousPressed && !it.pressed && !it.isConsumed) it.consume() }
+                }
+            }
         }
-        FilterChip(
-            selected = tool == Tool.Eraser,
-            onClick = { viewModel.pick(Tool.Eraser) },
-            label = { Text("Eraser") },
-        )
-        TextButton(onClick = viewModel::undo, enabled = canUndo) { Text("Undo", color = colors.message) }
-        TextButton(onClick = viewModel::done) { Text("Done", color = colors.message) }
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier
+            .align(if (atTop) Alignment.TopCenter else Alignment.BottomCenter)
+            .windowInsetsPadding(if (atTop) WindowInsets.statusBars else WindowInsets.navigationBars)
+            .padding(horizontal = 12.dp)
+            .padding(top = if (atTop) 72.dp else 0.dp, bottom = if (atTop) 0.dp else 12.dp),
+    ) {
+        val stamp = tool as? Tool.Stamp
+        if (stamp != null && choosing) {
+            // The symbols on paper, so a black one shows on a dark surround too. One row, scrolling: low.
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier.panel().horizontalScroll(rememberScrollState()).padding(8.dp),
+            ) {
+                Symbol.entries.forEach { symbol ->
+                    val picked = stamp.symbol == symbol
+                    Canvas(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(Color.White)
+                            .border(if (picked) 3.dp else 1.dp, colors.message, CircleShape)
+                            .clickable(role = Role.RadioButton) {
+                                viewModel.pick(Tool.Stamp(symbol))
+                                choosing = false
+                            }
+                            .semantics {
+                                contentDescription = symbol.label
+                                selected = picked
+                            },
+                    ) { drawSymbol(symbol, center, size.minDimension * 0.55f, Color(color)) }
+                }
+            }
+        }
+        // Onto a second line where it doesn't fit, as on a phone.
+        FlowRow(
+            itemVerticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+            modifier = Modifier.panel().padding(horizontal = 12.dp, vertical = 4.dp),
+        ) {
+            PEN_COLORS.forEach { pen ->
+                val picked = color == pen && tool !is Tool.Eraser
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .border(if (picked) 3.dp else 1.dp, colors.message, CircleShape)
+                        .padding(6.dp)
+                        .clip(CircleShape)
+                        .background(Color(pen))
+                        // A colour goes for the symbols too; picked while stamping, it stays with the symbol.
+                        .clickable(role = Role.RadioButton) { viewModel.pickColor(pen) }
+                        .semantics {
+                            contentDescription = "Pen, ${colorName(pen)}"
+                            selected = picked
+                        },
+                )
+            }
+            FilterChip(
+                selected = stamp != null,
+                onClick = {
+                    when {
+                        stamp == null -> {
+                            viewModel.pick(Tool.Stamp(Symbol.Breath))
+                            choosing = true
+                        }
+                        choosing -> {
+                            viewModel.pick(Tool.Pen)
+                            choosing = false
+                        }
+                        else -> choosing = true // Change the symbol.
+                    }
+                },
+                // Once one is picked, it says which.
+                label = { Text(if (stamp == null || choosing) "Symbols" else stamp.symbol.label) },
+            )
+            FilterChip(
+                selected = tool == Tool.Eraser,
+                onClick = {
+                    viewModel.pick(Tool.Eraser)
+                    choosing = false
+                },
+                label = { Text("Eraser") },
+            )
+            TextButton(onClick = viewModel::undo, enabled = canUndo) { Text("Undo", color = colors.message) }
+            TextButton(onClick = { atTop = !atTop }) { Text(if (atTop) "Move down" else "Move up", color = colors.message) }
+            TextButton(onClick = {
+                viewModel.done()
+                choosing = false
+            }) { Text("Done", color = colors.message) }
+        }
     }
 }
 

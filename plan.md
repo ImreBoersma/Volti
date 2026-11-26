@@ -339,7 +339,11 @@ Checked on the Fairphone 6 (release build, finger and simulated pen): a stroke l
 
 ### 2. Music symbols
 
-- [ ] Stamps for the marks I write most: breath mark, fermata, glasses (watch the conductor), dynamics, accidentals. Placed with a tap, erased like strokes.
+- [x] Stamps for the marks I write most: breath mark, fermata, glasses (watch the conductor), dynamics, accidentals. Placed with a tap, erased like strokes.
+
+Done 2026-11-26. Symbols in the toolbar opens a palette in one scrolling row (breath mark, fermata, glasses, pp to ff, sharp, flat, natural); it closes once one is picked, and the chip then says which and reopens it. Each tap places the symbol, in the pen's colour, stored in page units like strokes; the eraser and undo take symbols and strokes alike, one undo per erase. Volti draws the symbols itself: shapes for breath, fermata and glasses, bold italic serif for the dynamics, the system's accidentals (flat and natural drawn larger to match the sharp). The toolbar is at the bottom, away from the camera and the top buttons, and "Move up" puts it at the top to reach the last staff. A touch in a gap between toolbar buttons reaches neither the page nor a page turn.
+
+Checked on the Fairphone 6: a fermata placed where tapped, survived a reinstall, erased; the toolbar wraps to two lines and moves up and down.
 
 ### 3. A changed score
 

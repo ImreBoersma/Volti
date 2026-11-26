@@ -10,7 +10,18 @@ import android.view.MotionEvent
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.printToString
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -126,6 +137,31 @@ class AnnotationInputTest {
 
     private fun shown() = compose.onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsProperties.StateDescription))
         .fetchSemanticsNodes().joinToString { it.config[SemanticsProperties.StateDescription] }
+
+    private fun symbols(): Int =
+        db.openHelper.readableDatabase.query("SELECT COUNT(*) FROM annotation_symbol WHERE scoreKey = ?", arrayOf(scoreKey))
+            .use { it.moveToFirst(); it.getInt(0) }
+
+    @Test
+    fun aTapBetweenToolbarButtonsPlacesNothing() {
+        // The toolbar out, a symbol picked: then a tap that just misses a button.
+        while (compose.onAllNodesWithText("Done").fetchSemanticsNodes().isEmpty()) {
+            compose.onNodeWithContentDescription("Annotate").performClick()
+            compose.waitForIdle()
+        }
+        compose.onNodeWithText("Symbols").performClick()
+        compose.waitForIdle()
+        if (compose.onAllNodesWithContentDescription("Fermata").fetchSemanticsNodes().isEmpty()) {
+            throw AssertionError(compose.onRoot().printToString())
+        }
+        compose.onNodeWithContentDescription("Fermata").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText("Eraser").performTouchInput { click(Offset(-4.dp.toPx(), centerY)) } // In the gap before it.
+        compose.waitForIdle()
+        Thread.sleep(300)
+        assertEquals(0, symbols())
+        assertEquals("Page 1 of 2", shown())
+    }
 
     @Test
     fun thePenAlone() {
