@@ -122,6 +122,8 @@ fun EnsembleScreen(
     val since by viewModel.since.collectAsStateWithLifecycle()
     val showAll by viewModel.showAll.collectAsStateWithLifecycle()
     val suggestions by viewModel.suggestions.collectAsStateWithLifecycle()
+    val fetching by viewModel.fetching.collectAsStateWithLifecycle()
+    val message by viewModel.message.collectAsStateWithLifecycle()
     // The suggestions as they were when I tapped Review: a sync may change the list meanwhile, and only what I saw is
     // decided. A suggestion that arrives during the review waits for the next one.
     var reviewing by rememberSaveable { mutableStateOf<List<String>?>(null) }
@@ -198,6 +200,7 @@ fun EnsembleScreen(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                 )
             }
+            message?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(bottom = 8.dp)) }
             val anyMine = files.orEmpty().any { it.mine }
             if (anyMine && query.isBlank()) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 8.dp)) {
@@ -238,7 +241,7 @@ fun EnsembleScreen(
             val open = { file: EnsembleFile -> viewModel.open(file, onOpenScore) }
             val isNew = { file: EnsembleFile -> file.addedAt != null && file.addedAt > since }
             val rowFor = @Composable { file: EnsembleFile, folders: String? ->
-                FileRow(file, isNew(file), folders, onOpen = open, onMine = { viewModel.setMine(file, it) })
+                FileRow(file, isNew(file), folders, fetching = file.fileId == fetching, onOpen = open, onMine = { viewModel.setMine(file, it) })
             }
             // Pulled: sync now, also if it just did.
             PullToRefreshBox(
@@ -332,15 +335,25 @@ private fun FoundList(files: List<EnsembleFile>, file: @Composable (EnsembleFile
     }
 }
 
-/** A PDF: openable once it is on the tablet, with what changed about it, and whether it is mine. */
+/**
+ * A PDF, with what changed about it and whether it is mine. One that isn't on the device yet is downloaded when I
+ * open it.
+ */
 @Composable
-private fun FileRow(file: EnsembleFile, new: Boolean, folders: String?, onOpen: (EnsembleFile) -> Unit, onMine: (Boolean) -> Unit) {
+private fun FileRow(
+    file: EnsembleFile,
+    new: Boolean,
+    folders: String?,
+    fetching: Boolean,
+    onOpen: (EnsembleFile) -> Unit,
+    onMine: (Boolean) -> Unit,
+) {
     val downloaded = file.localMd5 != null
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(enabled = downloaded) { onOpen(file) }
+            .clickable { onOpen(file) }
             .padding(vertical = if (folders == null) 16.dp else 12.dp),
     ) {
         Column(modifier = Modifier.weight(1f)) {
@@ -352,7 +365,8 @@ private fun FileRow(file: EnsembleFile, new: Boolean, folders: String?, onOpen: 
             folders?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
         }
         when {
-            !downloaded -> Text("Not downloaded yet", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            fetching -> Text("Downloading…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            !downloaded -> Text("Not on this ${deviceName()}", color = MaterialTheme.colorScheme.onSurfaceVariant)
             file.removed -> Text("Removed in Drive", color = MaterialTheme.colorScheme.onSurfaceVariant)
             file.changed -> Text("Changed", color = MaterialTheme.colorScheme.secondary)
             new -> Text("New", color = MaterialTheme.colorScheme.secondary)

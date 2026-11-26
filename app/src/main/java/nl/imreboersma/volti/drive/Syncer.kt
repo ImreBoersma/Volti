@@ -22,6 +22,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import nl.imreboersma.volti.db.Ensemble
+import nl.imreboersma.volti.db.EnsembleFile
 import nl.imreboersma.volti.db.VoltiDatabase
 import java.io.File
 import java.io.IOException
@@ -45,8 +46,8 @@ const val RESYNC_AFTER_MS = 60_000L
  * app), so nothing syncs while reading or in the background. A screen only stops its own sync: in a crossfade the
  * next screen starts before the last one stops.
  *
- * A sync lists the folder, updates the rows (see [reconcile]), downloads what is new or changed, and deletes versions
- * nothing needs any more.
+ * A sync lists the folder, updates the rows (see [reconcile]), downloads my parts and new versions of what I have
+ * opened, and deletes what nothing needs any more. Any other file is downloaded when I open it ([fetch]).
  */
 class Syncer private constructor(context: Context) {
     private val app = context.applicationContext
@@ -121,6 +122,70 @@ class Syncer private constructor(context: Context) {
         scope.launch { db.ensembles().looked(id, time) }
     }
 
+    /**
+     * Gets one file onto the device, so it can be opened ([open]: and records it as opened, in the same go, so no
+     * sync deletes it in between) or because I marked it mine. To open, a version that is here already will do: a
+     * newer one comes with the sync, and offline the one here still opens. Waits for at most the one download a sync
+     * is doing. Returns a message when it couldn't; null when the file is here.
+     */
+    suspend fun fetch(ensembleId: Long, fileId: String, open: Boolean): String? = try {
+        // Here already and only to open: no need for Google at all, so it works offline.
+        val here = storeLock.withLock {
+            val file = db.files().all(ensembleId).firstOrNull { it.fileId == fileId }
+            file?.localMd5?.also { if (open) db.files().opened(ensembleId, fileId, it) }
+        }
+        if (here != null && open) null else fetchWithAccess(ensembleId, fileId, open, retry = true)
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: DriveException) {
+        Log.w("Volti", "Fetching a file failed: ${e.status}")
+        if (e.status == 403 || e.status == 404) "This file isn't in Google Drive any more." else "Google Drive answered with an error (${e.status})."
+    } catch (e: IOException) {
+        Log.w("Volti", "Fetching a file failed: ${e.message}")
+        "This file isn't here yet, and there's no connection to download it."
+    } catch (e: Exception) {
+        // Play services' own errors (offline with an expired token, among others): a message, not a crash.
+        Log.w("Volti", "Fetching a file failed", e)
+        "Couldn't reach Google Drive."
+    }
+
+    /** Marked mine: download it now, not at the next sync. Here, so leaving the screen doesn't stop it. */
+    fun fetchMine(ensembleId: Long, fileId: String) {
+        scope.launch { fetch(ensembleId, fileId, open = false) }
+    }
+
+    private suspend fun fetchWithAccess(ensembleId: Long, fileId: String, open: Boolean, retry: Boolean): String? =
+        when (val access = auth.authorize()) {
+            is DriveAccess.NeedsConsent -> {
+                _consent.value = access.intent
+                "Sign in to Google Drive first."
+            }
+            is DriveAccess.Granted -> try {
+                storeLock.withLock {
+                    val file = db.files().all(ensembleId).firstOrNull { it.fileId == fileId } ?: return@withLock "This file is gone."
+                    if (file.localMd5 == null) download(DriveApi(access.token), file)
+                    if (open) db.files().opened(ensembleId, fileId, file.localMd5 ?: file.md5)
+                    null
+                }
+            } catch (e: DriveException) {
+                if (e.status != 401 || !retry) throw e
+                auth.forget(access.token)
+                fetchWithAccess(ensembleId, fileId, open, retry = false)
+            }
+        }
+
+    /** Downloads [file]'s version in Drive into the store, unless it is there already. Under [storeLock]. */
+    private suspend fun download(api: DriveApi, file: EnsembleFile) {
+        if (!withContext(Dispatchers.IO) { store.has(file.md5) }) {
+            // Stops within a buffer when the sync is stopped: a blocking read doesn't notice by itself.
+            val context = currentCoroutineContext()
+            api.download(DriveFolderLink(file.fileId, file.resourceKey)) {
+                store.store(file.md5, file.size, it) { context.ensureActive() }
+            }
+        }
+        db.files().downloaded(file.ensembleId, file.fileId, file.md5)
+    }
+
     /** Deletes the ensemble, and the PDFs only it needed. */
     suspend fun remove(ensemble: Ensemble) {
         job?.cancel()
@@ -169,39 +234,40 @@ class Syncer private constructor(context: Context) {
             set(id, SyncState.Listing)
             if (api.folderInfo(folder).mimeType != FOLDER_TYPE) return SyncState.Failed("The link is to a file, not a folder.")
             val listing = walkDriveFolder(folder) { f, page -> api.listPage(f, page) }
-            storeLock.withLock {
-                val files = db.files()
+            val files = db.files()
+            val todo = storeLock.withLock {
                 // The first listing finds what is there; only later ones bring new files. By the rows, not by
                 // lastSynced: a first sync stopped during its downloads has listed already.
                 val now = System.currentTimeMillis()
                 files.replace(id) { old ->
                     reconcile(id, old, listing.pdfs, complete = !listing.stopped, addedAt = now.takeIf { old.isNotEmpty() })
                 }
-                val todo = files.all(id).filter { !it.removed && it.localMd5 != it.md5 }
-                var failed = 0
-                todo.forEachIndexed { i, file ->
-                    set(id, SyncState.Downloading(i, todo.size))
-                    try {
-                        if (!withContext(Dispatchers.IO) { store.has(file.md5) }) {
-                            // Stops within a buffer when the sync is stopped: a blocking read doesn't notice by itself.
-                            val context = currentCoroutineContext()
-                            api.download(DriveFolderLink(file.fileId, file.resourceKey)) {
-                                store.store(file.md5, file.size, it) { context.ensureActive() }
-                            }
-                        }
-                        files.downloaded(id, file.fileId, file.md5)
-                    } catch (e: DriveException) {
-                        if (e.status == 401) throw e // Start over with a new token.
-                        failed++
-                    } catch (e: IOException) {
-                        Log.w("Volti", "A download failed: ${e.message}") // Not the name: it may be private.
-                        failed++
-                    }
-                }
-                cleanUp()
-                db.ensembles().synced(id, System.currentTimeMillis())
-                SyncState.Done(listing.stopped, failed)
+                val all = files.all(id)
+                // Only what I play, and what I have opened, stays on the device; the rest comes when I open it. Until
+                // I have marked parts in an ensemble, nothing that is here goes: it may be all I have offline.
+                if (all.any { it.mine }) files.forgetUnused(id)
+                files.all(id).filter { !it.removed && it.localMd5 != it.md5 && (it.mine || it.seenMd5 != null) }
             }
+            var failed = 0
+            todo.forEachIndexed { i, file ->
+                set(id, SyncState.Downloading(i, todo.size))
+                try {
+                    // One file at a time under the lock, so opening a file waits for one download, not all.
+                    storeLock.withLock {
+                        val now = files.all(id).firstOrNull { it.fileId == file.fileId }
+                        if (now != null && now.md5 == file.md5 && now.localMd5 != now.md5) download(api, now)
+                    }
+                } catch (e: DriveException) {
+                    if (e.status == 401) throw e // Start over with a new token.
+                    failed++
+                } catch (e: IOException) {
+                    Log.w("Volti", "A download failed: ${e.message}") // Not the name: it may be private.
+                    failed++
+                }
+            }
+            storeLock.withLock { cleanUp() }
+            db.ensembles().synced(id, System.currentTimeMillis())
+            SyncState.Done(listing.stopped, failed)
         } catch (e: DriveException) {
             when (e.status) {
                 401 -> throw e

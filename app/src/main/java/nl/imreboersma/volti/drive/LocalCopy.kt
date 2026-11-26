@@ -106,7 +106,7 @@ class PdfStore(private val dir: File, private val freeBytes: () -> Long) {
     /** Downloads into a temporary file and moves it into place only once it passed [copyChecked]. */
     fun store(md5: String, size: Long, input: InputStream, check: () -> Unit = {}) {
         dir.mkdirs()
-        if (freeBytes() < size + KEEP_FREE_BYTES) throw DownloadRejected("Not enough space on the tablet")
+        if (freeBytes() < size + KEEP_FREE_BYTES) throw DownloadRejected("Not enough space on this device")
         val temp = File(dir, "download-${UUID.randomUUID()}.tmp")
         copyChecked(input, temp, md5, check = check)
         if (!temp.renameTo(fileFor(md5))) {

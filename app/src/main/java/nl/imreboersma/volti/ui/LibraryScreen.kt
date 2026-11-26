@@ -150,7 +150,7 @@ private fun LibraryContent(
                 AppBackButton({ if (active) onBack() }, backLabel)
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = (state as? LibraryState.Ready)?.name ?: "On this tablet",
+                        text = (state as? LibraryState.Ready)?.name ?: "On this ${deviceName()}",
                         style = MaterialTheme.typography.headlineLarge,
                     )
                     if (state is LibraryState.Ready && state.path.isNotEmpty()) {

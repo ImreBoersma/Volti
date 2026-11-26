@@ -190,7 +190,7 @@ fun HomeScreen(
                     Text("Add an ensemble")
                 }
             }
-            item { Heading("On this tablet") }
+            item { Heading("On this ${deviceName()}") }
             item {
                 Column(
                     modifier = Modifier
@@ -201,9 +201,9 @@ fun HomeScreen(
                     when (val folder = local) {
                         is LocalFolder.Chosen -> {
                             Text(folder.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-                            Text("A folder on the tablet", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("A folder on this ${deviceName()}", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        LocalFolder.None, null -> Text("Choose a folder on the tablet", style = MaterialTheme.typography.bodyLarge)
+                        LocalFolder.None, null -> Text("Choose a folder on this ${deviceName()}", style = MaterialTheme.typography.bodyLarge)
                     }
                 }
                 HorizontalDivider()

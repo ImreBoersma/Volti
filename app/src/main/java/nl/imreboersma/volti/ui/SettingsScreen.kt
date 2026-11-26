@@ -188,7 +188,7 @@ private fun EnsembleSettings(ensemble: Ensemble, onSave: (Ensemble, String, Stri
         AlertDialog(
             onDismissRequest = { confirming = false },
             title = { Text("Remove ${ensemble.name}?") },
-            text = { Text("Its PDFs and which of them are mine are deleted from the tablet. The folder in Google Drive stays as it is.") },
+            text = { Text("Its PDFs and which of them are mine are deleted from this ${deviceName()}. The folder in Google Drive stays as it is.") },
             confirmButton = {
                 TextButton(onClick = {
                     confirming = false

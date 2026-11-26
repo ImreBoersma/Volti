@@ -99,6 +99,21 @@ class EnsembleFileDaoTest {
     }
 
     @Test
+    fun onlyMyPartsAndWhatIOpenedStayOnTheDevice() = runBlocking {
+        val id = ensemble()
+        files.save(
+            listOf(
+                file(id, "mine", local = v1).copy(mine = true),
+                file(id, "opened", local = v1, seen = v1),
+                file(id, "other", local = v1),
+            ),
+        )
+        files.forgetUnused(id)
+        val local = files.all(id).associate { it.fileId to it.localMd5 }
+        assertEquals(mapOf("mine" to v1, "opened" to v1, "other" to null), local)
+    }
+
+    @Test
     fun ensemblesSurviveTheMigrations() {
         val name = "migration-test"
         migrations.createDatabase(name, 1).use {

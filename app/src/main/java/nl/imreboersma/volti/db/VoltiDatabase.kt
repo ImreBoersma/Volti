@@ -143,6 +143,10 @@ interface EnsembleFileDao {
     @Query("UPDATE ensemble_file SET localMd5 = :md5 WHERE ensembleId = :ensembleId AND fileId = :fileId AND md5 = :md5")
     suspend fun downloaded(ensembleId: Long, fileId: String, md5: String)
 
+    /** Neither mine nor opened: not kept on the device. It is downloaded again when I open it. */
+    @Query("UPDATE ensemble_file SET localMd5 = NULL WHERE ensembleId = :ensembleId AND mine = 0 AND seenMd5 IS NULL")
+    suspend fun forgetUnused(ensembleId: Long)
+
     /** Every version some row still needs on the tablet. */
     @Query("SELECT localMd5 FROM ensemble_file WHERE localMd5 IS NOT NULL UNION SELECT seenMd5 FROM ensemble_file WHERE seenMd5 IS NOT NULL")
     suspend fun versionsInUse(): List<String>

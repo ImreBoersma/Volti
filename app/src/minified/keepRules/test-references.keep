@@ -1630,6 +1630,10 @@
     java.lang.Object component1();
     #noinspection ShrinkerUnresolvedReference
     java.lang.Object component2();
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.Object getFirst();
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.Object getSecond();
 }
 #noinspection ShrinkerUnresolvedReference
 -keep class kotlin.Result$Companion
@@ -1767,6 +1771,8 @@
     int mapCapacity(int);
     #noinspection ShrinkerUnresolvedReference
     java.util.Map mapOf(kotlin.Pair);
+    #noinspection ShrinkerUnresolvedReference
+    java.util.Map mapOf(kotlin.Pair[]);
     #noinspection ShrinkerUnresolvedReference
     java.util.Map mutableMapOf(kotlin.Pair[]);
 }
@@ -2872,6 +2878,8 @@
     java.lang.Object all(long, kotlin.coroutines.Continuation);
     #noinspection ShrinkerUnresolvedReference
     java.lang.Object downloaded(long, java.lang.String, java.lang.String, kotlin.coroutines.Continuation);
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.Object forgetUnused(long, kotlin.coroutines.Continuation);
     #noinspection ShrinkerUnresolvedReference
     java.lang.Object opened(long, java.lang.String, java.lang.String, kotlin.coroutines.Continuation);
     #noinspection ShrinkerUnresolvedReference

@@ -149,8 +149,12 @@ class EnsembleViewModel(app: Application, private val handle: SavedStateHandle) 
         handle[ALL] = all
     }
 
+    /** Marked mine: downloaded now. Unmarked and never opened: gone from the device at the next sync. */
     fun setMine(file: EnsembleFile, mine: Boolean) {
-        viewModelScope.launch { db.files().setMine(id, listOf(file.fileId), mine) }
+        viewModelScope.launch {
+            db.files().setMine(id, listOf(file.fileId), mine)
+            if (mine) syncer.fetchMine(id, file.fileId)
+        }
     }
 
     /** The suggestions I went through: [chosen] are mine, the rest are not, and none is suggested again. */
@@ -159,6 +163,7 @@ class EnsembleViewModel(app: Application, private val handle: SavedStateHandle) 
             val (yes, no) = reviewed.map { it.fileId }.partition { it in chosen }
             if (yes.isNotEmpty()) db.files().setMine(id, yes, true)
             if (no.isNotEmpty()) db.files().setMine(id, no, false)
+            yes.forEach { syncer.fetchMine(id, it) }
         }
     }
 
@@ -174,15 +179,37 @@ class EnsembleViewModel(app: Application, private val handle: SavedStateHandle) 
         handle[QUERY] = query
     }
 
+    private val _fetching = MutableStateFlow<String?>(null)
+
+    /** The file being downloaded to open it. */
+    val fetching: StateFlow<String?> = _fetching.asStateFlow()
+
+    private val _message = MutableStateFlow<String?>(null)
+
+    /** Why the last file I tapped didn't open. */
+    val message: StateFlow<String?> = _message.asStateFlow()
+
     /**
-     * Opens the newest version on the tablet, once it is recorded as the one I saw: from then on it is kept, also
-     * while a later sync brings a newer one. The sync has stopped by then: none runs while the reader is open.
+     * Opens the newest version on the device, once it is recorded as the one I saw: from then on it is kept, also
+     * while a later sync brings a newer one. One that isn't here is downloaded first. The sync has stopped by the
+     * time the reader shows: none runs while reading.
      */
     fun open(file: EnsembleFile, onOpen: (String) -> Unit) {
-        val md5 = file.localMd5 ?: return
+        if (_fetching.value != null) return // One at a time; a second tap waits.
+        _message.value = null
         viewModelScope.launch {
-            db.files().opened(id, file.fileId, md5)
-            onOpen(Uri.fromFile(syncer.fileFor(md5)).toString())
+            // Through the store's lock also when it is here, so a sync can't delete it between the tap and the reader.
+            if (file.localMd5 == null) _fetching.value = file.fileId
+            val problem = try {
+                syncer.fetch(id, file.fileId, open = true)
+            } finally {
+                _fetching.value = null
+            }
+            val here = db.files().all(id).firstOrNull { it.fileId == file.fileId }?.seenMd5
+            when {
+                problem != null -> _message.value = problem
+                here != null -> onOpen(Uri.fromFile(syncer.fileFor(here)).toString())
+            }
         }
     }
 
