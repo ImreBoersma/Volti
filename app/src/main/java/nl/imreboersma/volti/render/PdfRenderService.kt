@@ -41,7 +41,7 @@ class PdfRenderService : Service() {
     private fun <T> guarded(block: () -> T): T = synchronized(this) {
         val result = try {
             watchdog.guard(block)
-        } catch (e: PasswordProtectedException) {
+        } catch (_: PasswordProtectedException) {
             // Binder only carries a few exception types back to the app: SecurityException means a password.
             throw SecurityException("Password-protected PDF")
         } catch (e: Exception) {
@@ -81,7 +81,8 @@ class PdfRenderService : Service() {
             bottom: Float,
             pixels: SharedMemory,
         ): IntArray =
-            try {
+            // Closes this process's copy of the descriptor, whatever happens.
+            pixels.use {
                 guarded {
                     val area = checkArea(floatArrayOf(left, top, right, bottom))
                     val bitmap = document(doc).renderPage(index, PixelSize(maxWidth, maxHeight), area = area)
@@ -93,8 +94,6 @@ class PdfRenderService : Service() {
                     }
                     intArrayOf(bitmap.width, bitmap.height).also { bitmap.recycle() }
                 }
-            } finally {
-                pixels.close() // This process's copy of the descriptor, whatever happened.
             }
 
         override fun close(doc: Int) = guarded { documents.remove(doc)?.close(); Unit }

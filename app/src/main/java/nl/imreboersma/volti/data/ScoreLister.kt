@@ -130,7 +130,7 @@ fun walkFolder(
         val (id, parents) = queue.removeFirst()
         val entries = try {
             listFolder(resolver, tree, id)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             null
         } ?: continue
         for (entry in entries) {

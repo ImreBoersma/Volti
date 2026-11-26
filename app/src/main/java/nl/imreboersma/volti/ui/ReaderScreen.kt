@@ -27,6 +27,7 @@ import androidx.compose.ui.Alignment
 import android.graphics.Bitmap
 import androidx.compose.ui.Modifier
 import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.seconds
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -91,7 +92,7 @@ fun ReaderScreen(
 }
 
 /**
- * Back to the library, for when the back gesture is awkward on a stand. It shows for [SHOWN_MS] when the score
+ * Back to the library, for when the back gesture is awkward on a stand. It shows for [SHOWN] when the score
  * opens and then gets out of the way: on a cropped score the clef and key signature sit right in that corner. A tap
  * in the corner brings it back. Either way the corner takes its own taps, so it doesn't turn the page back.
  */
@@ -101,7 +102,7 @@ private fun BackButton(onBack: () -> Unit, modifier: Modifier = Modifier) {
     var shown by remember { mutableStateOf(true) }
     LaunchedEffect(shown) {
         if (shown) {
-            delay(SHOWN_MS)
+            delay(SHOWN)
             shown = false
         }
     }
@@ -137,7 +138,7 @@ private fun BackButton(onBack: () -> Unit, modifier: Modifier = Modifier) {
 }
 
 /** How long the back button shows after opening a score, or after a tap in its corner. */
-private const val SHOWN_MS = 3_000L
+private val SHOWN = 3.seconds
 
 /**
  * The page on screen. In a half turn, the top half already shows the next page's top half, over this page,

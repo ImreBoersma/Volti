@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.milliseconds
 import nl.imreboersma.volti.Reader
 import nl.imreboersma.volti.data.PageArea
 import nl.imreboersma.volti.data.PasswordProtectedException
@@ -190,7 +191,7 @@ class ReaderViewModel @JvmOverloads constructor(
      */
     private fun watchFirstPage() {
         viewModelScope.launch {
-            delay(openTimeoutMs)
+            delay(openTimeoutMs.milliseconds)
             if (_state.compareAndSet(ReaderState.Loading, ReaderState.Failed(ReaderState.Problem.TooSlow))) {
                 Log.w("Volti", "Gave up on $uri after $openTimeoutMs ms")
             }
@@ -251,7 +252,7 @@ class ReaderViewModel @JvmOverloads constructor(
     }
 
     /**
-     * Shows [current], from the window if it is there, then fills the window around it.
+     * Shows [current], from the window if it is there, then fills the surrounding window.
      * Stops before each neighbour if a newer size has arrived.
      */
     private suspend fun showCurrent(doc: ScoreDocument, since: Long) {
@@ -273,7 +274,7 @@ class ReaderViewModel @JvmOverloads constructor(
         onScreen.filter { old -> page.bitmaps.none { it === old } }.forEach { leftScreen.addLast(it to now) }
         onScreen = page.bitmaps
         // Not over a Failed: the time limit may have given up on this file while the render ran.
-        _state.update { if (it is ReaderState.Failed) it else page }
+        _state.update { it as? ReaderState.Failed ?: page }
     }
 
     /**

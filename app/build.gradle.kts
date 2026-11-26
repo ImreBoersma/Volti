@@ -1,3 +1,7 @@
+// The Compose BOM is declared again for androidTest, a separate classpath that needs it for its own versions, and the
+// test manifest once per build type the tests can run against.
+@file:Suppress("AvoidDuplicateDependencies")
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -13,7 +17,7 @@ android {
     defaultConfig {
         applicationId = "nl.imreboersma.volti"
         minSdk = 34
-        targetSdk = 35
+        targetSdk = 37
         versionCode = 1
         versionName = "1.0"
 

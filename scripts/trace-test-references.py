@@ -27,6 +27,12 @@ def java_type(descriptor):
     return name + "[]" * dims
 
 
+def member_name(name):
+    # Kotlin mangles value-class members with a dash (constructor-impl, getZero-F1C5BW0). R8 accepts it, Studio's rules
+    # editor doesn't, so the dash is written as `?`: any one character, which matches the same member.
+    return name.replace("-", "?")
+
+
 def parameters(signature):
     return [java_type(t) for t in re.findall(r"\[*(?:L[^;]+;|[VZBSCIJFD])", signature)]
 
@@ -61,9 +67,9 @@ def main(dexdump, apk, out):
             if sig.startswith("("):  # A method.
                 args, ret = sig[1:].split(")")
                 name = "<init>" if member == "<init>" else member
-                members.append(f"    {'' if name == '<init>' else java_type(ret) + ' '}{name}({', '.join(parameters(args))});")
+                members.append(f"    {'' if name == '<init>' else java_type(ret) + ' '}{member_name(name)}({', '.join(parameters(args))});")
             else:
-                members.append(f"    {java_type(sig)} {member};")
+                members.append(f"    {java_type(sig)} {member_name(member)};")
         lines.append(f"-keep class {java_type(cls)}" + (" {\n" + "\n".join(members) + "\n}" if members else ""))
     Path(out).write_text("\n".join(lines) + "\n")
     print(f"{len(lines) - 1} classes kept in {out}")

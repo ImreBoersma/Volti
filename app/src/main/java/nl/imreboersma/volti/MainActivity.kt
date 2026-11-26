@@ -52,7 +52,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun VoltiApp(navController: NavHostController = rememberNavController()) {
     // Stage mode follows the current destination, not the reader screen's own lifetime: the outgoing
-    // screen lives on through the 700 ms crossfade, and its cleanup would switch off the next reader.
+    // screen lives on through the 700 ms crossfade, and its clean-up would switch off the next reader.
     val entry by navController.currentBackStackEntryAsState()
     if (entry?.destination?.hasRoute<Reader>() == true) {
         // The same ViewModel instance ReaderScreen uses: scoped to this back stack entry.

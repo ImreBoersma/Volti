@@ -40,7 +40,7 @@ class FolderStore(
         val resolver = appContext.contentResolver
         try {
             resolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        } catch (e: SecurityException) {
+        } catch (_: SecurityException) {
             return@withContext
         }
         store.edit { it[FOLDER_URI] = uri.toString() }
