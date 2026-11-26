@@ -384,12 +384,28 @@ Done 2026-11-26. Play in a setlist opens the first piece that can be opened. Pas
 
 Checked on the Fairphone 6: a two-piece setlist played forward into the second piece, back into the first at its last page, and back once more to "Start of the setlist". Not yet on the tablet.
 
+## Milestone 6: display names
+
+### 0. Decisions before building
+
+- [x] One text field (2026-11-26): a name I type in my own convention (`composer - title - tuning instrument part`), not separate fields. The convention is mine alone; nothing reads its parts.
+- [x] Pre-filled with the cleaned file name (2026-11-26): `Farandole-Hoorn_in_F.pdf` becomes `Farandole - Hoorn in F`; I add the composer. No PDF metadata: orchestras' files carry little there, and it is more parsing of untrusted input.
+- [x] Where (2026-11-26): renamed from the ensemble's file list and from a setlist's pieces. The name belongs to the file, so it shows everywhere the file does.
+- [x] Only ensemble files (2026-11-26): the name hangs off the Drive file id, as everything Volti adds does. A local file's name is its file name, which I can change myself.
+
+The Drive name stays as it is: Volti never writes to the folder. Search finds a file by either name.
+
+### 1. My names for my files
+
+- [ ] Rename a file in an ensemble or a setlist, pre-filled with the cleaned Drive name; clearing the name goes back to the Drive name. Shown in the ensemble, its search, setlists, the reader's setlist line and skip messages. Kept through syncs, a new version in Drive and a rename in Drive.
+
+Done when: on the tablet, a part renamed in its ensemble shows under that name in a setlist and while playing it, also after a sync.
+
 ## Later milestones (not planned yet)
 
 - Learn my parts from my corrections. Every suggestion I accept or turn down, and every file I mark by hand, is stored per file already; a later version can learn from those which names mean my part (a new abbreviation, an orchestra's own naming) instead of relying on the fixed word list.
 
-- Display names: my own name per file (my convention is `composer - title - tuning instrument part`), pre-filled from the file name, kept per Drive file id. The Drive name stays as it is.
-- Search across ensembles.
+- Search across ensembles, and a list of all my files, local and from every ensemble, in one place.
 - Remember the page per score, also across process death. (Was milestone 2, step 2; not wanted now.)
 - Page-turner pedal: Bluetooth page turners send key presses. (Was milestone 2, step 3; not wanted now.)
 - Play order and jump markers, stored alongside the PDF.
