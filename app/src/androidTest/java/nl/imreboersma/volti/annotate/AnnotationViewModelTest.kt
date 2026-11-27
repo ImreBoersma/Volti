@@ -12,6 +12,8 @@ import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.cancel
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.withContext
 import nl.imreboersma.volti.db.VoltiDatabase
 import nl.imreboersma.volti.db.fileKey
@@ -109,6 +111,30 @@ class AnnotationViewModelTest {
         vm.ready.first { it }
         repeat(50) { if (vm.change.value != null) return vm; kotlinx.coroutines.delay(20) }
         return vm
+    }
+
+    @Test
+    fun aMarkMadeRightBeforeLeavingTheReaderIsKept() = runBlocking {
+        val fileId = "file" + UUID.randomUUID().toString().take(8)
+        val vm = openDrive(fileId)
+        main { vm.place(0, Point(100f, 100f), Symbol.entries.first()) }
+        main { vm.viewModelScope.cancel() } // Leaving the reader at once: its scope goes.
+        MarkWrites.flush()
+        val kept = db.annotations().symbolsForScore(fileKey(fileId))
+        assertEquals(1, kept.size)
+        db.annotations().removeScore(fileKey(fileId))
+    }
+
+    @Test
+    fun aMarkAndItsUndoLandInOrder() = runBlocking {
+        val fileId = "file" + UUID.randomUUID().toString().take(8)
+        val vm = openDrive(fileId)
+        main {
+            vm.place(0, Point(100f, 100f), Symbol.entries.first())
+            vm.undo() // At once: the removal must not overtake the write.
+        }
+        MarkWrites.flush()
+        assertTrue(db.annotations().symbolsForScore(fileKey(fileId)).isEmpty())
     }
 
     @Test

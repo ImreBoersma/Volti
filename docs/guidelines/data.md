@@ -44,7 +44,7 @@ All three are in internal storage and excluded from backup and device transfer (
 
 **What belongs together is written together.** A sync's result replaces an ensemble's rows in one transaction (`EnsembleFileDao.replace`), deleting a file removes everything that points to it in one (`deleteImported`). A half-written state is never visible, also not after the process is killed halfway.
 
-**Saved when made** ([quality.md](quality.md), Lifecycle): a stroke goes to Room when the pen lifts, not when the reader closes.
+**Saved when made** ([quality.md](quality.md), Lifecycle): a stroke goes to Room when the pen lifts, not when the reader closes. Marks are written through `MarkWrites`: one at a time, in the order they were made (a mark and its undo never land the wrong way round), in a scope that outlives the reader, so leaving it right after the pen lifts doesn't cancel the write.
 
 **No disk on the main thread.** Room and DataStore are called from `suspend` functions or `Flow`s; file work runs on `Dispatchers.IO`.
 
@@ -62,4 +62,3 @@ All three are in internal storage and excluded from backup and device transfer (
 
 - The delete dialogue for an ensemble (`SettingsScreen.kt`) doesn't say my marks are kept.
 - There are no ink fixtures or a decode test yet.
-- A stroke is written to Room in `viewModelScope` (`AnnotationViewModel.add`). Leaving the reader right after the pen lifts cancels that scope and may cancel the write: the stroke is gone the next time. Writes of marks belong in a scope that outlives the screen.

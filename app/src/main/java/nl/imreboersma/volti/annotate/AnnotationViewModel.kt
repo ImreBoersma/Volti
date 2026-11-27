@@ -247,12 +247,12 @@ class AnnotationViewModel(app: Application, handle: SavedStateHandle) : AndroidV
         if (change.added) remove(change.strokes, change.symbols) else add(change.strokes.mapNotNull(::draw), change.symbols)
     }
 
-    /** Onto the pages at once, into the database behind. */
+    /** Onto the pages at once, into the database behind (in order, also when I leave the reader at once). */
     private fun add(drawn: List<Drawn>, symbols: List<AnnotationSymbol>) {
         val strokes = drawn.map { it.row }
         _strokes.update { pages -> drawn.groupBy { it.row.page }.entries.fold(pages) { acc, (page, list) -> acc + (page to acc[page].orEmpty() + list) } }
         _symbols.update { pages -> symbols.groupBy { it.page }.entries.fold(pages) { acc, (page, list) -> acc + (page to acc[page].orEmpty() + list) } }
-        viewModelScope.launch {
+        MarkWrites.write {
             if (strokes.isNotEmpty()) dao.add(strokes)
             if (symbols.isNotEmpty()) dao.addSymbols(symbols)
         }
@@ -263,7 +263,7 @@ class AnnotationViewModel(app: Application, handle: SavedStateHandle) : AndroidV
         val symbolIds = symbols.map { it.id }.toSet()
         _strokes.update { pages -> pages.mapValues { (_, list) -> list.filter { it.row.id !in strokeIds } } }
         _symbols.update { pages -> pages.mapValues { (_, list) -> list.filter { it.id !in symbolIds } } }
-        viewModelScope.launch {
+        MarkWrites.write {
             if (strokeIds.isNotEmpty()) dao.remove(strokeIds.toList())
             if (symbolIds.isNotEmpty()) dao.removeSymbols(symbolIds.toList())
         }

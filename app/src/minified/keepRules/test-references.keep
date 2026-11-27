@@ -1331,6 +1331,11 @@
 #noinspection ShrinkerUnresolvedReference
 -keep class androidx.lifecycle.ViewModel
 #noinspection ShrinkerUnresolvedReference
+-keep class androidx.lifecycle.ViewModelKt {
+    #noinspection ShrinkerUnresolvedReference
+    kotlinx.coroutines.CoroutineScope getViewModelScope(androidx.lifecycle.ViewModel);
+}
+#noinspection ShrinkerUnresolvedReference
 -keep class androidx.lifecycle.ViewModelProvider$Companion {
     #noinspection ShrinkerUnresolvedReference
     androidx.lifecycle.ViewModelProvider create$default(androidx.lifecycle.ViewModelProvider$Companion, androidx.lifecycle.ViewModelStore, androidx.lifecycle.ViewModelProvider$Factory, androidx.lifecycle.viewmodel.CreationExtras, int, java.lang.Object);
@@ -2866,6 +2871,8 @@
     #noinspection ShrinkerUnresolvedReference
     java.lang.Object remove(java.util.List, kotlin.coroutines.Continuation);
     #noinspection ShrinkerUnresolvedReference
+    java.lang.Object removeScore(java.lang.String, kotlin.coroutines.Continuation);
+    #noinspection ShrinkerUnresolvedReference
     java.lang.Object removeSymbols(java.util.List, kotlin.coroutines.Continuation);
     #noinspection ShrinkerUnresolvedReference
     java.lang.Object symbolsForScore(java.lang.String, kotlin.coroutines.Continuation);
@@ -2919,6 +2926,13 @@
     java.util.List getPEN_COLORS();
 }
 #noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.annotate.MarkWrites {
+    #noinspection ShrinkerUnresolvedReference
+    nl.imreboersma.volti.annotate.MarkWrites INSTANCE;
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.Object flush(kotlin.coroutines.Continuation);
+}
+#noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.annotate.Point {
     #noinspection ShrinkerUnresolvedReference
     <init>(float, float);
@@ -2942,6 +2956,8 @@
     nl.imreboersma.volti.annotate.Symbol Fermata;
     #noinspection ShrinkerUnresolvedReference
     nl.imreboersma.volti.annotate.Symbol MF;
+    #noinspection ShrinkerUnresolvedReference
+    kotlin.enums.EnumEntries getEntries();
 }
 #noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.data.DocumentRow {
