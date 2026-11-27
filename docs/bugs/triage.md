@@ -41,3 +41,12 @@ Severity: **data loss** (something I made is gone), **wrong** (the app does or s
 - **What happens:** nothing yet. A bump of `androidx.ink` that can't decode strokes stored by the previous version would lose every mark, and no test would catch it before the tablet does.
 - **Fix direction:** store strokes encoded by the current `ink` version as fixtures, and a test that decodes them. Run it before merging any `ink` bump (Renovate included).
 - **Found in:** [data.md](../guidelines/data.md)
+
+## 5. Text says "I" and "my" where it should say "you"
+
+- **Severity:** wrong
+- **Status:** confirmed by reading the code
+- **Where:** `EnsemblesScreen.kt` (`My parts`, `Mine`, `What I play, e.g. Bb clarinet 2`, "looks like my part", "my marks" twice, "Are these my parts?"), `SettingsScreen.kt` (`What I play`), `SetlistScreens.kt` (`My parts`)
+- **What happens:** the interface talks as the musician in some places and to them elsewhere ("this tablet", "Give the ensemble a name."). Google's guide, and now [android.md](../guidelines/android.md), asks for "you" throughout.
+- **Fix direction:** `Your parts`, `Yours`, `What you play`, "your marks", "Are these your parts?".
+- **Found in:** [android.md](../guidelines/android.md)

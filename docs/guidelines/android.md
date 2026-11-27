@@ -64,7 +64,7 @@ Check new screens with TalkBack and the Accessibility Scanner on the tablet.
 
 ## Settings
 
-**Only what isn't decided better elsewhere.** No theme or font size setting: the app follows the system's dark theme and font scale. Frequent choices live next to what they affect (the annotation pens in the reader, "My parts" in the ensemble), not in Settings.
+**Only what isn't decided better elsewhere.** No theme or font size setting: the app follows the system's dark theme and font scale. Frequent choices live next to what they affect (the annotation pens in the reader, "Your parts" in the ensemble), not in Settings.
 
 **Switch for on/off**, radio buttons in a dialogue or subscreen for one-of-several, never a radio button for a yes/no.
 
@@ -72,7 +72,7 @@ Check new screens with TalkBack and the Accessibility Scanner on the tablet.
 
 **Defaults are the ones most musicians want and the cheapest on battery.** The screen is called `Settings`, never `Options` or `Preferences`.
 
-Google's guide says labels use "you", not "I". Volti deliberately writes from the musician's side where it is about *their* music: `My parts`, `Mine`, `What I play`. Keep that for ownership; use neutral labels for everything else.
+**Text speaks to the musician as "you"**, as Google's guide asks: `Your parts`, `What you play`. Never "I", "me" or "my" in the interface, and don't mix the two on one screen.
 
 ## Colour and motion
 
@@ -82,6 +82,7 @@ Google's guide says labels use "you", not "I". Volti deliberately writes from th
 
 ## Not yet following this
 
+- Text in the first person, from before the "you" rule: `My parts` (`EnsemblesScreen.kt`, `SetlistScreens.kt`), `Mine`, `What I play` (`EnsemblesScreen.kt`, `SettingsScreen.kt`), "looks like my part", "my marks" and "Are these my parts?" (`EnsemblesScreen.kt`).
 - Zooming in to annotate is only by gesture (two fingers). It is a help for the pen, which TalkBack users don't write with; a button would still be the rule.
 
 Verified on the emulator only; check pedal, TalkBack and the edge stroke on the tablet.
