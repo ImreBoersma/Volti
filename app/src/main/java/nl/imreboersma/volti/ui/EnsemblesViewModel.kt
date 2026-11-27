@@ -196,8 +196,8 @@ class EnsembleViewModel(app: Application, private val handle: SavedStateHandle) 
 
     private val _fetching = MutableStateFlow<Set<String>>(emptySet())
 
-    /** The files being downloaded to open them. */
-    val fetching: StateFlow<Set<String>> = _fetching.asStateFlow()
+    /** The files downloading right now, whatever for: the sync, to open one, or because I marked it mine. */
+    val downloading: StateFlow<Set<String>> = syncer.downloading
 
     private val _message = MutableStateFlow<String?>(null)
 

@@ -144,6 +144,7 @@ fun SetlistScreen(
     val setlist by viewModel.setlist.collectAsStateWithLifecycle()
     val pieces by viewModel.pieces.collectAsStateWithLifecycle()
     val candidates by viewModel.candidates.collectAsStateWithLifecycle()
+    val downloading by viewModel.downloading.collectAsStateWithLifecycle()
     val problem by viewModel.problem.collectAsStateWithLifecycle()
     var adding by rememberSaveable { mutableStateOf(false) }
     var renaming by rememberSaveable { mutableStateOf(false) }
@@ -187,6 +188,7 @@ fun SetlistScreen(
                     key(piece.fileId) {
                         val dragged = dragging == piece.fileId
                         PieceRow(
+                            downloading = piece.fileId in downloading,
                             number = index + 1,
                             piece = piece,
                             onRemove = { viewModel.remove(piece.fileId) },
@@ -281,6 +283,7 @@ fun SetlistScreen(
 
 @Composable
 private fun PieceRow(
+    downloading: Boolean,
     number: Int,
     piece: SetlistPiece,
     index: Int,
@@ -312,7 +315,7 @@ private fun PieceRow(
             val note = when {
                 file == null -> null
                 file.removed -> "Removed from Google Drive"
-                file.localMd5 == null -> "Not on this $device"
+                file.localMd5 == null -> if (downloading) "Downloading…" else "Not on this $device"
                 else -> file.folders.takeIf { it.isNotEmpty() }?.joinToString(" / ")
             }
             note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }

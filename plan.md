@@ -504,9 +504,13 @@ The instrumented tests pass on the tablet. Not yet: the "Done when" with a big D
 
 ### 2. Downloading shows on the sheets
 
-- [ ] The spinner only while checking Drive. A sheet downloading now has a moving download icon, the ones still to come in this sync a quiet one; the ensemble's status line counts them.
+- [x] The spinner only while checking Drive. A sheet downloading now has a moving download icon, the ones still to come in this sync a quiet one; the ensemble's status line counts them.
 
 Done when: on the tablet, a first sync of a big folder shows its sheets coming in one by one, and the library is usable from the moment Drive was checked.
+
+Done 2026-11-27. A sync now asks Drive about every ensemble first and downloads after, so "checking" is one short stretch with the spinner (on the home screen and in the ensemble), and each ensemble then says what is to come ("12 to download", then "Downloading 3 of 12…"). A sheet downloading now, for whatever reason (the sync, opened, marked mine), turns with "Downloading…", also in setlists; one still to come shows a quiet arrow ("Waiting to download"). A pull, or going between the library and an ensemble, while a sync of those ensembles runs leaves it running: starting again would throw away the file halfway. A sync stopped (the reader opened, consent asked) leaves no sheet turning.
+
+The instrumented suite passes on the tablet. Not yet: the "Done when" with a big Drive folder.
 
 ## Later milestones (not planned yet)
 

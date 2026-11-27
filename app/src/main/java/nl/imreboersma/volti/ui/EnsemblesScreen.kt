@@ -22,6 +22,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
+import androidx.compose.ui.graphics.vector.path
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Icon
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
@@ -133,7 +139,7 @@ fun EnsembleScreen(
     val since by viewModel.since.collectAsStateWithLifecycle()
     val showAll by viewModel.showAll.collectAsStateWithLifecycle()
     val suggestions by viewModel.suggestions.collectAsStateWithLifecycle()
-    val fetching by viewModel.fetching.collectAsStateWithLifecycle()
+    val downloading by viewModel.downloading.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
     val pending by viewModel.pending.collectAsStateWithLifecycle()
     val importing by viewModel.importing.collectAsStateWithLifecycle()
@@ -327,13 +333,14 @@ fun EnsembleScreen(
             val isNew = { file: EnsembleFile -> file.addedAt != null && file.addedAt > since }
             val rowFor = @Composable { file: EnsembleFile, folders: String? ->
                 FileRow(
-                    file, isNew(file), folders, fetching = file.fileId in fetching, onOpen = open,
+                    file, isNew(file), folders, download = downloadOf(file.fileId, sync, downloading), onOpen = open,
                     onMine = { viewModel.setMine(file, it) }, onRename = { renaming = file.fileId }, onDelete = { deleting = file },
                 )
             }
             // Pulled: sync now, also if it just did.
             PullToRefreshBox(
-                isRefreshing = sync is SyncState.Listing || sync is SyncState.Downloading,
+                // Only while Google Drive is asked what changed: the downloads after that show on the sheets.
+                isRefreshing = sync is SyncState.Listing,
                 onRefresh = { viewModel.sync(force = true) },
                 modifier = Modifier.fillMaxSize(),
             ) {
@@ -434,7 +441,7 @@ private fun FileRow(
     file: EnsembleFile,
     new: Boolean,
     folders: String?,
-    fetching: Boolean,
+    download: Download?,
     onOpen: (EnsembleFile) -> Unit,
     onMine: (Boolean) -> Unit,
     onRename: () -> Unit,
@@ -457,7 +464,13 @@ private fun FileRow(
             folders?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
         }
         when {
-            fetching -> Text("Downloading…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            download == Download.Now -> Row(verticalAlignment = Alignment.CenterVertically) {
+                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                Text("Downloading…", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 8.dp))
+            }
+            // Quiet: it comes later in this sync. Only for one not here yet: one that is opens already.
+            !downloaded && download == Download.Waiting ->
+                Icon(DownloadArrow, contentDescription = "Waiting to download", tint = MaterialTheme.colorScheme.onSurfaceVariant)
             !downloaded -> Text("Not on this ${deviceName()}", color = MaterialTheme.colorScheme.onSurfaceVariant)
             file.removed -> Text("Removed from Google Drive", color = MaterialTheme.colorScheme.onSurfaceVariant)
             file.changed -> Text("Changed", color = MaterialTheme.colorScheme.secondary)
@@ -550,3 +563,32 @@ private fun ReviewSuggestions(suggestions: List<EnsembleFile>, onDone: (Set<Stri
         dismissButton = { TextButton(onClick = onCancel) { Text("Not now") } },
     )
 }
+
+/** A sheet's place in what is being downloaded. */
+enum class Download { Now, Waiting }
+
+/** [fileId]'s download: now (whatever for: [downloading] holds them all), waiting its turn in the sync, or none. */
+fun downloadOf(fileId: String, sync: SyncState, downloading: Set<String>): Download? = when {
+    fileId in downloading -> Download.Now
+    sync is SyncState.Downloading && fileId in sync.waiting -> Download.Waiting
+    else -> null
+}
+
+/** Material's "download" arrow: no icon library for it, as for the back arrow. */
+private val DownloadArrow: ImageVector = ImageVector.Builder("Download", 20.dp, 20.dp, 24f, 24f)
+    .path(fill = SolidColor(Color.Black)) {
+        moveTo(19f, 9f)
+        horizontalLineToRelative(-4f)
+        verticalLineTo(3f)
+        horizontalLineTo(9f)
+        verticalLineToRelative(6f)
+        horizontalLineTo(5f)
+        lineToRelative(7f, 7f)
+        close()
+        moveTo(5f, 18f)
+        verticalLineToRelative(2f)
+        horizontalLineToRelative(14f)
+        verticalLineToRelative(-2f)
+        close()
+    }
+    .build()

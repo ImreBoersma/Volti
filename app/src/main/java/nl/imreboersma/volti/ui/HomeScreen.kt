@@ -219,7 +219,8 @@ fun HomeScreen(
     // Syncs every ensemble while the library shows, and only then.
     LifecycleEventEffect(Lifecycle.Event.ON_START) { viewModel.syncAll() }
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.left() }
-    val syncing = syncStates.values.any { it is SyncState.Listing || it is SyncState.Downloading }
+    // Only while Google Drive is asked what changed: the downloads after that show on the ensembles, not here.
+    val syncing = syncStates.values.any { it is SyncState.Listing }
 
     Scaffold(modifier = Modifier.fillMaxSize()) { padding ->
         PullToRefreshBox(

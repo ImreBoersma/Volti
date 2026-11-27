@@ -23,7 +23,8 @@ fun ago(time: Long, now: Long): String {
  */
 fun syncText(state: SyncState, lastSynced: Long?, now: Long): String = when (state) {
     SyncState.Listing -> "Checking Google Drive…"
-    is SyncState.Downloading -> "Downloading ${count(state.done + 1)} of ${count(state.total)}…"
+    // Checked, waiting for the other ensembles' checks before its downloads start.
+    is SyncState.Downloading -> if (state.now == null) "${count(state.total)} to download" else "Downloading ${count(state.done + 1)} of ${count(state.total)}…"
     is SyncState.Done -> buildString {
         append("Up to date")
         if (state.failed == 1) append(". 1 PDF couldn't be downloaded; it is tried again next time")

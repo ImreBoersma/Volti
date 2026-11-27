@@ -26,7 +26,7 @@ class SyncStatusTest {
     fun whatTheSyncLineSays() {
         assertEquals("Not synced yet", syncText(SyncState.Idle, null, now))
         assertEquals("Synced 5 min ago", syncText(SyncState.Idle, before(5), now))
-        assertEquals("Downloading 3 of 10…", syncText(SyncState.Downloading(2, 10), null, now))
+        assertEquals("Downloading 3 of 10…", syncText(SyncState.Downloading(2, 10, now = "x"), null, now))
         assertEquals("Up to date", syncText(SyncState.Done(stopped = false, failed = 0), now, now))
         assertEquals(
             "Up to date. 1 PDF couldn't be downloaded; it is tried again next time",

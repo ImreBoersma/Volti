@@ -41,7 +41,8 @@ import java.util.UUID
 sealed interface SyncState {
     data object Idle : SyncState
     data object Listing : SyncState
-    data class Downloading(val done: Int, val total: Int) : SyncState
+    /** File [done] of [total]: [now] is downloading, [waiting] are still to come in this sync. */
+    data class Downloading(val done: Int, val total: Int, val now: String? = null, val waiting: Set<String> = emptySet()) : SyncState
 
     /** [stopped]: the folder was too big to list completely. [failed]: downloads that will be tried next time. */
     data class Done(val stopped: Boolean, val failed: Int) : SyncState
@@ -139,27 +140,61 @@ class Syncer private constructor(context: Context) {
      * synced.
      */
     fun sync(ids: List<Long>, owner: Any, force: Boolean = false) {
+        // Already syncing these (a second pull, or the library handing over to an ensemble's screen): carry on.
+        // Starting again would throw away the file halfway through its download.
+        if (job?.isActive == true && asked.containsAll(ids)) {
+            this.owner = owner
+            return
+        }
         job?.cancel()
+        settle()
         asked = ids
         this.owner = owner
         job = scope.launch {
+            // First ask Drive about every ensemble, then download: the checking is one short stretch, and from then on
+            // every ensemble shows what it will download.
+            val listed = mutableListOf<Pair<Ensemble, Listed>>()
             for (id in ids) {
                 val ensemble = db.ensembles().get(id) ?: continue
                 if (ensemble.folderId == null) continue // Only imports: nothing in Drive.
                 val last = ensemble.lastSynced
                 if (!force && last != null && System.currentTimeMillis() - last < RESYNC_AFTER_MS) continue
-                val state = guarded { syncWithAccess(ensemble) } ?: break // Waiting for consent: the rest waits too.
-                set(id, state)
+                set(id, SyncState.Listing)
+                when (val result = withAccess { token -> list(ensemble, token) }) {
+                    null -> return@launch signedOut(id) // Waiting for consent: the rest waits too.
+                    is Outcome.Failed -> set(id, result.state)
+                    is Outcome.Ok -> {
+                        listed += ensemble to result.value
+                        set(id, planned(result.value))
+                    }
+                }
+            }
+            for ((ensemble, plan) in listed) {
+                when (val result = withAccess { token -> downloadAll(ensemble, plan, token) }) {
+                    null -> return@launch signedOut(ensemble.id)
+                    is Outcome.Failed -> set(ensemble.id, result.state)
+                    is Outcome.Ok -> set(ensemble.id, result.value)
+                }
             }
         }
     }
+
+    /** Asking for consent stopped the sync: that ensemble says so, the others have nothing going on any more. */
+    private fun signedOut(id: Long) {
+        settle()
+        set(id, SyncState.Failed(DriveProblem.SignedOut))
+    }
+
+    /** Nothing is listed or downloaded any more: no ensemble, and no sheet, says it is. */
+    private fun settle() =
+        _states.update { states -> states.mapValues { (_, s) -> if (s is SyncState.Listing || s is SyncState.Downloading) SyncState.Idle else s } }
 
     /** [owner] went away. Its sync stops; a half-done download is cleaned up next time. */
     fun stop(owner: Any) {
         if (owner !== this.owner) return
         this.owner = null
         job?.cancel()
-        _states.update { states -> states.mapValues { (_, s) -> if (s is SyncState.Listing || s is SyncState.Downloading) SyncState.Idle else s } }
+        settle()
     }
 
     /** Back from Google's consent screen: carry on with what was asked. */
@@ -326,6 +361,11 @@ class Syncer private constructor(context: Context) {
             showImport(ensembleId, null)
         } }
 
+    private val _downloading = MutableStateFlow<Set<String>>(emptySet())
+
+    /** The files downloading right now, by file id: for the sync, to open one, or because I marked it mine. */
+    val downloading: StateFlow<Set<String>> = _downloading.asStateFlow()
+
     private val _importing = MutableStateFlow<Map<Long, ImportProgress>>(emptyMap())
 
     /**
@@ -395,6 +435,7 @@ class Syncer private constructor(context: Context) {
     /** Downloads [file]'s version in Drive into the store, unless it is there already. Under [storeLock]. */
     private suspend fun download(api: DriveApi, file: EnsembleFile, alsoUnderLock: suspend () -> Unit = {}) {
         var copy: File? = null
+        _downloading.update { it + file.fileId }
         try {
             while (true) {
                 // Here already (checked under the lock, so no clean-up comes between), or just copied: into the store
@@ -418,6 +459,7 @@ class Syncer private constructor(context: Context) {
                 }
             }
         } finally {
+            _downloading.update { it - file.fileId }
             // Stopped (the reader opened, the screen went) between the transfer and the store: no full copy left behind.
             copy?.let { withContext(NonCancellable + Dispatchers.IO) { it.delete() } }
         }
@@ -434,86 +476,113 @@ class Syncer private constructor(context: Context) {
 
     private fun set(id: Long, state: SyncState) = _states.update { it + (id to state) }
 
-    /** Null while waiting for consent. Anything unexpected ends as a message, not a crash. */
-    private suspend fun guarded(block: suspend () -> SyncState?): SyncState? = try {
-        block()
-    } catch (e: CancellationException) {
-        throw e
-    } catch (e: Exception) {
-        Log.w("Volti", "Can't sync an ensemble", e)
-        SyncState.Failed(DriveProblem.Unreachable)
+    private suspend fun cleanUp() = withContext(Dispatchers.IO) { store.keepOnly(db.files().versionsInUse().toSet()) }
+
+    /** A step of a sync: its result, or the state that says why it couldn't. */
+    private sealed interface Outcome<out T> {
+        class Ok<T>(val value: T) : Outcome<T>
+        class Failed(val state: SyncState.Failed) : Outcome<Nothing>
     }
 
-    private suspend fun syncWithAccess(ensemble: Ensemble, retry: Boolean = true): SyncState? =
+    /**
+     * Runs [step] with a Drive token: null while Google wants consent first. A token that ran out (401) is dropped and
+     * the step runs once more with a fresh one; any other failure ends as a [SyncState.Failed], never a crash.
+     */
+    private suspend fun <T> withAccess(retry: Boolean = true, step: suspend (token: String) -> T): Outcome<T>? = try {
         when (val access = auth.authorize()) {
             is DriveAccess.NeedsConsent -> {
                 _consent.value = access.intent
                 null
             }
             is DriveAccess.Granted -> try {
-                syncOne(ensemble, access.token)
+                Outcome.Ok(step(access.token))
             } catch (e: DriveException) {
                 if (e.status != 401 || !retry) throw e
-                // The token ran out: drop it and ask Play services for a fresh one, once.
                 auth.forget(access.token)
-                syncWithAccess(ensemble, retry = false)
+                withAccess(retry = false, step)
             }
         }
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: NotAFolder) {
+        Outcome.Failed(SyncState.Failed(DriveProblem.NotAFolder))
+    } catch (e: DriveException) {
+        Outcome.Failed(SyncState.Failed(if (e.status == 403 || e.status == 404) DriveProblem.NotShared else DriveProblem.DriveError(e.status)))
+    } catch (e: IOException) {
+        Log.w("Volti", "Can't sync an ensemble", e) // Not the folder id: for a link-shared folder, that is the link.
+        Outcome.Failed(SyncState.Failed(DriveProblem.Unreachable))
+    } catch (e: Exception) {
+        // Play services' own errors (offline with an expired token, among others).
+        Log.w("Volti", "Can't sync an ensemble", e)
+        Outcome.Failed(SyncState.Failed(DriveProblem.Unreachable))
+    }
 
-    private suspend fun cleanUp() = withContext(Dispatchers.IO) { store.keepOnly(db.files().versionsInUse().toSet()) }
+    private class NotAFolder : IOException("The link is to a file")
 
-    /** Throws [DriveException] 401 when the token ran out; every other failure is a [SyncState.Failed]. */
-    private suspend fun syncOne(ensemble: Ensemble, token: String): SyncState {
+    /** What a listing found to download, and whether it stopped at the limit. */
+    private class Listed(val todo: List<EnsembleFile>, val stopped: Boolean)
+
+    /** Before its downloads start: what is to come, or done already. */
+    private fun planned(listed: Listed): SyncState =
+        if (listed.todo.isEmpty()) SyncState.Done(listed.stopped, 0)
+        else SyncState.Downloading(0, listed.todo.size, now = null, waiting = listed.todo.mapTo(HashSet()) { it.fileId })
+
+    /** Lists the ensemble's folder and updates its rows (see [reconcile]); what is to be downloaded. */
+    private suspend fun list(ensemble: Ensemble, token: String): Listed {
         val id = ensemble.id
-        val folder = DriveFolderLink(ensemble.folderId ?: return SyncState.Idle, ensemble.resourceKey)
+        val folder = DriveFolderLink(ensemble.folderId ?: return Listed(emptyList(), false), ensemble.resourceKey)
         val api = DriveApi(token)
-        return try {
-            set(id, SyncState.Listing)
-            if (api.folderInfo(folder).mimeType != FOLDER_TYPE) return SyncState.Failed(DriveProblem.NotAFolder)
-            val listing = walkDriveFolder(folder) { f, page -> api.listPage(f, page) }
-            val files = db.files()
-            val todo = storeLock.withLock {
-                // The first listing finds what is there; only later ones bring new files. By the rows, not by
-                // lastSynced: a first sync stopped during its downloads has listed already.
-                val now = System.currentTimeMillis()
-                files.replace(id) { old ->
-                    // Imports don't count: the first listing of Drive's files still finds nothing new.
-                    reconcile(id, old, listing.pdfs, complete = !listing.stopped, addedAt = now.takeIf { old.any { !it.imported } })
-                }
-                val all = files.all(id)
-                // Only what I play, and what I have opened, stays on the device; the rest comes when I open it. Until
-                // I have marked parts in an ensemble, nothing that is here goes: it may be all I have offline.
-                if (all.any { it.mine && !it.imported }) files.forgetUnused(id)
-                files.all(id).filter { !it.removed && it.localMd5 != it.md5 && (it.mine || it.seenMd5 != null) }
+        if (api.folderInfo(folder).mimeType != FOLDER_TYPE) throw NotAFolder()
+        val listing = walkDriveFolder(folder) { f, page -> api.listPage(f, page) }
+        val files = db.files()
+        val todo = storeLock.withLock {
+            // The first listing finds what is there; only later ones bring new files. By the rows, not by
+            // lastSynced: a first sync stopped during its downloads has listed already.
+            val now = System.currentTimeMillis()
+            files.replace(id) { old ->
+                // Imports don't count: the first listing of Drive's files still finds nothing new.
+                reconcile(id, old, listing.pdfs, complete = !listing.stopped, addedAt = now.takeIf { old.any { !it.imported } })
             }
-            var failed = 0
-            todo.forEachIndexed { i, file ->
-                set(id, SyncState.Downloading(i, todo.size))
-                try {
-                    // The transfer without the lock: opening another file meanwhile doesn't wait for it.
-                    val now = files.all(id).firstOrNull { it.fileId == file.fileId }
-                    if (now != null && now.md5 == file.md5 && now.localMd5 != now.md5) download(api, now)
-                } catch (e: DriveException) {
-                    if (e.status == 401) throw e // Start over with a new token.
-                    failed++
-                } catch (e: IOException) {
-                    Log.w("Volti", "Can't download a file", e) // Not the name: it may be private.
-                    failed++
-                }
-            }
-            storeLock.withLock { cleanUp() }
-            db.ensembles().synced(id, System.currentTimeMillis())
-            SyncState.Done(listing.stopped, failed)
-        } catch (e: DriveException) {
-            when (e.status) {
-                401 -> throw e
-                403, 404 -> SyncState.Failed(DriveProblem.NotShared)
-                else -> SyncState.Failed(DriveProblem.DriveError(e.status))
-            }
-        } catch (e: IOException) {
-            Log.w("Volti", "Can't sync an ensemble", e) // Not the folder id: for a link-shared folder, that is the link.
-            SyncState.Failed(DriveProblem.Unreachable)
+            val all = files.all(id)
+            // Only what I play, and what I have opened, stays on the device; the rest comes when I open it. Until
+            // I have marked parts in an ensemble, nothing that is here goes: it may be all I have offline.
+            if (all.any { it.mine && !it.imported }) files.forgetUnused(id)
+            files.all(id).filter { !it.removed && it.localMd5 != it.md5 && (it.mine || it.seenMd5 != null) }
         }
+        if (todo.isEmpty()) synced(id)
+        return Listed(todo, listing.stopped)
+    }
+
+    /** Downloads what [list] found, one at a time; a file that fails is tried again next time. */
+    private suspend fun downloadAll(ensemble: Ensemble, listed: Listed, token: String): SyncState {
+        val id = ensemble.id
+        val todo = listed.todo
+        if (todo.isEmpty()) return SyncState.Done(listed.stopped, 0)
+        val api = DriveApi(token)
+        val files = db.files()
+        var failed = 0
+        todo.forEachIndexed { i, file ->
+            set(id, SyncState.Downloading(i, todo.size, file.fileId, todo.drop(i + 1).mapTo(HashSet()) { it.fileId }))
+            try {
+                // The transfer without the lock: opening another file meanwhile doesn't wait for it.
+                val now = files.all(id).firstOrNull { it.fileId == file.fileId }
+                if (now != null && now.md5 == file.md5 && now.localMd5 != now.md5) download(api, now)
+            } catch (e: DriveException) {
+                if (e.status == 401) throw e // Start over with a new token.
+                failed++
+            } catch (e: IOException) {
+                Log.w("Volti", "Can't download a file", e) // Not the name: it may be private.
+                failed++
+            }
+        }
+        synced(id)
+        return SyncState.Done(listed.stopped, failed)
+    }
+
+    /** Done with an ensemble: what nothing needs any more goes, and it was synced now. */
+    private suspend fun synced(id: Long) {
+        storeLock.withLock { cleanUp() }
+        db.ensembles().synced(id, System.currentTimeMillis())
     }
 
     companion object {

@@ -22,6 +22,7 @@ import nl.imreboersma.volti.data.sortedByPlace
 import nl.imreboersma.volti.db.Ensemble
 import nl.imreboersma.volti.db.EnsembleFile
 import nl.imreboersma.volti.db.VoltiDatabase
+import nl.imreboersma.volti.drive.Syncer
 
 /** An ensemble's setlists, and making a new one. */
 class SetlistsViewModel(app: Application, handle: SavedStateHandle) : AndroidViewModel(app) {
@@ -50,6 +51,9 @@ class SetlistViewModel(app: Application, handle: SavedStateHandle) : AndroidView
     private val files = VoltiDatabase.get(app).files()
 
     val setlist: StateFlow<Setlist?> = dao.observe(setlistId).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** The files downloading right now (marked mine, say): a piece not here yet says it is coming. */
+    val downloading: StateFlow<Set<String>> = Syncer.get(app).downloading
 
     val pieces: StateFlow<List<SetlistPiece>?> = dao.pieces(setlistId).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
