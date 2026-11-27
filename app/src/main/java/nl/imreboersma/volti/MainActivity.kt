@@ -14,13 +14,13 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.receiveAsFlow
-import nl.imreboersma.volti.drive.Incoming
-import nl.imreboersma.volti.drive.Rejection
+import nl.imreboersma.volti.drive.Received
 import nl.imreboersma.volti.drive.Syncer
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -53,38 +53,35 @@ import nl.imreboersma.volti.ui.AddEnsembleScreen
 import nl.imreboersma.volti.ui.HomeScreen
 import nl.imreboersma.volti.ui.ImportIntoScreen
 import nl.imreboersma.volti.ui.SettingsScreen
-import nl.imreboersma.volti.ui.LibraryScreen
 import nl.imreboersma.volti.ui.ReaderScreen
 import nl.imreboersma.volti.ui.ReaderState
 import nl.imreboersma.volti.ui.ReaderViewModel
 import nl.imreboersma.volti.ui.StageMode
 import nl.imreboersma.volti.ui.theme.VoltiTheme
 
-/** Where the app opens: the ensembles and the folder on the tablet. */
+/** Where the app opens: the ensembles. */
 @Serializable
 object Home
 
-/** The folder on the tablet. */
 @Serializable
-object LocalLibrary
-
-@Serializable
-data class AddEnsemble(val importing: List<String> = emptyList())
+data class AddEnsemble(val importing: String? = null)
 
 /**
- * PDFs another app shared with Volti, copied in already ([incoming], each an encoded `Incoming`), waiting for me to
- * pick the ensemble they go into. [notReceived]: those that couldn't be copied, each `reason|name`. [dropped]: past
- * the most one share brings in.
+ * PDFs copied in already (a share, or the folder Volti used to read in place) as [batch], waiting for me to pick the
+ * ensemble they go into. [dropped]: past the most one share brings in.
  */
 @Serializable
-data class ImportInto(val incoming: List<String>, val notReceived: List<String> = emptyList(), val dropped: Int = 0)
+data class ImportInto(val batch: String, val dropped: Int = 0)
 
 @Serializable
 object Settings
 
-/** One ensemble's files; [id] is its row in the database. */
+/**
+ * One ensemble's files; [id] is its row in the database. [importing]: a batch of copied-in PDFs to import here, into
+ * the folder I go to.
+ */
 @Serializable
-data class EnsembleFiles(val id: Long, val importing: List<String> = emptyList())
+data class EnsembleFiles(val id: Long, val importing: String? = null)
 
 /** An ensemble's setlists. */
 @Serializable
@@ -177,13 +174,7 @@ fun VoltiApp(navController: NavHostController = rememberNavController(), shared:
     LaunchedEffect(shared) {
         shared.collect { uris ->
             val received = Syncer.get(context).receive(uris.take(MAX_SHARED)).await()
-            navController.navigate(
-                ImportInto(
-                    received.incoming.map { it.encode() },
-                    received.problems.map { (name, why) -> "${why.name}|$name" },
-                    dropped = (uris.size - MAX_SHARED).coerceAtLeast(0),
-                ),
-            )
+            navController.navigate(ImportInto(received.batch, dropped = (uris.size - MAX_SHARED).coerceAtLeast(0)))
         }
     }
     // Stage mode follows the current destination, not the reader screen's own lifetime: the outgoing
@@ -209,22 +200,14 @@ fun VoltiApp(navController: NavHostController = rememberNavController(), shared:
             HomeScreen(
                 onOpenEnsemble = { id -> go(EnsembleFiles(id)) },
                 onAddEnsemble = { go(AddEnsemble()) },
-                onOpenLocal = { go(LocalLibrary) },
+                // From the copy finishing, not a tap: no second tap to guard against, and it may come while Home
+                // is only starting again.
+                onImportOldFolder = { batch -> navController.navigate(ImportInto(batch)) },
                 onOpenSettings = { go(Settings) },
             )
         }
         composable<Settings> {
             SettingsScreen(onBack = dropUnlessResumed { navController.popBackStack() })
-        }
-        composable<LocalLibrary> { entry ->
-            LibraryScreen(
-                onOpenScore = { score ->
-                    if (entry.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
-                        navController.navigate(Reader(score.uri.toString()))
-                    }
-                },
-                onHome = dropUnlessResumed { navController.popBackStack() },
-            )
         }
         composable<AddEnsemble> { entry ->
             AddEnsembleScreen(
@@ -240,6 +223,11 @@ fun VoltiApp(navController: NavHostController = rememberNavController(), shared:
         }
         composable<ImportInto> { entry ->
             val route = entry.toRoute<ImportInto>()
+            // Read once: null while reading, then what came in (none once it was imported or cleaned up).
+            val received by produceState<Received?>(null, route.batch) {
+                value = Syncer.get(context).received(route.batch) ?: Received(route.batch, emptyList(), emptyList())
+            }
+            val batch = received ?: return@composable
             // In place of this question: back from the ensemble goes to the library.
             fun go(next: Any) {
                 if (entry.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
@@ -247,13 +235,13 @@ fun VoltiApp(navController: NavHostController = rememberNavController(), shared:
                 }
             }
             ImportIntoScreen(
-                count = route.incoming.size,
-                notReceived = route.notReceived.map { it.split('|', limit = 2).let { (why, name) -> name to Rejection.valueOf(why) } },
+                count = batch.incoming.size,
+                notReceived = batch.problems,
                 dropped = route.dropped,
-                onChoose = { id -> go(EnsembleFiles(id, route.incoming)) },
-                onNewEnsemble = { go(AddEnsemble(route.incoming)) },
+                onChoose = { id -> go(EnsembleFiles(id, route.batch)) },
+                onNewEnsemble = { go(AddEnsemble(route.batch)) },
                 onCancel = dropUnlessResumed {
-                    Syncer.get(context).discard(route.incoming.map(Incoming::decode))
+                    Syncer.get(context).discard(batch)
                     navController.popBackStack()
                 },
             )

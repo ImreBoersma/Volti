@@ -12,6 +12,8 @@ import androidx.compose.ui.Alignment
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import nl.imreboersma.volti.drive.SyncState
 import nl.imreboersma.volti.drive.Syncer
 import androidx.activity.compose.ReportDrawnWhen
@@ -27,9 +29,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -49,6 +53,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nl.imreboersma.volti.data.FolderStore
 import nl.imreboersma.volti.data.folderName
+import nl.imreboersma.volti.data.pdfsIn
+import nl.imreboersma.volti.data.WALK_LIMIT
 import nl.imreboersma.volti.db.Ensemble
 import nl.imreboersma.volti.db.VoltiDatabase
 
@@ -90,13 +96,19 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
 
     fun consented(data: Intent?) = syncer.consented(data)
 
-    val localFolder: StateFlow<LocalFolder?> = FolderStore(app).folder
+    private val folders = FolderStore(app)
+
+    /**
+     * The folder Volti read in place before milestone 6, by name, while it still holds it: offered once, to import.
+     * [LocalFolder.None] once it is imported or let go.
+     */
+    val localFolder: StateFlow<LocalFolder?> = folders.folder
         .map { uri ->
             if (uri == null) {
                 LocalFolder.None
             } else {
                 // A folder that can't be read any more (deleted, card removed) still shows, by a plain name: the
-                // library says what's wrong when it's opened. Providers throw all sorts for that; none may stop the app.
+                // import says what's wrong. Providers throw all sorts for that; none may stop the app.
                 val name = try {
                     withContext(Dispatchers.IO) { folderName(app.contentResolver, uri) }
                 } catch (e: CancellationException) {
@@ -110,6 +122,63 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
+    private val _copying = MutableStateFlow(false)
+
+    /** The old folder is being copied in. */
+    val copying: StateFlow<Boolean> = _copying.asStateFlow()
+
+    private val _copied = MutableStateFlow<String?>(null)
+
+    /**
+     * The old folder, copied in as this batch: the screen goes on to pick its ensemble. A state, not a callback, so
+     * it waits for the screen when I left it during the copy.
+     */
+    val copied: StateFlow<String?> = _copied.asStateFlow()
+
+    private val _folderProblem = MutableStateFlow<String?>(null)
+
+    /** Why the old folder couldn't be copied in. The offer stays. */
+    val folderProblem: StateFlow<String?> = _folderProblem.asStateFlow()
+
+    /**
+     * Copies the old folder in, its subfolders as folders. It is let go only once its batch is imported: until then,
+     * cancelled or failed, the offer stays.
+     */
+    fun importOldFolder() {
+        if (_copying.value) return
+        viewModelScope.launch {
+            val tree = folders.folder.first() ?: return@launch
+            _copying.value = true
+            _folderProblem.value = null
+            try {
+                val found = withContext(Dispatchers.IO) { pdfsIn(getApplication<Application>().contentResolver, tree) }
+                _folderProblem.value = when {
+                    !found.complete -> "This folder holds more than $WALK_LIMIT files and folders. Import it in parts: in an " +
+                        "ensemble, Import, then A folder, one subfolder at a time."
+                    found.uris.isEmpty() -> "There are no PDFs in this folder."
+                    else -> null
+                }
+                if (_folderProblem.value == null) _copied.value = syncer.receive(found.uris, found.folders, oldFolder = true).await().batch
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w("Volti", "Can't read the old folder", e)
+                _folderProblem.value = "Can't read this folder any more."
+            } finally {
+                _copying.value = false
+            }
+        }
+    }
+
+    /** The screen went on with [copied]. */
+    fun wentOn() {
+        _copied.value = null
+    }
+
+    /** I don't want the old folder in Volti. */
+    fun letGoOldFolder() {
+        viewModelScope.launch { folders.forget() }
+    }
 }
 
 /**
@@ -120,12 +189,21 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
 fun HomeScreen(
     onOpenEnsemble: (Long) -> Unit,
     onAddEnsemble: () -> Unit,
-    onOpenLocal: () -> Unit,
+    onImportOldFolder: (batch: String) -> Unit,
     onOpenSettings: () -> Unit,
     viewModel: HomeViewModel = viewModel(),
 ) {
     val ensembles by viewModel.ensembles.collectAsStateWithLifecycle()
     val local by viewModel.localFolder.collectAsStateWithLifecycle()
+    val copying by viewModel.copying.collectAsStateWithLifecycle()
+    val copied by viewModel.copied.collectAsStateWithLifecycle()
+    val folderProblem by viewModel.folderProblem.collectAsStateWithLifecycle()
+    LaunchedEffect(copied) {
+        copied?.let {
+            onImportOldFolder(it)
+            viewModel.wentOn()
+        }
+    }
     val newFiles by viewModel.newFiles.collectAsStateWithLifecycle()
     val syncStates by viewModel.syncStates.collectAsStateWithLifecycle()
     val needsConsent by viewModel.consent.collectAsStateWithLifecycle()
@@ -194,23 +272,27 @@ fun HomeScreen(
                     Text("Add an ensemble")
                 }
             }
-            item { Heading("On this ${deviceName()}") }
-            item {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(onClick = onOpenLocal)
-                        .padding(vertical = 12.dp),
-                ) {
-                    when (val folder = local) {
-                        is LocalFolder.Chosen -> {
-                            Text(folder.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-                            Text("A folder on this ${deviceName()}", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            // The folder Volti read in place before every PDF became an ensemble's: once, the offer to import it.
+            (local as? LocalFolder.Chosen)?.let { folder ->
+                item { Heading("On this ${deviceName()}") }
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 12.dp)) {
+                        Text(folder.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            "Volti no longer reads a folder in place: its PDFs go into an ensemble, with the marks " +
+                                "made on them. Subfolders come along as folders.",
+                        )
+                        folderProblem?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                        if (copying) {
+                            Text("Copying…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        } else {
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Button(onClick = viewModel::importOldFolder) { Text("Import it") }
+                                TextButton(onClick = viewModel::letGoOldFolder) { Text("Let it go") }
+                            }
                         }
-                        LocalFolder.None, null -> Text("Choose a folder on this ${deviceName()}", style = MaterialTheme.typography.bodyLarge)
                     }
                 }
-                HorizontalDivider()
             }
         }
         }

@@ -63,12 +63,10 @@ class FolderStoreTest {
     }
 
     @Test
-    fun failedGrantStoresNothingAndKeepsExistingGrants() = runBlocking {
-        val grantsBefore = context.contentResolver.persistedUriPermissions.map { it.uri }
-
-        store.setFolder(ungranted)
-
+    fun aForgottenFolderIsGone() = runBlocking {
+        prefs.edit { it[FOLDER_URI] = ungranted.toString() }
+        store.forget()
         assertNull(prefs.data.first()[FOLDER_URI])
-        assertEquals(grantsBefore, context.contentResolver.persistedUriPermissions.map { it.uri })
+        assertEquals(emptyList<Uri>(), context.contentResolver.persistedUriPermissions.map { it.uri })
     }
 }

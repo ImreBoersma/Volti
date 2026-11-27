@@ -419,9 +419,13 @@ Checked on the emulator: shared from Files, also while Volti was open in an ense
 
 ### 3. A whole folder, and the folder library goes
 
-- [ ] Import a folder: every PDF in it and its subfolders, the subfolders kept as places. The folder library is removed; the first time after the update, Volti offers to import the granted folder into an ensemble, marks included.
+- [x] Import a folder: every PDF in it and its subfolders, the subfolders kept as places. The folder library is removed; the first time after the update, Volti offers to import the granted folder into an ensemble, marks included.
 
 Done when: on the tablet, the granted folder is imported with its marks, and there is one library.
+
+Done 2026-11-27. Import in an ensemble is a menu: PDFs, or A folder; a folder comes in as a folder of its own, its subfolders below it, into the folder I'm in. The folder library (its screen, search and grant) is gone. On the home screen, the folder it read stays offered until it is imported: "Import it" copies it in and asks for the ensemble; only once it is in does Volti let the folder go. Cancelled, unreadable, empty or too big (over 5,000 files and folders, which the walk stops at): the offer stays, and says why. Marks made on a PDF in place (keyed by its content) move onto the imported file, also when it replaces one. What was copied in waits as a batch, a JSON file next to the copies, so a route carries only its id and it outlives the process; one that can't be read counts as gone.
+
+Checked on the emulator: the previous release with a folder chosen (two PDFs, one in a subfolder), updated to this one; the offer, cancelled once (still offered), then imported into an ensemble as Kerstconcert/Hoorn; Import, A folder, of the same folder asked to replace. Not yet on the tablet, with my real folder and its marks.
 
 ## Milestone 7: display names
 

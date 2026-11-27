@@ -22,6 +22,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.ui.semantics.Role
@@ -134,12 +136,16 @@ fun EnsembleScreen(
     val pending by viewModel.pending.collectAsStateWithLifecycle()
     val importing by viewModel.importing.collectAsStateWithLifecycle()
     val notImported by viewModel.notImported.collectAsStateWithLifecycle()
-    val toPlace by viewModel.toPlace.collectAsStateWithLifecycle()
+    val placing by viewModel.placing.collectAsStateWithLifecycle()
+    var choosingImport by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf<EnsembleFile?>(null) }
     // Into the folder I'm in; from my parts or a search, into the ensemble's top.
     val into = if (view is EnsembleView.Folder) path else emptyList()
     val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         viewModel.import(uris, into)
+    }
+    val pickFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { tree ->
+        tree?.let { viewModel.importFolder(it, into) }
     }
     // The suggestions as they were when I tapped Review: a sync may change the list meanwhile, and only what I saw is
     // decided. A suggestion that arrives during the review waits for the next one.
@@ -192,7 +198,20 @@ fun EnsembleScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                OutlinedButton(onClick = { pick.launch(arrayOf("application/pdf")) }, enabled = !importing) { Text("Import") }
+                Box {
+                    OutlinedButton(onClick = { choosingImport = true }, enabled = !importing) { Text("Import") }
+                    DropdownMenu(expanded = choosingImport, onDismissRequest = { choosingImport = false }) {
+                        DropdownMenuItem(text = { Text("PDFs") }, onClick = {
+                            choosingImport = false
+                            pick.launch(arrayOf("application/pdf"))
+                        })
+                        // Its subfolders come along as folders.
+                        DropdownMenuItem(text = { Text("A folder") }, onClick = {
+                            choosingImport = false
+                            pickFolder.launch(null)
+                        })
+                    }
+                }
                 ensemble?.let {
                     OutlinedButton(onClick = { onOpenSetlists(it.id) }, modifier = Modifier.padding(start = 8.dp)) { Text("Setlists") }
                 }
@@ -222,14 +241,15 @@ fun EnsembleScreen(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                 )
             }
-            if (toPlace.isNotEmpty()) {
+            val shared = placing?.incoming.orEmpty()
+            if (shared.isNotEmpty()) {
                 // Shared from another app: I go to the folder it belongs in, then say so.
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.padding(bottom = 8.dp),
                 ) {
-                    val what = if (toPlace.size == 1) "1 PDF" else "${toPlace.size} PDFs"
+                    val what = if (shared.size == 1) "1 PDF" else "${shared.size} PDFs"
                     val where = if (into.isEmpty()) ensemble?.name.orEmpty() else into.joinToString(" / ")
                     Text("$what to import into $where", modifier = Modifier.weight(1f, fill = false))
                     Button(onClick = { viewModel.place(into) }) { Text("Import here") }

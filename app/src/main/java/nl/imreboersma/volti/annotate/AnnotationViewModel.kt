@@ -25,6 +25,7 @@ import kotlinx.coroutines.withContext
 import nl.imreboersma.volti.Reader
 import nl.imreboersma.volti.db.VoltiDatabase
 import nl.imreboersma.volti.db.fileIdOf
+import nl.imreboersma.volti.db.localKey
 import nl.imreboersma.volti.drive.Syncer
 import android.net.Uri
 import java.io.ByteArrayInputStream
@@ -114,7 +115,7 @@ class AnnotationViewModel(app: Application, handle: SavedStateHandle) : AndroidV
     init {
         val route = handle.toRoute<Reader>()
         viewModelScope.launch {
-            val key = route.scoreKey ?: localKey(route.uri) ?: return@launch
+            val key = route.scoreKey ?: contentKey(route.uri) ?: return@launch
             scoreKey = key
             val rows = dao.forScore(key)
             val drawn = withContext(Dispatchers.Default) { rows.mapNotNull(::draw) }
@@ -128,7 +129,7 @@ class AnnotationViewModel(app: Application, handle: SavedStateHandle) : AndroidV
     }
 
     /** A local file's annotations belong to its content: a rename keeps them, an edited PDF starts clean. */
-    private suspend fun localKey(uri: String): String? = withContext(Dispatchers.IO) {
+    private suspend fun contentKey(uri: String): String? = withContext(Dispatchers.IO) {
         try {
             val digest = MessageDigest.getInstance("MD5")
             getApplication<Application>().contentResolver.openInputStream(uri.toUri())?.use { input ->
@@ -139,7 +140,7 @@ class AnnotationViewModel(app: Application, handle: SavedStateHandle) : AndroidV
                     digest.update(buffer, 0, n)
                 }
             } ?: return@withContext null
-            "local:" + digest.digest().joinToString("") { "%02x".format(it) }
+            localKey(digest.digest().joinToString("") { "%02x".format(it) })
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

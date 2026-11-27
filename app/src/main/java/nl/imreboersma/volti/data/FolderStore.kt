@@ -18,7 +18,7 @@ import kotlinx.coroutines.withContext
 internal val Context.dataStore by preferencesDataStore(name = "settings")
 internal val FOLDER_URI = stringPreferencesKey("folder_uri")
 
-/** The one folder the user granted through the system picker. */
+/** The one folder granted through the system picker, from when Volti read a folder in place (before milestone 6). */
 class FolderStore(
     context: Context,
     private val store: DataStore<Preferences> = context.applicationContext.dataStore,
@@ -31,24 +31,15 @@ class FolderStore(
         .flowOn(Dispatchers.IO)
 
     /**
-     * Takes a read-only grant on [uri], stores it, then drops older grants.
-     * If the grant cannot be taken, nothing changes.
-     * Runs to the end even if the caller is cancelled, so the stored URI
-     * never points at a released grant.
+     * Lets the folder go: its grant and the stored address. Since milestone 6 a folder is imported, not read in
+     * place; this one was granted before that.
      */
-    suspend fun setFolder(uri: Uri) = withContext(NonCancellable + Dispatchers.IO) {
+    suspend fun forget() = withContext(NonCancellable + Dispatchers.IO) {
         val resolver = appContext.contentResolver
-        try {
-            resolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        } catch (_: SecurityException) {
-            return@withContext
+        resolver.persistedUriPermissions.forEach {
+            resolver.releasePersistableUriPermission(it.uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        store.edit { it[FOLDER_URI] = uri.toString() }
-        resolver.persistedUriPermissions
-            .filter { it.uri != uri }
-            .forEach {
-                resolver.releasePersistableUriPermission(it.uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
+        store.edit { it.remove(FOLDER_URI) }
     }
 
     private fun canRead(uri: Uri): Boolean =

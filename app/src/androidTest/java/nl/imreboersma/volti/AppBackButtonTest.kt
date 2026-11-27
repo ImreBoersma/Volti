@@ -40,10 +40,10 @@ class AppBackButtonTest {
     }
 
     @Test
-    fun backFromTheFolderOnTheTabletGoesHome() {
-        compose.runOnUiThread { nav.navigate(LocalLibrary) }
-        compose.waitForIdle()
-        compose.onNodeWithContentDescription("Back to the library").performClick()
+    fun backFromAnImportQuestionGoesHome() {
+        compose.runOnUiThread { nav.navigate(ImportInto("batch-gone")) }
+        compose.waitUntil(5_000) { compose.onAllNodesWithContentDescription("Don't import").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithContentDescription("Don't import").performClick()
         compose.waitForIdle()
         assertTrue(on { it.hasRoute<Home>() })
     }

@@ -26,9 +26,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import nl.imreboersma.volti.db.Ensemble
 import nl.imreboersma.volti.db.EnsembleFile
 import nl.imreboersma.volti.db.VoltiDatabase
+import nl.imreboersma.volti.db.localKey
+import nl.imreboersma.volti.data.FolderStore
 import java.io.File
 import java.io.IOException
 import java.util.UUID
@@ -48,18 +52,23 @@ private const val INCOMING_KEPT_MS = 24 * 60 * 60 * 1000L
 
 /**
  * A PDF copied in from another app, waiting to be imported: its [name] there, its [copy] next to the store (a file
- * name), its [md5]. Carried in a route as one string, so it outlives the process.
+ * name), its [md5], and the [folders] it was in below what I imported (a folder's subfolders; none for a file).
  */
-data class Incoming(val name: String, val copy: String, val md5: String) {
-    fun encode() = "$md5|$copy|$name"
+@Serializable
+data class Incoming(val name: String, val copy: String, val md5: String, val folders: List<String> = emptyList())
 
-    companion object {
-        fun decode(text: String) = text.split('|', limit = 3).let { (md5, copy, name) -> Incoming(name, copy, md5) }
-    }
-}
-
-/** What [Syncer.receive] copied in, and what it couldn't, with why. */
-class Received(val incoming: List<Incoming>, val problems: List<Pair<String, Rejection>>)
+/**
+ * What one [Syncer.receive] copied in, and what it couldn't, with why. Kept as [batch], a file next to the copies,
+ * so a route carries only its id however many PDFs a folder held, and it outlives the process. [oldFolder]: the
+ * folder Volti read in place before; it is let go once this is imported.
+ */
+@Serializable
+data class Received(
+    val batch: String,
+    val incoming: List<Incoming>,
+    val problems: List<Pair<String, Rejection>>,
+    val oldFolder: Boolean = false,
+)
 
 /** The name another app gives a file; the end of its address if it gives none, or can't say. */
 fun displayName(resolver: ContentResolver, uri: Uri): String {
@@ -201,17 +210,21 @@ class Syncer private constructor(context: Context) {
      * doesn't stop it; with no lock, so a slow app holds up only its own files. Completes with the copies, which
      * [import] takes in, and what couldn't be copied.
      */
-    fun receive(uris: List<Uri>): Deferred<Received> = scope.async {
+    fun receive(
+        uris: List<Uri>,
+        folders: List<List<String>> = uris.map { emptyList() },
+        oldFolder: Boolean = false,
+    ): Deferred<Received> = scope.async {
         val resolver = app.contentResolver
         val copies = mutableListOf<Incoming>()
         val problems = mutableListOf<Pair<String, Rejection>>()
-        for (uri in uris) {
+        for ((uri, inFolders) in uris.zip(folders)) {
             val name = withContext(Dispatchers.IO) { displayName(resolver, uri) }
             try {
                 val (copy, md5) = withContext(Dispatchers.IO) {
                     (resolver.openInputStream(uri) ?: throw IOException("Can't read a shared PDF")).use(store::receive)
                 }
-                copies += Incoming(name, copy.name, md5)
+                copies += Incoming(name, copy.name, md5, inFolders)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: DownloadRejected) {
@@ -223,43 +236,75 @@ class Syncer private constructor(context: Context) {
                 problems += name to Rejection.Unreadable
             }
         }
-        Received(copies, problems)
+        val batch = "batch-${UUID.randomUUID()}"
+        Received(batch, copies, problems, oldFolder).also { received ->
+            withContext(Dispatchers.IO) {
+                // Whole or not at all: a process ending mid-write leaves no half batch.
+                val temp = store.incoming("$batch.tmp")
+                temp.writeText(Json.encodeToString(received))
+                if (!temp.renameTo(store.incoming(batch))) throw IOException("Can't keep an import's list")
+            }
+        }
+    }
+
+    /** What [receive] copied in as [batch]; null once it is imported, let go or cleaned up, or if it can't be read. */
+    suspend fun received(batch: String): Received? = withContext(Dispatchers.IO) {
+        val file = store.incoming(batch).takeIf { it.isFile } ?: return@withContext null
+        try {
+            Json.decodeFromString<Received>(file.readText())
+        } catch (e: Exception) {
+            Log.w("Volti", "Can't read an import's list", e)
+            null
+        }
     }
 
     /**
-     * Takes the [receive]d copies [incoming] into ensemble [ensembleId], in the folder [folders], one at a time under
-     * the store's lock. With [replace], one that has the name of an imported file in that folder is a new version of
-     * it, as when a Drive file changes: its marks stay, and I'm told the score changed under them. Without, it gets a
-     * name of its own. Completes with what couldn't be taken in (a copy cleaned up meanwhile).
+     * Takes what [receive] copied in, [received], into ensemble [ensembleId]: each in the folder [into], below it in
+     * the subfolders it was in. One at a time under the store's lock. With [replace], one that has the name of an
+     * imported file in its folder is a new version of it, as when a Drive file changes: its marks stay, and I'm told
+     * the score changed under them. Without, it gets a name of its own. A new one takes over the marks I made on the
+     * same PDF as a local file. Completes with what couldn't be taken in (a copy cleaned up meanwhile).
      */
-    fun import(ensembleId: Long, folders: List<String>, incoming: List<Incoming>, replace: Boolean): Deferred<List<Pair<String, Rejection>>> =
+    fun import(ensembleId: Long, into: List<String>, received: Received, replace: Boolean): Deferred<List<Pair<String, Rejection>>> =
         scope.async {
             val problems = mutableListOf<Pair<String, Rejection>>()
-            for (file in incoming) {
+            // Read once, kept up to date here: a folder of thousands doesn't read the table thousands of times.
+            val rows = db.files().all(ensembleId).toMutableList()
+            for (file in received.incoming) {
+                val folders = into + file.folders
                 try {
                     storeLock.withLock {
                         withContext(Dispatchers.IO) { store.keep(store.incoming(file.copy), file.md5) }
-                        val here = db.files().all(ensembleId).filter { it.folders == folders }
+                        val here = rows.filter { it.folders == folders }
                         val replaced = if (replace) here.firstOrNull { it.imported && it.name == file.name } else null
                         val size = store.fileFor(file.md5).length()
-                        db.files().save(listOf(
-                            replaced?.copy(md5 = file.md5, localMd5 = file.md5, size = size) ?: EnsembleFile(
-                                ensembleId, UUID.randomUUID().toString(), null, freeName(file.name, here.mapTo(HashSet()) { it.name }),
-                                folders, file.md5, size, localMd5 = file.md5, addedAt = System.currentTimeMillis(), imported = true,
-                            ),
-                        ))
+                        val row = replaced?.copy(md5 = file.md5, localMd5 = file.md5, size = size) ?: EnsembleFile(
+                            ensembleId, UUID.randomUUID().toString(), null, freeName(file.name, here.mapTo(HashSet()) { it.name }),
+                            folders, file.md5, size, localMd5 = file.md5, addedAt = System.currentTimeMillis(), imported = true,
+                        )
+                        db.files().save(listOf(row))
+                        rows.remove(replaced)
+                        rows += row
+                        // The marks I made on exactly this PDF when Volti read it in place, also onto a replaced file.
+                        db.annotations().moveScore(from = localKey(file.md5), to = row.scoreKey)
                     }
                 } catch (e: IOException) {
                     Log.w("Volti", "Can't import a PDF", e)
                     problems += file.name to Rejection.Unreadable
                 }
             }
+            withContext(Dispatchers.IO) { store.incoming(received.batch).delete() }
+            // Its PDFs are Volti's own now: the folder read in place can go, and the offer with it.
+            if (received.oldFolder) FolderStore(app).forget()
             problems
         }
 
-    /** Copies I decided not to import. */
-    fun discard(incoming: List<Incoming>) {
-        scope.launch(Dispatchers.IO) { incoming.forEach { store.incoming(it.copy).delete() } }
+    /** What I decided not to import: the copies and the batch go. */
+    fun discard(received: Received) {
+        scope.launch(Dispatchers.IO) {
+            received.incoming.forEach { store.incoming(it.copy).delete() }
+            store.incoming(received.batch).delete()
+        }
     }
 
     /** An imported file goes: its row, its place in setlists and its marks. The PDF goes at the next clean-up. */
@@ -271,10 +316,10 @@ class Syncer private constructor(context: Context) {
         }
     }
 
-    /** Of [names], those an import into [folders] of ensemble [ensembleId] would replace. */
-    suspend fun alreadyImported(ensembleId: Long, folders: List<String>, names: List<String>): List<String> {
-        val here = db.files().all(ensembleId).filter { it.imported && it.folders == folders }.mapTo(HashSet()) { it.name }
-        return names.filter { it in here }
+    /** The names of [received] that an import into [into] of ensemble [ensembleId] would replace. */
+    suspend fun alreadyImported(ensembleId: Long, into: List<String>, received: Received): List<String> {
+        val here = db.files().all(ensembleId).filter { it.imported }.mapTo(HashSet()) { it.folders to it.name }
+        return received.incoming.filter { (into + it.folders) to it.name in here }.map { it.name }
     }
 
     /** Marked mine: download it now, not at the next sync. Here, so leaving the screen doesn't stop it. */

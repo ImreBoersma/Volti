@@ -142,6 +142,23 @@ fun walkFolder(
     return found
 }
 
+/**
+ * What a folder holds to import: its PDFs, each with the folders it is in from the folder's own down (so a folder
+ * imports as a folder of its own). [complete]: false when the walk stopped at [WALK_LIMIT] entries, so PDFs past it
+ * are missing.
+ */
+class FolderPdfs(val uris: List<Uri>, val folders: List<List<String>>, val complete: Boolean)
+
+/** The PDFs in the folder [tree] and its subfolders. Blocking: call off the main thread. Throws when it can't be read. */
+fun pdfsIn(resolver: ContentResolver, tree: Uri): FolderPdfs {
+    val top = folderName(resolver, tree) ?: throw java.io.IOException("Can't read the folder's name")
+    val found = walkFolder(resolver, tree)
+    val pdfs = found.mapNotNull { entry ->
+        (entry.entry as? Score)?.let { it.uri to listOf(top) + entry.parents.map { parent -> parent.name } }
+    }
+    return FolderPdfs(pdfs.map { it.first }, pdfs.map { it.second }, complete = found.size < WALK_LIMIT)
+}
+
 /** Lower case, accents removed: "Händel" and "handel" are the same to someone typing on a stand. */
 internal fun searchable(text: String): String =
     Normalizer.normalize(text, Normalizer.Form.NFD).replace(Regex("\\p{Mn}+"), "").lowercase()
@@ -149,15 +166,9 @@ internal fun searchable(text: String): String =
 /** The words of a search, made [searchable]. */
 internal fun searchWords(query: String): List<String> = searchable(query).split(' ').filter { it.isNotBlank() }
 
-/** The names a found entry can be found by: each folder on its way and its own, made [searchable]. */
-internal fun searchableNames(found: FoundEntry): List<String> =
-    (found.parents.map { it.name } + found.entry.name).map(::searchable)
-
 /**
  * Every word appears in the entry's name or in a folder on its way: "bach viool" finds Bach/Viool 1.pdf.
  * Each name on its own: nothing matches the separator between them.
  */
 internal fun matchesWords(words: List<String>, names: List<String>): Boolean =
     words.isNotEmpty() && words.all { word -> names.any { word in it } }
-
-internal fun matches(query: String, found: FoundEntry): Boolean = matchesWords(searchWords(query), searchableNames(found))

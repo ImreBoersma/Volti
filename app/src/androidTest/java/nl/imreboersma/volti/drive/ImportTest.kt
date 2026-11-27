@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.flowOf
 import nl.imreboersma.volti.annotate.AnnotationSymbol
 import nl.imreboersma.volti.db.Ensemble
 import nl.imreboersma.volti.db.VoltiDatabase
+import nl.imreboersma.volti.db.localKey
 import nl.imreboersma.volti.setlist.Setlist
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -62,7 +63,7 @@ class ImportTest {
     private fun import(ensemble: Long, files: List<Pair<String, ByteArray>>, replace: Boolean = false) = runBlocking {
         val uris = files.map { (name, bytes) -> Uri.fromFile(java.io.File(context.cacheDir, name).apply { writeBytes(bytes) }) }
         val received = syncer.receive(uris).await()
-        received.problems + syncer.import(ensemble, emptyList(), received.incoming, replace).await()
+        received.problems + syncer.import(ensemble, emptyList(), received, replace).await()
     }
 
     private fun import(ensemble: Long, name: String, bytes: ByteArray, replace: Boolean = false) =
@@ -131,6 +132,51 @@ class ImportTest {
         assertEquals(listOf(a), sharedPdfs(Intent(Intent.ACTION_SEND).putExtra(Intent.EXTRA_STREAM, a)))
         assertEquals(listOf(a, b), sharedPdfs(Intent(Intent.ACTION_SEND_MULTIPLE).putParcelableArrayListExtra(Intent.EXTRA_STREAM, arrayListOf(a, b))))
         assertEquals(emptyList<Uri>(), sharedPdfs(Intent(Intent.ACTION_MAIN)))
+    }
+
+    @Test
+    fun aFolderComesWithItsSubfoldersAndTheMarksMadeOnItsPdfs() {
+        val ensemble = ensemble()
+        val inFolder = pdf(pages = 1)
+        val md5 = java.security.MessageDigest.getInstance("MD5").digest(inFolder).joinToString("") { "%02x".format(it) }
+        // Marked before, when Volti read the folder in place.
+        val mark = "old-" + java.util.UUID.randomUUID()
+        runBlocking { db.annotations().addSymbols(listOf(AnnotationSymbol(mark, localKey(md5), 0, "Fermata", 1f, 1f, 0))) }
+        val uris = listOf("Overture.pdf" to inFolder, "Suite.pdf" to pdf(pages = 2)).map { (name, bytes) ->
+            Uri.fromFile(java.io.File(context.cacheDir, name).apply { writeBytes(bytes) })
+        }
+        runBlocking {
+            val received = syncer.receive(uris, listOf(listOf("Concert"), listOf("Concert", "Encores"))).await()
+            syncer.import(ensemble, listOf("Season"), received, replace = false).await()
+            assertTrue("the batch goes once imported", syncer.received(received.batch) == null)
+        }
+        val byName = files(ensemble).associateBy { it.name }
+        assertEquals(listOf("Season", "Concert"), byName.getValue("Overture.pdf").folders)
+        assertEquals(listOf("Season", "Concert", "Encores"), byName.getValue("Suite.pdf").folders)
+        val overture = byName.getValue("Overture.pdf")
+        assertEquals(listOf(mark), runBlocking { db.annotations().symbolsForScore(overture.scoreKey) }.map { it.id })
+    }
+
+    @Test
+    fun aBatchThatCantBeReadIsGone() = runBlocking {
+        val received = syncer.receive(emptyList()).await()
+        val file = java.io.File(context.filesDir, "drive-incoming/${received.batch}")
+        assertTrue(file.isFile)
+        file.writeText("{ half a batch") // A process that ended mid-write, before batches were written whole.
+        assertEquals(null, syncer.received(received.batch))
+    }
+
+    @Test
+    fun replacedTheMarksMadeOnThatPdfInPlaceComeAlong() {
+        val ensemble = ensemble()
+        import(ensemble, "Hoorn 2.pdf", pdf(pages = 1))
+        val again = pdf(pages = 2)
+        val md5 = java.security.MessageDigest.getInstance("MD5").digest(again).joinToString("") { "%02x".format(it) }
+        val mark = "inPlace-" + java.util.UUID.randomUUID()
+        runBlocking { db.annotations().addSymbols(listOf(AnnotationSymbol(mark, localKey(md5), 0, "Fermata", 1f, 1f, 0))) }
+        import(ensemble, "Hoorn 2.pdf", again, replace = true)
+        val file = files(ensemble).single()
+        assertEquals(listOf(mark), runBlocking { db.annotations().symbolsForScore(file.scoreKey) }.map { it.id })
     }
 
     @Test

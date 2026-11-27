@@ -63,6 +63,17 @@ class LocalCopyTest {
     }
 
     @Test
+    fun aBatchReadsBackAsItWasWrittenWhateverTheNamesHoldIn() {
+        val received = Received(
+            "batch-1",
+            listOf(Incoming("Kerst | Hoorn 1.pdf", "a.tmp", v1, listOf("Bach | Suites", "Two\nlines")), Incoming("Solo.pdf", "b.tmp", v2)),
+            listOf("Notes.txt" to Rejection.NotAPdf),
+            oldFolder = true,
+        )
+        assertEquals(received, kotlinx.serialization.json.Json.decodeFromString<Received>(kotlinx.serialization.json.Json.encodeToString(received)))
+    }
+
+    @Test
     fun aSecondFileOfTheSameNameGetsANumber() {
         assertEquals("Part.pdf", freeName("Part.pdf", setOf("Other.pdf")))
         assertEquals("Part (2).pdf", freeName("Part.pdf", setOf("Part.pdf")))

@@ -66,6 +66,19 @@ interface AnnotationDao {
     @Query("DELETE FROM annotation_symbol WHERE scoreKey = :scoreKey")
     suspend fun removeSymbolsOf(scoreKey: String)
 
+    @Query("UPDATE annotation_stroke SET scoreKey = :to WHERE scoreKey = :from")
+    suspend fun moveStrokes(from: String, to: String)
+
+    @Query("UPDATE annotation_symbol SET scoreKey = :to WHERE scoreKey = :from")
+    suspend fun moveSymbols(from: String, to: String)
+
+    /** Every mark on score [from] onto score [to]: a local file, imported, keeps what I wrote on it. */
+    @Transaction
+    suspend fun moveScore(from: String, to: String) {
+        moveStrokes(from, to)
+        moveSymbols(from, to)
+    }
+
     /** Every mark on a score. */
     @Transaction
     suspend fun removeScore(scoreKey: String) {

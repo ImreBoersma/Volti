@@ -62,6 +62,7 @@ These are for the developer, not the musician.
 
 ## Not yet following this
 
+- A long import (a folder of hundreds of PDFs) says only `Importing…` or `Copying…`, not how far it is (`12 of 300`).
 - `Syncer` returns finished sentences in `SyncState.Failed(message)` instead of a problem type, and builds user text outside `ui/`.
 - The same situation has two wordings: `Couldn't reach Google Drive.` (`Syncer.kt:149`, `:207`) and `No connection to Google Drive.` (`Syncer.kt:279`).
 - Google Drive access has four wordings: `Volti needs read-only access to Google Drive to sync.` (`HomeScreen.kt:159`), `Volti needs access to Google Drive to sync.` (`Syncer.kt:111`), `Sign in to Google Drive first.` (`Syncer.kt:161`), `Signed out of Google Drive.` (`EnsemblesScreen.kt:182`).

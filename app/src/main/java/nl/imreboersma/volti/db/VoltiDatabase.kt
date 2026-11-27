@@ -101,6 +101,9 @@ data class EnsembleFile(
 /** The annotation key of an ensemble's file [fileId]. */
 fun fileKey(fileId: String) = "file:$fileId"
 
+/** The annotation key of a local file with content [md5]: a rename keeps its marks, an edited PDF starts clean. */
+fun localKey(md5: String) = "local:$md5"
+
 /** The ensemble file an annotation key [key] belongs to; null for a local score's. */
 fun fileIdOf(key: String): String? = key.removePrefix("file:").takeIf { key.startsWith("file:") }
 

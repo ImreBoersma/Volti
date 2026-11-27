@@ -6,9 +6,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SearchTest {
-    /** Matching only looks at names; a Subfolder stands in for a score, as android.net.Uri can't be built here. */
-    private fun score(name: String, vararg folders: String) =
-        FoundEntry(Subfolder("entry", name), folders.mapIndexed { i, f -> Subfolder("id$i", f) })
+    /** A file [name] in [folders], as an ensemble's search matches it. */
+    private fun score(name: String, vararg folders: String) = (folders.toList() + name).map(::searchable)
+
+    private fun matches(query: String, names: List<String>) = matchesWords(searchWords(query), names)
 
     @Test
     fun ignoresCaseAndAccents() {
