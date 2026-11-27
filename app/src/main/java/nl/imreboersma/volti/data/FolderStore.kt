@@ -12,6 +12,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 
@@ -36,7 +37,9 @@ class FolderStore(
      */
     suspend fun forget() = withContext(NonCancellable + Dispatchers.IO) {
         val resolver = appContext.contentResolver
-        resolver.persistedUriPermissions.forEach {
+        val stored = store.data.first()[FOLDER_URI]?.let(Uri::parse)
+        // Only that folder's grant: nothing else of the app's is this one's to let go.
+        resolver.persistedUriPermissions.filter { it.uri == stored }.forEach {
             resolver.releasePersistableUriPermission(it.uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         store.edit { it.remove(FOLDER_URI) }

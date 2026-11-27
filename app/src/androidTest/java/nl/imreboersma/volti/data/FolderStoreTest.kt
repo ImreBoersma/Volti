@@ -64,9 +64,11 @@ class FolderStoreTest {
 
     @Test
     fun aForgottenFolderIsGone() = runBlocking {
+        val grantsBefore = context.contentResolver.persistedUriPermissions.map { it.uri }
         prefs.edit { it[FOLDER_URI] = ungranted.toString() }
         store.forget()
         assertNull(prefs.data.first()[FOLDER_URI])
-        assertEquals(emptyList<Uri>(), context.contentResolver.persistedUriPermissions.map { it.uri })
+        // Other grants aren't its to let go: on a tablet in use, the app's own stay.
+        assertEquals(grantsBefore, context.contentResolver.persistedUriPermissions.map { it.uri })
     }
 }
