@@ -35,4 +35,17 @@ class PageZoomTest {
         zoom.transform(Offset(0f, 0f), Offset(-5000f, -5000f), 1f, 1000f, 1600f) // And the other way:
         assertEquals(Offset(-1000f, -1600f), zoom.offset) // its bottom-right corner stops at the screen's.
     }
+
+    @Test
+    fun aPageInHalvesDoesntZoom() {
+        val zoom = PageZoom()
+        zoom.transform(Offset(500f, 800f), Offset.Zero, 2f, 1000f, 1600f)
+        zoom.allow(whole = false) // A half turn: two pages share the screen.
+        assertEquals(1f, zoom.scale)
+        zoom.transform(Offset(500f, 800f), Offset.Zero, 2f, 1000f, 1600f)
+        assertEquals(1f, zoom.scale)
+        zoom.allow(whole = true)
+        zoom.transform(Offset(500f, 800f), Offset.Zero, 2f, 1000f, 1600f)
+        assertEquals(2f, zoom.scale)
+    }
 }

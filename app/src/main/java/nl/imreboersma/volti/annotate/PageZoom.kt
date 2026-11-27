@@ -32,10 +32,23 @@ class PageZoom {
     val zoomed get() = scale > 1f
 
     /**
+     * Only a whole page zooms: in a half turn, two pages share the screen and neither takes marks. Set by the page
+     * shown; off, it shows unzoomed.
+     */
+    var allowed by mutableStateOf(true)
+        private set
+
+    fun allow(whole: Boolean) {
+        allowed = whole
+        if (!whole) reset()
+    }
+
+    /**
      * Two fingers moved: the page is enlarged by [zoom] around [centroid] (on screen) and moved by [pan], in a box of
      * [width] x [height]. The point under the fingers stays under them.
      */
     fun transform(centroid: Offset, pan: Offset, zoom: Float, width: Float, height: Float) {
+        if (!allowed) return
         val next = (scale * zoom).coerceIn(1f, MAX_ZOOM)
         val moved = centroid - (centroid - offset) * (next / scale) + pan
         scale = next

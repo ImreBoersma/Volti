@@ -92,7 +92,10 @@ fun PageAnnotations(page: PageOverlay, viewModel: AnnotationViewModel, zoom: Pag
     val annotating by viewModel.annotating.collectAsStateWithLifecycle()
     // The whole page again when I stop annotating, and on a turn (also a half one): a new page starts whole.
     LaunchedEffect(annotating) { if (!annotating) zoom.reset() }
-    LaunchedEffect(page.index, page.region) { zoom.reset() }
+    LaunchedEffect(page.index, page.region) {
+        zoom.reset()
+        zoom.allow(whole = page.region == Region.Whole)
+    }
     var box by remember { mutableStateOf(IntSize.Zero) }
     // Enlarged as the page image is (zoomedPage): marks drawn and input read through the same transform.
     val geometry = remember(page, box, zoom.scale, zoom.offset) {
