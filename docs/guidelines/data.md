@@ -28,6 +28,8 @@ All three are in internal storage and excluded from backup and device transfer (
 
 **Never destructive.** No `fallbackToDestructiveMigration` in any form, also not `OnDowngrade`. A schema Room can't migrate is a crash I can fix in the next build; a wiped database can't be fixed.
 
+**A version is final once a build with it has run anywhere**, a test emulator included: change the schema again and it is a new version, never an edit of the last one. A database made by an earlier form of a version fails Room's check on start ("Room cannot verify the data integrity"), and only clearing the app's data gets past it. (It happened with version 10 on the emulator, 2026-11-27.)
+
 **One version per schema change**, with an `AutoMigration` where Room can work it out, an `AutoMigrationSpec` where data has to move too (`DriveKeysToFileKeys` is the pattern), and a hand-written `Migration` only when neither works.
 
 **New columns have a default** (`@ColumnInfo(defaultValue = …)`) that means "as before": `mine = 0`, `imported = 0`. Existing rows must mean the same after the migration as before it.
