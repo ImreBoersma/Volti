@@ -133,9 +133,12 @@ class ReaderInputTest {
         waitForPage("Page 1 of 3")
     }
 
+    /** A node whose description starts with [description] has the focus: the pen colour's ends in the colour. */
     private fun focused(description: String) = compose.onAllNodes(
-        SemanticsMatcher.expectValue(SemanticsProperties.ContentDescription, listOf(description)) and
-            SemanticsMatcher.expectValue(SemanticsProperties.Focused, true),
+        SemanticsMatcher("starts with $description") {
+            SemanticsProperties.ContentDescription in it.config &&
+                it.config[SemanticsProperties.ContentDescription].any { d: String -> d.startsWith(description) }
+        } and SemanticsMatcher.expectValue(SemanticsProperties.Focused, true),
     ).fetchSemanticsNodes().isNotEmpty()
 
     /** Tab until [description] has the focus. */
@@ -151,7 +154,7 @@ class ReaderInputTest {
     fun pedalsStillTurnAfterAnnotateIsPressedWithTheKeyboard() {
         tabTo("Annotate")
         press(KeyEvent.KEYCODE_ENTER) // The focused button goes, and the focus with it.
-        compose.waitUntil(5_000) { compose.onAllNodesWithContentDescription("Pen, red").fetchSemanticsNodes().isNotEmpty() }
+        compose.waitUntil(5_000) { compose.onAllNodesWithContentDescription("Pen colour", substring = true).fetchSemanticsNodes().isNotEmpty() }
         press(KeyEvent.KEYCODE_PAGE_DOWN)
         waitForPage("Page 2 of 3")
     }
@@ -159,8 +162,8 @@ class ReaderInputTest {
     @Test
     fun spaceTurnsThePageEvenWithAToolbarButtonFocused() {
         compose.onNodeWithContentDescription("Annotate").performClick()
-        compose.waitUntil(5_000) { compose.onAllNodesWithContentDescription("Pen, red").fetchSemanticsNodes().isNotEmpty() }
-        tabTo("Pen, red")
+        compose.waitUntil(5_000) { compose.onAllNodesWithContentDescription("Pen colour", substring = true).fetchSemanticsNodes().isNotEmpty() }
+        tabTo("Pen colour")
         press(KeyEvent.KEYCODE_SPACE)
         waitForPage("Page 2 of 3")
     }
@@ -168,10 +171,10 @@ class ReaderInputTest {
     @Test
     fun backLeavesAnnotatingFirstThenTheScore() {
         compose.onNodeWithContentDescription("Annotate").performClick()
-        compose.waitUntil(5_000) { compose.onAllNodesWithContentDescription("Pen, red").fetchSemanticsNodes().isNotEmpty() }
+        compose.waitUntil(5_000) { compose.onAllNodesWithContentDescription("Pen colour", substring = true).fetchSemanticsNodes().isNotEmpty() }
 
         press(KeyEvent.KEYCODE_BACK)
-        compose.waitUntil(5_000) { compose.onAllNodesWithContentDescription("Pen, red").fetchSemanticsNodes().isEmpty() }
+        compose.waitUntil(5_000) { compose.onAllNodesWithContentDescription("Pen colour", substring = true).fetchSemanticsNodes().isEmpty() }
         assertTrue("still reading", inReader())
 
         press(KeyEvent.KEYCODE_BACK)
@@ -194,12 +197,12 @@ class ReaderInputTest {
     @Test
     fun anEdgeSwipeWhileAnnotatingDrawsInsteadOfGoingBack() {
         compose.onNodeWithContentDescription("Annotate").performClick()
-        compose.waitUntil(5_000) { compose.onAllNodesWithContentDescription("Pen, red").fetchSemanticsNodes().isNotEmpty() }
+        compose.waitUntil(5_000) { compose.onAllNodesWithContentDescription("Pen colour", substring = true).fetchSemanticsNodes().isNotEmpty() }
         Thread.sleep(500) // The score's key and stored strokes load before a finger can draw.
         // Twice: in the reader's immersive mode the first edge swipe only shows the system bars.
         swipeFromTheLeftEdge()
         swipeFromTheLeftEdge()
-        assertTrue("still annotating", compose.onAllNodesWithContentDescription("Pen, red").fetchSemanticsNodes().isNotEmpty())
+        assertTrue("still annotating", compose.onAllNodesWithContentDescription("Pen colour", substring = true).fetchSemanticsNodes().isNotEmpty())
         assertTrue("still reading", inReader())
     }
 
@@ -217,8 +220,8 @@ class ReaderInputTest {
     @Test
     fun penAndSymbolTargetsAreAtLeast48dp() {
         compose.onNodeWithContentDescription("Annotate").performClick()
-        compose.waitUntil(5_000) { compose.onAllNodesWithContentDescription("Pen, red").fetchSemanticsNodes().isNotEmpty() }
-        compose.onNodeWithContentDescription("Pen, red").assertWidthIsAtLeast(48.dp).assertHeightIsAtLeast(48.dp)
+        compose.waitUntil(5_000) { compose.onAllNodesWithContentDescription("Pen colour", substring = true).fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithContentDescription("Pen colour", substring = true).assertWidthIsAtLeast(48.dp).assertHeightIsAtLeast(48.dp)
 
         compose.onNodeWithText("Symbols").performClick()
         compose.waitForIdle()

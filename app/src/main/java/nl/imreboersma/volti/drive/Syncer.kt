@@ -33,6 +33,7 @@ import nl.imreboersma.volti.db.Ensemble
 import nl.imreboersma.volti.db.EnsembleFile
 import nl.imreboersma.volti.db.VoltiDatabase
 import nl.imreboersma.volti.db.localKey
+import nl.imreboersma.volti.annotate.MarkWrites
 import nl.imreboersma.volti.data.FolderStore
 import java.io.File
 import java.io.IOException
@@ -345,7 +346,9 @@ class Syncer private constructor(context: Context) {
                         db.files().save(listOf(row))
                         rows.remove(replaced)
                         rows += row
-                        // The marks I made on exactly this PDF when Volti read it in place, also onto a replaced file.
+                        // The marks I made on exactly this PDF when Volti read it in place, also onto a replaced file
+                        // (once any still on their way are in).
+                        MarkWrites.flush()
                         db.annotations().moveScore(from = localKey(file.md5), to = row.scoreKey)
                     }
                 } catch (e: IOException) {
@@ -390,6 +393,7 @@ class Syncer private constructor(context: Context) {
     /** An imported file goes: its row, its place in setlists and its marks. The PDF goes at the next clean-up. */
     suspend fun delete(file: EnsembleFile) {
         if (!file.imported) return // Drive's files come and go with the folder.
+        MarkWrites.flush() // A mark on it still on its way would land after its marks are gone.
         storeLock.withLock {
             db.deleteImported(file)
             cleanUp() // An ensemble of imports never syncs, so its clean-up is here.

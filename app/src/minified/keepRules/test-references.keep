@@ -2341,6 +2341,18 @@
     void disposeOnCancellation(kotlinx.coroutines.CancellableContinuation, kotlinx.coroutines.DisposableHandle);
 }
 #noinspection ShrinkerUnresolvedReference
+-keep class kotlinx.coroutines.CompletableDeferred {
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.Object await(kotlin.coroutines.Continuation);
+    #noinspection ShrinkerUnresolvedReference
+    boolean complete(java.lang.Object);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class kotlinx.coroutines.CompletableDeferredKt {
+    #noinspection ShrinkerUnresolvedReference
+    kotlinx.coroutines.CompletableDeferred CompletableDeferred$default(kotlinx.coroutines.Job, int, java.lang.Object);
+}
+#noinspection ShrinkerUnresolvedReference
 -keep class kotlinx.coroutines.CompletableJob {
     #noinspection ShrinkerUnresolvedReference
     boolean complete();
@@ -2492,6 +2504,8 @@
 -keep class kotlinx.coroutines.TimeoutCancellationException
 #noinspection ShrinkerUnresolvedReference
 -keep class kotlinx.coroutines.TimeoutKt {
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.Object withTimeout(long, kotlin.jvm.functions.Function2, kotlin.coroutines.Continuation);
     #noinspection ShrinkerUnresolvedReference
     java.lang.Object withTimeout?KLykuaI(long, kotlin.jvm.functions.Function2, kotlin.coroutines.Continuation);
 }
@@ -2908,6 +2922,8 @@
     #noinspection ShrinkerUnresolvedReference
     kotlinx.coroutines.flow.StateFlow getChange();
     #noinspection ShrinkerUnresolvedReference
+    kotlinx.coroutines.flow.StateFlow getColor();
+    #noinspection ShrinkerUnresolvedReference
     kotlinx.coroutines.flow.StateFlow getReady();
     #noinspection ShrinkerUnresolvedReference
     kotlinx.coroutines.flow.StateFlow getStrokes();
@@ -2916,14 +2932,16 @@
     #noinspection ShrinkerUnresolvedReference
     void marksChecked();
     #noinspection ShrinkerUnresolvedReference
+    void pickColor(nl.imreboersma.volti.annotate.PenColor);
+    #noinspection ShrinkerUnresolvedReference
     void place(int, nl.imreboersma.volti.annotate.Point, nl.imreboersma.volti.annotate.Symbol);
     #noinspection ShrinkerUnresolvedReference
     void undo();
 }
 #noinspection ShrinkerUnresolvedReference
--keep class nl.imreboersma.volti.annotate.AnnotationViewModelKt {
+-keep class nl.imreboersma.volti.annotate.MarkProblem {
     #noinspection ShrinkerUnresolvedReference
-    java.util.List getPEN_COLORS();
+    nl.imreboersma.volti.annotate.MarkProblem Full;
 }
 #noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.annotate.MarkWrites {
@@ -2931,6 +2949,28 @@
     nl.imreboersma.volti.annotate.MarkWrites INSTANCE;
     #noinspection ShrinkerUnresolvedReference
     java.lang.Object flush(kotlin.coroutines.Continuation);
+    #noinspection ShrinkerUnresolvedReference
+    kotlinx.coroutines.flow.StateFlow getProblem();
+    #noinspection ShrinkerUnresolvedReference
+    void write(kotlin.jvm.functions.Function1);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.annotate.PenColor {
+    #noinspection ShrinkerUnresolvedReference
+    nl.imreboersma.volti.annotate.PenColor Black;
+    #noinspection ShrinkerUnresolvedReference
+    nl.imreboersma.volti.annotate.PenColor Green;
+    #noinspection ShrinkerUnresolvedReference
+    int getArgb();
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.annotate.PenColorStore {
+    #noinspection ShrinkerUnresolvedReference
+    <init>(android.content.Context);
+    #noinspection ShrinkerUnresolvedReference
+    void keep(nl.imreboersma.volti.annotate.PenColor);
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.Object last(kotlin.coroutines.Continuation);
 }
 #noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.annotate.Point {

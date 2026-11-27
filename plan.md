@@ -496,9 +496,17 @@ The instrumented suite passes on the tablet. Not yet: the "Done when" by eye, wi
 
 ### 3. Colours
 
-- [ ] The pen's colour in the toolbar opens six named colours; the one I pick stays the pen's colour, also for the next score and after a restart.
+Decided 2026-11-27: the six in this order: black, red, blue, green, orange, purple. Symbols take the pen's colour, as now.
+
+- [x] The pen's colour in the toolbar opens six named colours; the one I pick stays the pen's colour, also for the next score and after a restart.
 
 Done when: on the tablet, green picked in one score is the pen's colour in the next one, and after Volti was closed.
+
+Done 2026-11-27. The toolbar has one button with the pen's colour ("Pen colour, Red" for TalkBack); it opens a row of the six above the toolbar, each named, and closes when one is picked (from the eraser, back to the pen). The last one is kept in DataStore (`PenColorStore`), written in a scope of its own so a pick right before leaving counts; the next score starts with it. Marks keep storing their colour as ARGB, so old ones draw as they were.
+
+With it, after a review of the mark queue: a score opened right after it was closed waits for its marks still being saved; a mark that can't be saved (a full device) is said in the annotation toolbar, from then until one is saved again or another part opens; deleting an import or moving marks waits for the queue too.
+
+The instrumented tests pass on the emulator. Not yet: the "Done when" on the tablet.
 
 ## Milestone 9: downloads in the background
 

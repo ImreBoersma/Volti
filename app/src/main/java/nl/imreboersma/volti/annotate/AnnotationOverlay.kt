@@ -32,6 +32,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -77,6 +78,7 @@ import nl.imreboersma.volti.ui.CornerButton
 import nl.imreboersma.volti.ui.PageOverlay
 import nl.imreboersma.volti.ui.Region
 import nl.imreboersma.volti.ui.theme.LocalReaderColors
+import nl.imreboersma.volti.ui.deviceName
 
 private fun PageGeometry.pageToScreen() = Matrix().apply { setValues(pageToScreenValues() + floatArrayOf(0f, 0f, 1f)) }
 
@@ -299,6 +301,7 @@ private fun InkInput(pageIndex: Int, geometry: PageGeometry, viewModel: Annotati
 fun BoxScope.AnnotationControls(viewModel: AnnotationViewModel, onOpenPrevious: (uri: String) -> Unit) {
     val annotating by viewModel.annotating.collectAsStateWithLifecycle()
     val change by viewModel.change.collectAsStateWithLifecycle()
+    val notSaved by MarkWrites.problem.collectAsStateWithLifecycle()
     if (!annotating) change?.let { ChangeNotice(it, onOpenPrevious, viewModel::marksChecked, viewModel::later) }
     // On the previous version, nothing to annotate: it is there to look at.
     if (!annotating && change != ScoreChange.ShowingPrevious) {
@@ -319,14 +322,16 @@ fun BoxScope.AnnotationControls(viewModel: AnnotationViewModel, onOpenPrevious: 
     // At the bottom: the top has the back and annotate buttons, and on phones the camera. Moved to the top (below
     // those) to reach the last staff.
     var atTop by rememberSaveable { mutableStateOf(false) }
-    // The palette is out only while choosing: it would cover more music than it needs to.
-    var choosing by rememberSaveable { mutableStateOf(false) }
+    // A row of choices is out only while choosing, and one at a time: it would cover more music than it needs to.
+    var open by rememberSaveable { mutableStateOf(Choosing.Nothing) }
+    val choosing = open == Choosing.Symbol
+    val choosingColor = open == Choosing.Colour
     // Back (and Esc) does what Done does: it leaves annotating, not the score. Only while the reader is the resumed
     // screen: a second Back during the crossfade out of it must still reach the screen before.
     val resumed = LocalLifecycleOwner.current.lifecycle.currentStateAsState().value.isAtLeast(Lifecycle.State.RESUMED)
     BackHandler(enabled = resumed) {
         viewModel.done()
-        choosing = false
+        open = Choosing.Nothing
     }
     val shape = RoundedCornerShape(24.dp)
     // A touch in a gap between a panel's buttons must not reach the page: having touch handling at all keeps it from
@@ -351,6 +356,8 @@ fun BoxScope.AnnotationControls(viewModel: AnnotationViewModel, onOpenPrevious: 
             .padding(horizontal = 12.dp)
             .padding(top = if (atTop) 72.dp else 0.dp, bottom = if (atTop) 0.dp else 12.dp),
     ) {
+        // Marks that aren't kept, said where they are made: it moves with the toolbar, up or down.
+        notSaved?.let { MarksNotSaved(it, Modifier.panel().padding(horizontal = 16.dp, vertical = 8.dp)) }
         val stamp = tool as? Tool.Stamp
         if (stamp != null && choosing) {
             // The symbols on paper, so a black one shows on a dark surround too. One row, scrolling: low.
@@ -368,13 +375,38 @@ fun BoxScope.AnnotationControls(viewModel: AnnotationViewModel, onOpenPrevious: 
                             .border(if (picked) 3.dp else 1.dp, colors.message, CircleShape)
                             .clickable(role = Role.RadioButton) {
                                 viewModel.pick(Tool.Stamp(symbol))
-                                choosing = false
+                                open = Choosing.Nothing
                             }
                             .semantics {
                                 contentDescription = symbol.label
                                 selected = picked
                             },
-                    ) { drawSymbol(symbol, center, size.minDimension * 0.55f, Color(color)) }
+                    ) { drawSymbol(symbol, center, size.minDimension * 0.55f, Color(color.argb)) }
+                }
+            }
+        }
+        if (choosingColor) {
+            // A colour goes for the symbols too; picked while stamping, it stays with the symbol.
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier.panel().selectableGroup().horizontalScroll(rememberScrollState()).padding(8.dp),
+            ) {
+                PenColor.entries.forEach { pen ->
+                    val picked = color == pen
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .clickable(role = Role.RadioButton) {
+                                viewModel.pickColor(pen)
+                                open = Choosing.Nothing
+                            }
+                            .semantics {
+                                contentDescription = pen.label
+                                selected = picked
+                            },
+                    ) { Swatch(pen, picked) }
                 }
             }
         }
@@ -384,45 +416,33 @@ fun BoxScope.AnnotationControls(viewModel: AnnotationViewModel, onOpenPrevious: 
             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
             modifier = Modifier.panel().padding(horizontal = 12.dp, vertical = 4.dp),
         ) {
-            PEN_COLORS.forEach { pen ->
-                val picked = color == pen && tool !is Tool.Eraser
-                // A 36 dp swatch in a 48 dp target.
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(CircleShape)
-                        // A colour goes for the symbols too; picked while stamping, it stays with the symbol.
-                        .clickable(role = Role.RadioButton) { viewModel.pickColor(pen) }
-                        .semantics {
-                            contentDescription = "Pen, ${colorName(pen)}"
-                            selected = picked
-                        },
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .border(if (picked) 3.dp else 1.dp, colors.message, CircleShape)
-                            .padding(6.dp)
-                            .clip(CircleShape)
-                            .background(Color(pen)),
-                    )
-                }
-            }
+            // The pen's colour; its six choices open above, as the symbols do: few things at a time on the music.
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .clickable(role = Role.Button, onClickLabel = "Choose the pen's colour") {
+                        open = if (choosingColor) Choosing.Nothing else Choosing.Colour
+                    }
+                    .semantics {
+                        contentDescription = "Pen colour, ${color.label}"
+                        stateDescription = if (choosingColor) "Colours shown" else "Colours hidden"
+                    },
+            ) { Swatch(color, picked = tool !is Tool.Eraser) }
             FilterChip(
                 selected = stamp != null,
                 onClick = {
                     when {
                         stamp == null -> {
                             viewModel.pick(Tool.Stamp(Symbol.Breath))
-                            choosing = true
+                            open = Choosing.Symbol
                         }
                         choosing -> {
                             viewModel.pick(Tool.Pen)
-                            choosing = false
+                            open = Choosing.Nothing
                         }
-                        else -> choosing = true // Change the symbol.
+                        else -> open = Choosing.Symbol // Change the symbol.
                     }
                 },
                 // Once one is picked, it says which.
@@ -432,7 +452,7 @@ fun BoxScope.AnnotationControls(viewModel: AnnotationViewModel, onOpenPrevious: 
                 selected = tool == Tool.Eraser,
                 onClick = {
                     viewModel.pick(Tool.Eraser)
-                    choosing = false
+                    open = Choosing.Nothing
                 },
                 label = { Text("Eraser") },
             )
@@ -440,7 +460,7 @@ fun BoxScope.AnnotationControls(viewModel: AnnotationViewModel, onOpenPrevious: 
             TextButton(onClick = { atTop = !atTop }) { Text(if (atTop) "Move down" else "Move up", color = colors.message) }
             TextButton(onClick = {
                 viewModel.done()
-                choosing = false
+                open = Choosing.Nothing
             }) { Text("Done", color = colors.message) }
         }
     }
@@ -494,8 +514,35 @@ private fun BoxScope.ChangeNotice(
     }
 }
 
-private fun colorName(color: Int) = when (color) {
-    PEN_COLORS[1] -> "red"
-    PEN_COLORS[2] -> "blue"
-    else -> "black"
+/** Marks can't be saved: what is drawn now is gone when the part closes. Until a mark is saved again. */
+@Composable
+private fun MarksNotSaved(problem: MarkProblem, modifier: Modifier) {
+    Text(
+        when (problem) {
+            MarkProblem.Full -> "Can't save your marks: this ${deviceName()} is full. Free up space, or the marks you make now are gone when the part closes."
+            MarkProblem.Unwritable -> "Can't save your marks. The marks you make now are gone when the part closes."
+        },
+        color = LocalReaderColors.current.message,
+        modifier = modifier,
+    )
+}
+
+/** Which row of choices is out above the toolbar: at most one. */
+private enum class Choosing { Nothing, Symbol, Colour }
+
+/** A colour as a 36 dp circle in its 48 dp target; the picked one with a thick ring. */
+@Composable
+private fun Swatch(pen: PenColor, picked: Boolean) {
+    val ring = LocalReaderColors.current.message
+    Box(
+        modifier = Modifier
+            .size(36.dp)
+            .clip(CircleShape)
+            // On paper, as the symbols are: black and purple show on a dark reader too.
+            .background(Color.White)
+            .border(if (picked) 3.dp else 1.dp, ring, CircleShape)
+            .padding(6.dp)
+            .clip(CircleShape)
+            .background(Color(pen.argb)),
+    )
 }

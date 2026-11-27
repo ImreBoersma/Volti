@@ -12,6 +12,9 @@ import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
+import android.database.sqlite.SQLiteFullException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.cancel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.withContext
@@ -50,7 +53,7 @@ class AnnotationViewModelTest {
     private fun stroke(vararg points: Point): Stroke {
         val inputs = MutableStrokeInputBatch()
         points.forEachIndexed { i, p -> inputs.add(StrokeInput.create(p.x, p.y, i * 10L)) }
-        return Stroke(Brush.createWithColorIntArgb(StockBrushes.pressurePen(), PEN_COLORS[0], 3f, 0.1f), inputs)
+        return Stroke(Brush.createWithColorIntArgb(StockBrushes.pressurePen(), PenColor.Black.argb, 3f, 0.1f), inputs)
     }
 
     /** Until the writes behind the screen have landed. */
@@ -114,27 +117,63 @@ class AnnotationViewModelTest {
     }
 
     @Test
+    fun theNextScoreStartsWithTheColourUsedLast() = runBlocking<Unit> {
+        val first = openDrive("file" + UUID.randomUUID().toString().take(8))
+        try {
+            main { first.pickColor(PenColor.Green) }
+            withTimeout(2_000) { while (PenColorStore(app).last() != PenColor.Green) kotlinx.coroutines.delay(20) }
+            val next = openDrive("file" + UUID.randomUUID().toString().take(8))
+            withTimeout(2_000) { next.color.first { it == PenColor.Green } }
+        } finally {
+            PenColorStore(app).keep(PenColor.Black) // As it was, for the other tests.
+        }
+    }
+
+    @Test
     fun aMarkMadeRightBeforeLeavingTheReaderIsKept() = runBlocking {
         val fileId = "file" + UUID.randomUUID().toString().take(8)
         val vm = openDrive(fileId)
+        // The queue held, so the mark's write is surely still waiting when the reader goes.
+        val gate = CompletableDeferred<Unit>()
+        MarkWrites.write { gate.await() }
         main { vm.place(0, Point(100f, 100f), Symbol.entries.first()) }
-        main { vm.viewModelScope.cancel() } // Leaving the reader at once: its scope goes.
+        main { vm.viewModelScope.cancel() } // Leaving the reader: its scope goes.
+        gate.complete(Unit)
         MarkWrites.flush()
-        val kept = db.annotations().symbolsForScore(fileKey(fileId))
-        assertEquals(1, kept.size)
-        db.annotations().removeScore(fileKey(fileId))
+        try {
+            assertEquals(1, db.annotations().symbolsForScore(fileKey(fileId)).size)
+        } finally {
+            db.annotations().removeScore(fileKey(fileId))
+        }
     }
 
     @Test
     fun aMarkAndItsUndoLandInOrder() = runBlocking {
         val fileId = "file" + UUID.randomUUID().toString().take(8)
         val vm = openDrive(fileId)
+        val gate = CompletableDeferred<Unit>()
+        MarkWrites.write { gate.await() } // Both wait behind this, then go in the order they were made.
         main {
             vm.place(0, Point(100f, 100f), Symbol.entries.first())
-            vm.undo() // At once: the removal must not overtake the write.
+            vm.undo()
         }
+        gate.complete(Unit)
         MarkWrites.flush()
-        assertTrue(db.annotations().symbolsForScore(fileKey(fileId)).isEmpty())
+        try {
+            assertTrue(db.annotations().symbolsForScore(fileKey(fileId)).isEmpty())
+        } finally {
+            db.annotations().removeScore(fileKey(fileId))
+        }
+    }
+
+    @Test
+    fun aMarkThatCantBeSavedIsSaidUntilOneIsAgain() = runBlocking {
+        MarkWrites.write { throw SQLiteFullException("the tablet is full") }
+        MarkWrites.flush()
+        assertEquals(MarkProblem.Full, MarkWrites.problem.value)
+        MarkWrites.write { }
+        MarkWrites.flush()
+        assertEquals(null, MarkWrites.problem.value)
     }
 
     @Test

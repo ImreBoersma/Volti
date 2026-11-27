@@ -137,8 +137,9 @@ class AnnotationInputTest {
         assertEquals("the hand didn't turn the page", "Page 1 of 2", shown())
     }
 
+    /** Which page shows: the page's own state, not the toolbar's ("Colours hidden"). */
     private fun shown() = compose.onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsProperties.StateDescription))
-        .fetchSemanticsNodes().joinToString { it.config[SemanticsProperties.StateDescription] }
+        .fetchSemanticsNodes().map { it.config[SemanticsProperties.StateDescription] }.filter { it.startsWith("Page ") }.joinToString()
 
     private fun symbols(): Int =
         db.openHelper.readableDatabase.query("SELECT COUNT(*) FROM annotation_symbol WHERE scoreKey = ?", arrayOf(scoreKey))

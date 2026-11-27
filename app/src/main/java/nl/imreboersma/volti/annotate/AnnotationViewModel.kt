@@ -34,7 +34,6 @@ import java.security.MessageDigest
 import java.util.UUID
 
 /** The pen's colours: the reader's ink, and the icon's red and blue. */
-val PEN_COLORS = listOf(0xFF0F0F0F.toInt(), 0xFFC83823.toInt(), 0xFF2568BA.toInt())
 
 /** In page units, on a page 1000 wide: about half a millimetre on an A4 part. */
 private const val PEN_SIZE = 3f
@@ -99,8 +98,12 @@ class AnnotationViewModel(app: Application, handle: SavedStateHandle) : AndroidV
     private val _tool = MutableStateFlow<Tool>(Tool.Pen)
     val tool: StateFlow<Tool> = _tool.asStateFlow()
 
-    private val _color = MutableStateFlow(PEN_COLORS.first())
-    val color: StateFlow<Int> = _color.asStateFlow()
+    private val penColors = PenColorStore(app)
+    private var picked = false
+    private val _color = MutableStateFlow(PenColor.Black)
+
+    /** The pen's colour, and the symbols': the one I used last, until I pick another. */
+    val color: StateFlow<PenColor> = _color.asStateFlow()
 
     /** What undo takes back: marks added, or marks erased in one go. */
     private class Change(val added: Boolean, val strokes: List<AnnotationStroke>, val symbols: List<AnnotationSymbol>)
@@ -114,7 +117,12 @@ class AnnotationViewModel(app: Application, handle: SavedStateHandle) : AndroidV
 
     init {
         val route = handle.toRoute<Reader>()
+        // The colour used last; unless I picked one already while it was being read.
+        viewModelScope.launch { penColors.last().let { if (!picked) _color.value = it } }
         viewModelScope.launch {
+            // Marks of this score still on their way to the database (it was open a moment ago, in a setlist) first.
+            MarkWrites.flush()
+            MarkWrites.forgetProblem()
             val key = route.scoreKey ?: contentKey(route.uri) ?: return@launch
             scoreKey = key
             val rows = dao.forScore(key)
@@ -185,9 +193,11 @@ class AnnotationViewModel(app: Application, handle: SavedStateHandle) : AndroidV
         _tool.value = Tool.Pen
     }
 
-    /** The colour of what comes next: the pen, or the symbol being stamped. From the eraser, back to the pen. */
-    fun pickColor(color: Int) {
+    /** The colour of what comes next: the pen, or the symbol being stamped. From the eraser, back to the pen. Kept for the next score. */
+    fun pickColor(color: PenColor) {
+        picked = true
         _color.value = color
+        penColors.keep(color)
         if (_tool.value == Tool.Eraser) _tool.value = Tool.Pen
     }
 
@@ -195,7 +205,7 @@ class AnnotationViewModel(app: Application, handle: SavedStateHandle) : AndroidV
         _tool.value = tool
     }
 
-    fun brush(): Brush = brush(_color.value, PEN_SIZE)
+    fun brush(): Brush = brush(_color.value.argb, PEN_SIZE)
 
     /**
      * A stroke the pen finished on [page] (the page it was started on), in page units, with the brush it was drawn
@@ -212,7 +222,7 @@ class AnnotationViewModel(app: Application, handle: SavedStateHandle) : AndroidV
     /** [symbol] stamped on [page] at [at], in page units, in the pen's colour. */
     fun place(page: Int, at: Point, symbol: Symbol) {
         val key = scoreKey ?: return
-        val row = AnnotationSymbol(UUID.randomUUID().toString(), key, page, symbol.name, at.x, at.y, _color.value)
+        val row = AnnotationSymbol(UUID.randomUUID().toString(), key, page, symbol.name, at.x, at.y, _color.value.argb)
         add(emptyList(), listOf(row))
         record(Change(added = true, emptyList(), listOf(row)))
     }
