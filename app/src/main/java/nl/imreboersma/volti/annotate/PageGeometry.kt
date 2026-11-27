@@ -10,8 +10,9 @@ data class Point(val x: Float, val y: Float)
 
 /**
  * Where a page sits on screen: [area] of the page (its margin crop) is shown as a bitmap of [bitmapWidth] x
- * [bitmapHeight] pixels, fitted and centred in a box of [boxWidth] x [boxHeight]. The one place that turns screen
- * pixels into page units and back, so a crop change or a half turn never moves an annotation.
+ * [bitmapHeight] pixels, fitted and centred in a box of [boxWidth] x [boxHeight], then enlarged [zoom] times and moved
+ * by [panX], [panY] while annotating. The one place that turns screen pixels into page units and back, so a crop
+ * change, a half turn or a zoom never moves an annotation.
  */
 data class PageGeometry(
     val area: PageArea,
@@ -19,18 +20,24 @@ data class PageGeometry(
     val bitmapHeight: Int,
     val boxWidth: Float,
     val boxHeight: Float,
+    val zoom: Float = 1f,
+    val panX: Float = 0f,
+    val panY: Float = 0f,
 ) {
     /** On screen, the bitmap is drawn this much larger than its pixels (Fit), starting at [left], [top]. */
     private val fit = minOf(boxWidth / bitmapWidth, boxHeight / bitmapHeight)
     private val left = (boxWidth - bitmapWidth * fit) / 2
     private val top = (boxHeight - bitmapHeight * fit) / 2
 
-    /** Screen pixels per page unit: the bitmap shows the area's width of the page across its own width. */
-    val scale: Float = bitmapWidth * fit / ((area.right - area.left) * PAGE_WIDTH)
+    /** Screen pixels per page unit at the whole page: the bitmap shows the area's width of the page across its own width. */
+    private val fitScale: Float = bitmapWidth * fit / ((area.right - area.left) * PAGE_WIDTH)
 
-    /** The page's top-left corner on screen; it may be off screen when the margins are cropped. */
-    private val originX = left - area.left * PAGE_WIDTH * scale
-    private val originY = top - area.top * pageHeight * scale
+    /** Screen pixels per page unit, as shown now. */
+    val scale: Float = fitScale * zoom
+
+    /** The page's top-left corner on screen; it may be off-screen when the margins are cropped. */
+    private val originX = (left - area.left * PAGE_WIDTH * fitScale) * zoom + panX
+    private val originY = (top - area.top * pageHeight * fitScale) * zoom + panY
 
     /** The page's height in page units, from the shape of the bitmap and of the area it shows. */
     val pageHeight: Float

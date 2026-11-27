@@ -54,4 +54,16 @@ class PageGeometryTest {
         val v = g.pageToScreenValues()
         near(g.toScreen(p), Point(v[0] * p.x + v[2], v[4] * p.y + v[5]))
     }
+
+    @Test
+    fun zoomedInThePagePointUnderThePenIsTheSame() {
+        // Two times, the page moved so the box's middle (353.5, 500) shows the page's (353.5, 500) still.
+        val zoomed = whole.copy(zoom = 2f, panX = -353.5f, panY = -500f)
+        val pen = Point(353.5f, 500f)
+        near(whole.toPage(pen), zoomed.toPage(pen))
+        near(pen, zoomed.toScreen(zoomed.toPage(pen))) // And back.
+        // A quarter of the box left of the middle is only an eighth of the page left of it: the page is larger.
+        near(Point(500f - 125f, whole.toPage(pen).y), zoomed.toPage(Point(176.75f, 500f)))
+        assertEquals(whole.scale * 2, zoomed.scale, 0.0001f)
+    }
 }

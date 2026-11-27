@@ -2092,6 +2092,19 @@
     kotlin.reflect.KClass getOrCreateKotlinClass(java.lang.Class);
 }
 #noinspection ShrinkerUnresolvedReference
+-keep class kotlin.jvm.internal.SpreadBuilder {
+    #noinspection ShrinkerUnresolvedReference
+    <init>(int);
+    #noinspection ShrinkerUnresolvedReference
+    void add(java.lang.Object);
+    #noinspection ShrinkerUnresolvedReference
+    void addSpread(java.lang.Object);
+    #noinspection ShrinkerUnresolvedReference
+    int size();
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.Object[] toArray(java.lang.Object[]);
+}
+#noinspection ShrinkerUnresolvedReference
 -keep class kotlin.jvm.internal.StringCompanionObject {
     #noinspection ShrinkerUnresolvedReference
     kotlin.jvm.internal.StringCompanionObject INSTANCE;

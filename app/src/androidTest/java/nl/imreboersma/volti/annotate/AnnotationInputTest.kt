@@ -31,6 +31,7 @@ import nl.imreboersma.volti.VoltiApp
 import nl.imreboersma.volti.db.VoltiDatabase
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -193,5 +194,66 @@ class AnnotationInputTest {
         finished()
         assertEquals(1, strokes())
         assertEquals("the hand didn't turn the page", true, showing("Page 1 of 2"))
+    }
+
+    private fun zoomedIn() = compose.onAllNodes(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Zoomed in"))
+        .fetchSemanticsNodes().isNotEmpty()
+
+    private fun startAnnotating() {
+        while (compose.onAllNodesWithText("Done").fetchSemanticsNodes().isEmpty()) {
+            compose.onNodeWithContentDescription("Annotate").performClick()
+            compose.waitForIdle()
+        }
+    }
+
+    /** Two fingers from the middle of the screen, moving apart. */
+    private fun pinch(vararg others: Touch) {
+        val (x, y) = spot(0.5f, 0.6f)
+        val left = Touch(5, MotionEvent.TOOL_TYPE_FINGER, x - 60f, y)
+        val right = Touch(6, MotionEvent.TOOL_TYPE_FINGER, x + 60f, y)
+        val all = { arrayOf(*others, left, right) }
+        if (others.isEmpty()) send(MotionEvent.ACTION_DOWN, left) else send(pointer(MotionEvent.ACTION_POINTER_DOWN, others.size), *others, left)
+        send(pointer(MotionEvent.ACTION_POINTER_DOWN, others.size + 1), *all())
+        repeat(6) {
+            left.x -= 40f
+            right.x += 40f
+            others.forEach { it.y += 4f } // A pen on the glass keeps writing.
+            send(MotionEvent.ACTION_MOVE, *all())
+        }
+        send(pointer(MotionEvent.ACTION_POINTER_UP, others.size + 1), *all())
+        if (others.isEmpty()) send(MotionEvent.ACTION_UP, left) else send(pointer(MotionEvent.ACTION_POINTER_UP, others.size), *others, left)
+    }
+
+    @Test
+    fun twoFingersZoomInWhileAnnotatingAndNeitherDrawNorTurn() {
+        startAnnotating()
+        pinch() // While annotating one finger draws: the first starts a stroke, and the second makes it a zoom.
+        compose.waitForIdle()
+        assertTrue("zoomed in", zoomedIn())
+        assertEquals("the fingers drew nothing", 0, strokes())
+        assertEquals("the fingers turned nothing", true, showing("Page 1 of 2"))
+
+        val pen = pen() // The pen still writes, on the enlarged page.
+        send(MotionEvent.ACTION_DOWN, pen)
+        pen.x += 40f
+        send(MotionEvent.ACTION_MOVE, pen)
+        send(MotionEvent.ACTION_UP, pen)
+        finished()
+        assertEquals(1, strokes())
+
+        compose.onNodeWithText("Done").performClick() // Done shows the whole page again.
+        compose.waitUntil(5_000) { !zoomedIn() }
+    }
+
+    @Test
+    fun aHandRestingWhileThePenWritesMovesNothing() {
+        startAnnotating()
+        val pen = pen()
+        send(MotionEvent.ACTION_DOWN, pen)
+        pinch(pen) // Two touches of the hand while the pen is down: no zoom, the page stays under the pen.
+        send(MotionEvent.ACTION_UP, pen)
+        finished()
+        assertTrue("not zoomed", !zoomedIn())
+        assertEquals("one stroke, the pen's", 1, strokes())
     }
 }

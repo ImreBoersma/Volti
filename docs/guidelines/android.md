@@ -82,4 +82,6 @@ Google's guide says labels use "you", not "I". Volti deliberately writes from th
 
 ## Not yet following this
 
-Nothing known. Verified on the emulator only; check pedal, TalkBack and the edge stroke on the tablet.
+- Zooming in to annotate is only by gesture (two fingers). It is a help for the pen, which TalkBack users don't write with; a button would still be the rule.
+
+Verified on the emulator only; check pedal, TalkBack and the edge stroke on the tablet.

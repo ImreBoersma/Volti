@@ -32,6 +32,8 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -84,16 +86,29 @@ private fun PageGeometry.pageToScreen() = Matrix().apply { setValues(pageToScree
  * which turns the page. In a half turn, annotations show but don't take input.
  */
 @Composable
-fun PageAnnotations(page: PageOverlay, viewModel: AnnotationViewModel) {
+fun PageAnnotations(page: PageOverlay, viewModel: AnnotationViewModel, zoom: PageZoom) {
     val strokes by viewModel.strokes.collectAsStateWithLifecycle()
     val symbols by viewModel.symbols.collectAsStateWithLifecycle()
+    val annotating by viewModel.annotating.collectAsStateWithLifecycle()
+    // The whole page again when I stop annotating, and on a turn (also a half one): a new page starts whole.
+    LaunchedEffect(annotating) { if (!annotating) zoom.reset() }
+    LaunchedEffect(page.index, page.region) { zoom.reset() }
     var box by remember { mutableStateOf(IntSize.Zero) }
-    val geometry = remember(page, box) {
+    // Enlarged as the page image is (zoomedPage): marks drawn and input read through the same transform.
+    val geometry = remember(page, box, zoom.scale, zoom.offset) {
         if (box == IntSize.Zero) null
-        else PageGeometry(page.area, page.bitmapWidth, page.bitmapHeight, box.width.toFloat(), box.height.toFloat())
+        else PageGeometry(
+            page.area, page.bitmapWidth, page.bitmapHeight, box.width.toFloat(), box.height.toFloat(),
+            zoom.scale, zoom.offset.x, zoom.offset.y,
+        )
     }
     val renderer = remember { CanvasStrokeRenderer.create() }
-    Box(modifier = Modifier.fillMaxSize().onSizeChanged { box = it }) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .onSizeChanged { box = it }
+            .semantics { if (zoom.zoomed) stateDescription = "Zoomed in" },
+    ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val toScreen = geometry?.pageToScreen() ?: return@Canvas
             drawIntoCanvas { canvas ->
@@ -156,6 +171,9 @@ private fun InkInput(pageIndex: Int, geometry: PageGeometry, viewModel: Annotati
                     var stroke: InProgressStrokeId? = null
                     var erasing = false
                     var started = 0L
+                    // A symbol goes where the touch lifts, not where it lands: a second finger after it is a zoom.
+                    var stamping: Pair<Point, Symbol>? = null
+                    var byFinger = false
                     // Once the pen is down, the whole gesture is the pen's: nothing in it may turn the page, also a hand
                     // that is still on the glass after the pen lifts. Until every pointer is up.
                     var claimed = false
@@ -201,6 +219,7 @@ private fun InkInput(pageIndex: Int, geometry: PageGeometry, viewModel: Annotati
                                     (change.type == PointerType.Stylus || change.type == PointerType.Eraser || fingerDraws)
                             } ?: continue // Not ours: the reader turns the page.
                             active = down.id
+                            byFinger = down.type == PointerType.Touch
                             claimed = true
                             event.changes.forEach { it.consume() } // A hand already down is no tap any more.
                             started = down.uptimeMillis
@@ -212,7 +231,7 @@ private fun InkInput(pageIndex: Int, geometry: PageGeometry, viewModel: Annotati
                                 viewModel.eraseStart()
                                 viewModel.eraseAt(index, pagePoint(down.position))
                             } else if (stamp != null) {
-                                viewModel.place(index, pagePoint(down.position), stamp.symbol) // On the touch; the rest of it does nothing.
+                                stamping = pagePoint(down.position) to stamp.symbol // Placed as it lifts; moving does nothing.
                             } else {
                                 stroke = ink.startStroke(input(down.position, down.uptimeMillis, down), viewModel.brush(), g.pageToScreen())
                                     .also { startedOn[it] = index }
@@ -221,8 +240,18 @@ private fun InkInput(pageIndex: Int, geometry: PageGeometry, viewModel: Annotati
                             continue
                         }
                         val change = event.changes.firstOrNull { it.id == id }
+                        if (byFinger && event.changes.count { it.type == PointerType.Touch && it.pressed } >= 2) {
+                            // A second finger: the reader zooms, and this finger's stroke or symbol was no mark.
+                            if (erasing) viewModel.eraseEnd() else stroke?.let(ink::cancelStroke)
+                            active = null
+                            stroke = null
+                            stamping = null
+                            erasing = false
+                            continue
+                        }
                         if (change == null || !change.pressed) {
                             // Lifted (or gone): the stroke ends here, whatever other pointers still touch.
+                            if (change != null) stamping?.let { (at, symbol) -> viewModel.place(index, at, symbol) }
                             if (erasing) {
                                 viewModel.eraseEnd()
                             } else {
@@ -234,6 +263,7 @@ private fun InkInput(pageIndex: Int, geometry: PageGeometry, viewModel: Annotati
                             change?.consume()
                             active = null
                             stroke = null
+                            stamping = null
                             erasing = false
                             continue
                         }

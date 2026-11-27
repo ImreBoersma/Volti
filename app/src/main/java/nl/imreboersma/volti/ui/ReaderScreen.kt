@@ -74,7 +74,8 @@ data class PageOverlay(val index: Int, val area: PageArea, val bitmapWidth: Int,
 /**
  * The reader. [overlay] is drawn over each page and [controls] over the reader, for what the reader itself doesn't
  * know about (annotations): it only says where the page is. [onEdge] hears of a turn past the last page (+1) or before
- * the first (-1), for a score that has a next one (a setlist).
+ * the first (-1), for a score that has a next one (a setlist). [pageModifier] goes on the page image only, not its
+ * overlays: whatever shows it differently (enlarged, while annotating) and redraws its overlay to match.
  */
 @Composable
 fun ReaderScreen(
@@ -83,6 +84,7 @@ fun ReaderScreen(
     overlay: @Composable (PageOverlay) -> Unit = {},
     controls: @Composable BoxScope.() -> Unit = {},
     onEdge: ((Int) -> Unit)? = null,
+    pageModifier: Modifier = Modifier,
     viewModel: ReaderViewModel = viewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -130,7 +132,7 @@ fun ReaderScreen(
                     },
                     color = LocalReaderColors.current.message,
                 )
-                is ReaderState.Page -> PageView(s, viewModel, overlay)
+                is ReaderState.Page -> PageView(s, viewModel, overlay, pageModifier)
             }
             controls()
             BackButton(onBack, Modifier.align(Alignment.TopStart))
@@ -224,7 +226,12 @@ private val SHOWN = 3.seconds
  * with a line between them; the bottom half still shows the end of this page.
  */
 @Composable
-private fun PageView(page: ReaderState.Page, viewModel: ReaderViewModel, overlay: @Composable (PageOverlay) -> Unit) {
+private fun PageView(
+    page: ReaderState.Page,
+    viewModel: ReaderViewModel,
+    overlay: @Composable (PageOverlay) -> Unit,
+    pageModifier: Modifier,
+) {
     val view = LocalView.current
     // Once no page is drawn any more (an error message, leaving the reader), say so when that frame is on
     // screen, so the last bitmaps can be reused.
@@ -254,7 +261,7 @@ private fun PageView(page: ReaderState.Page, viewModel: ReaderViewModel, overlay
             },
     ) {
         val region = if (page.half) Region.BottomHalf else Region.Whole
-        PageImage(page.bitmap, page.index, region)
+        PageImage(page.bitmap, page.index, region, pageModifier)
         page.bitmap?.let { overlay(PageOverlay(page.index, page.area, it.width, it.height, region)) }
         if (page.half) {
             Box(
@@ -268,7 +275,7 @@ private fun PageView(page: ReaderState.Page, viewModel: ReaderViewModel, overlay
                         drawLine(line, Offset(0f, size.height / 2), Offset(size.width, size.height / 2), strokeWidth = 3f)
                     },
             ) {
-                PageImage(page.top, page.index + 1, Region.TopHalf)
+                PageImage(page.top, page.index + 1, Region.TopHalf, pageModifier)
                 page.top?.let { overlay(PageOverlay(page.index + 1, page.area, it.width, it.height, Region.TopHalf)) }
             }
         }
@@ -284,7 +291,7 @@ enum class Region { Whole, TopHalf, BottomHalf }
  * render lands, instead of clipping it.
  */
 @Composable
-private fun PageImage(bitmap: Bitmap?, index: Int, region: Region) {
+private fun PageImage(bitmap: Bitmap?, index: Int, region: Region, modifier: Modifier) {
     if (bitmap == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Box(
@@ -302,7 +309,7 @@ private fun PageImage(bitmap: Bitmap?, index: Int, region: Region) {
             bitmap = bitmap.asImageBitmap(),
             contentDescription = null,
             contentScale = ContentScale.Fit,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().then(modifier),
         )
     }
 }

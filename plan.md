@@ -460,11 +460,23 @@ Structure: zoom is the annotation layer's, in `annotate/`; the reader still only
 
 ### 1. Zoom in to annotate
 
-- [ ] While annotating, two fingers zoom in on the page (to about four times) and move it; drawing and erasing land where the pen is on the zoomed page. Done, or Back, returns to the whole page.
+- [x] While annotating, two fingers zoom in on the page (to about four times) and move it; drawing and erasing land where the pen is on the zoomed page. Done, or Back, returns to the whole page.
 
 Done when: on the tablet, a fingering drawn above one note at four times shows in place at the whole page.
 
-### 2. Colours
+Done 2026-11-27. While annotating, two fingers pinch (up to four times) and move the page; they draw nothing and turn nothing, and a finger stroke just started becomes no mark (on the phone, a symbol goes where the finger lifts). Not with a pen on the glass: a resting hand mustn't move the music under it. Done, Back or a turn (also a half one) shows the whole page. The zoom is the annotation layer's (`annotate/PageZoom.kt`): the reader only takes a modifier for its page image, and the zoom is part of `PageGeometry`, so pen input, the wet ink, finished marks and symbols all go through one transform. Zoomed in, the overlay says "Zoomed in" to TalkBack.
+
+Checked on the tablet: the wet stroke follows the zoom (first version); the instrumented tests pass there. Not yet: the "Done when" with the S Pen, on this version.
+
+### 2. Sharp when zoomed in
+
+- [ ] Zoomed in, the music is as sharp as at the whole page: the part on screen is rendered again at the zoom's resolution once the fingers stop, the enlarged page shows meanwhile. Within the renderer's limits (memory, the isolated process), and none of it while reading.
+
+Done when: on the tablet, at four times, a note's stem and a dynamic are as crisp as at the whole page.
+
+Found 2026-11-27 with step 1: enlarging the page's image makes the notes soft at four times, too soft to place a mark precisely.
+
+### 3. Colours
 
 - [ ] The pen's colour in the toolbar opens six named colours; the one I pick stays the pen's colour, also for the next score and after a restart.
 

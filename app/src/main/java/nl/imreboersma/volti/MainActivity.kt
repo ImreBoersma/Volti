@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import nl.imreboersma.volti.drive.Received
 import nl.imreboersma.volti.drive.Syncer
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -46,6 +47,9 @@ import nl.imreboersma.volti.ui.EnsembleScreen
 import nl.imreboersma.volti.annotate.AnnotationControls
 import nl.imreboersma.volti.annotate.AnnotationViewModel
 import nl.imreboersma.volti.annotate.PageAnnotations
+import nl.imreboersma.volti.annotate.PageZoom
+import nl.imreboersma.volti.annotate.zoomToAnnotate
+import nl.imreboersma.volti.annotate.zoomedPage
 import nl.imreboersma.volti.setlist.SetlistLine
 import nl.imreboersma.volti.setlist.SetlistPlayerViewModel
 import nl.imreboersma.volti.setlist.SetlistScreen
@@ -295,11 +299,16 @@ fun VoltiApp(navController: NavHostController = rememberNavController(), shared:
                         .drop(1).collect { setlist.turned() }
                 }
             }
+            val annotating by annotations.annotating.collectAsStateWithLifecycle()
+            // Two fingers zoom in, while annotating: the reader only shows its page image enlarged.
+            val zoom = remember { PageZoom() }
             ReaderScreen(
+                modifier = Modifier.zoomToAnnotate(zoom, enabled = annotating),
+                pageModifier = Modifier.zoomedPage(zoom),
                 // Only while the reader is the resumed screen: a second tap during the crossfade would also pop the
                 // library and leave nothing on screen.
                 onBack = dropUnlessResumed { navController.popBackStack() },
-                overlay = { page -> PageAnnotations(page, annotations) },
+                overlay = { page -> PageAnnotations(page, annotations, zoom) },
                 controls = {
                     AnnotationControls(
                         annotations,
@@ -313,7 +322,6 @@ fun VoltiApp(navController: NavHostController = rememberNavController(), shared:
                         },
                     )
                     // Not over the annotation toolbar, which is at the bottom too.
-                    val annotating by annotations.annotating.collectAsStateWithLifecycle()
                     if (!annotating) setlist?.let { SetlistLine(it) }
                 },
                 onEdge = setlist?.let { player ->
