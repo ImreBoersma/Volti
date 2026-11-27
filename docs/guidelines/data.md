@@ -50,9 +50,9 @@ All three are in internal storage and excluded from backup and device transfer (
 
 **What lands in the store passed `copyChecked`**: at most `MAX_PDF_BYTES`, starts like a PDF, and for a download the md5 Drive gave. It is written to a temporary file and renamed into place, so a half-written PDF never has a version's name.
 
-**Imports wait in `files/drive-incoming`, outside the store (`files/drive`)**, so a clean-up can't remove one mid-copy. Leftovers older than `INCOMING_KEPT_MS` are deleted at start.
+**Downloads and imports are written in `files/drive-incoming`, outside the store (`files/drive`)**, so a clean-up can't remove one mid-copy and nothing holds `storeLock` while another app or Google Drive is read: opening a file never waits for another one's transfer. `keep` then renames the copy into the store under `storeLock`, in the same go as the row that needs it (`downloaded`, and `opened` when it is being opened), so no clean-up comes between. Leftovers older than `INCOMING_KEPT_MS` are deleted at start.
 
-**Clean-up keeps what a row needs.** `keepOnly(versionsInUse())` deletes every version no row points to (`localMd5`, `seenMd5` or `previousMd5`) and every unfinished download. It runs under `storeLock`, after a sync or a removal, never while a download is writing. A new column that points to a version must be added to `versionsInUse`, or its PDF is deleted at the next sync.
+**Clean-up keeps what a row needs.** `keepOnly(versionsInUse())` deletes every version no row points to (`localMd5`, `seenMd5` or `previousMd5`) and every unfinished download. It runs under `storeLock`, after a sync or a removal; downloads in progress are outside its reach. A new column that points to a version must be added to `versionsInUse`, or its PDF is deleted at the next sync.
 
 **Space.** A download needs its size plus `KEEP_FREE_BYTES` free, so Volti never fills the tablet. Not enough space is a `Rejection.NoSpace`, shown to the musician, not a crash.
 
