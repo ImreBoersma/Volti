@@ -1,0 +1,15 @@
+#!/bin/sh
+# Runs CI on this Mac (scripts/ci-local.sh) before a push, so a red build never reaches GitHub. A push of only
+# Markdown (the plan, guidelines) skips it. `git push --no-verify` skips it on purpose.
+zero=0000000000000000000000000000000000000000
+code_changed=""
+while read -r local_ref local_sha remote_ref remote_sha; do
+    [ "$local_sha" = "$zero" ] && continue # Deleting a branch.
+    base=$([ "$remote_sha" = "$zero" ] && git merge-base "$local_sha" origin/main || echo "$remote_sha")
+    if git diff --name-only "$base" "$local_sha" | grep -qv '\.md$'; then code_changed=1; fi
+done
+if [ -z "$code_changed" ]; then
+    echo "pre-push: only Markdown changed, local CI skipped"
+    exit 0
+fi
+exec "$(git rev-parse --show-toplevel)/scripts/ci-local.sh"

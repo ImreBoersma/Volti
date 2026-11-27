@@ -29,7 +29,10 @@ Each guideline ends with "Not yet following this". When a change fixes one of th
 ./gradlew connectedMinifiedAndroidTest      # instrumented tests on a device, against the minified build
 ./gradlew connectedDebugAndroidTest -Pvolti.testBuildType=debug   # quicker local run
 scripts/trace-test-references.sh            # after a test starts using new app code (NoSuchMethodError in the minified run)
+scripts/ci-local.sh                         # what CI does, on this Mac: unit tests, lint, instrumented tests on an API 34 tablet emulator
 ```
+
+Every push runs `scripts/ci-local.sh` first through the pre-push hook (`scripts/install-hooks.sh`, once per clone); a push of only Markdown skips it. When `.github/workflows/ci.yml` changes, change the script with it.
 
 A step is done when its "Done when" in `plan.md` is checked on the tablet, not only in tests.
 
