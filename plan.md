@@ -482,6 +482,28 @@ Found 2026-11-27 with step 1: enlarging the page's image makes the notes soft at
 
 Done when: on the tablet, green picked in one score is the pen's colour in the next one, and after Volti was closed.
 
+## Milestone 9: downloads in the background
+
+Found 2026-11-27: the library's spinner stays until every ensemble's downloads are done, opening a file waits for the download in progress, and a sheet being downloaded doesn't show it.
+
+### 0. Decisions before building
+
+- [x] The spinner means "checking Google Drive" only (2026-11-27): it spins while Volti asks Drive what changed, a few seconds; the downloads after that show on the files and in each ensemble's status line ("Downloading 3 of 12…").
+- [x] An icon on the sheet downloading now, and a quiet one on the sheets still to come in this sync (2026-11-27).
+- [x] Downloads still pause while reading (2026-11-27): the rule "no sync during reading" stays (battery, speed on stage); they go on when I'm back in the library or the ensemble. Opening a file never waits for another file's download.
+
+### 1. Open while others download
+
+- [ ] A download no longer holds the store while it transfers: it is copied next to it and taken in once complete, as an import is. Opening a file that is here opens at once; one that isn't is downloaded at once, beside the sync's.
+
+Done when: on the tablet, during a first sync of a big folder, a file that is here opens straight away, and one that isn't opens as soon as its own download is done.
+
+### 2. Downloading shows on the sheets
+
+- [ ] The spinner only while checking Drive. A sheet downloading now has a moving download icon, the ones still to come in this sync a quiet one; the ensemble's status line counts them.
+
+Done when: on the tablet, a first sync of a big folder shows its sheets coming in one by one, and the library is usable from the moment Drive was checked.
+
 ## Later milestones (not planned yet)
 
 - Learn my parts from my corrections. Every suggestion I accept or turn down, and every file I mark by hand, is stored per file already; a later version can learn from those which names mean my part (a new abbreviation, an orchestra's own naming) instead of relying on the fixed word list.
