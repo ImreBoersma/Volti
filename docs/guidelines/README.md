@@ -7,4 +7,5 @@ How Volti is written and built. Each guideline is grounded in code that already 
 - [App quality](quality.md): lifecycle, performance, dependencies, permissions, privacy and backup.
 - [Data and storage](data.md): what is kept where, marks, schema changes and migrations, the PDF store.
 - [Words](words.md): which word means what, delete and remove, buttons, empty lists, translatable text.
+- [Testing](testing.md): what gets a test and where, UI tests, what is checked on the tablet, measuring speed.
 - [UX laws](ux-laws.md): the Laws of UX that apply to a reader on a music stand, as rules.
