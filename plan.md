@@ -9,7 +9,7 @@ A sheet music reader for Android tablets. Offline, fast, low battery use.
 - No network permission. Changed 2026-11-25 for milestone 3 (scores from Google Drive): network only to Google's Drive endpoints, only to download, only while the app is open. The reader never needs the network: scores are always read from the device.
 - No storage permission. Access only to the one folder granted through the system picker.
 - The platform `PdfRenderer`, not a bundled PDF parser that needs patching by hand.
-- No backup of app data. Annotations will be the exception (milestone 4): they are the one thing on the tablet that can't be downloaded again.
+- No backup of app data. Annotations, the one thing on the tablet that can't be downloaded again, aren't backed up either for now (decided in milestone 4).
 
 **Speed.** Two targets, measured on a release build on the tablet:
 

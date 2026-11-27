@@ -16,7 +16,7 @@ Left out because Volti has none of it: notifications, audio, video, sharing, Web
 
 **60 fps where anything moves**: scrolling lists and drawing ink. A page turn is not an animation. (`Rendering_Performance`)
 
-**No disk or network on the main thread.** Debug builds run with `StrictMode` thread and VM policies that log violations; a new violation is a bug. (`StrictMode_Compliance`, `Stability_ANR`)
+**No disk or network on the main thread.** Debug builds run with `StrictMode` thread and VM policies that log violations (`MainActivity.onCreate`); a new violation is a bug. Known and outside Volti's code: androidx.ink loads its native library on the main thread the first time the annotation layer shows (about 13 ms). (`StrictMode_Compliance`, `Stability_ANR`)
 
 **A crash in the PDF parser is not a crash of the app.** It stays in the isolated `:pdf` process and turns into a `Problem`. (`Stability_ANR`)
 
@@ -34,7 +34,7 @@ Left out because Volti has none of it: notifications, audio, video, sharing, Web
 
 **Every component sets `android:exported` explicitly**; only `MainActivity` is exported. (`Component_Export`)
 
-**HTTPS only**, declared in a network security configuration that disallows cleartext traffic. (`Network_Security_Traffic`, `Network_Security_Configuration`)
+**HTTPS only**, declared in a network security configuration that disallows cleartext traffic and trusts only the system's certificate authorities (`res/xml/network_security_config.xml`). (`Network_Security_Traffic`, `Network_Security_Configuration`)
 
 **App data stays in internal storage**, and logs carry no account names, email addresses or tokens (see [messages.md](messages.md)). (`Sensitive_Data_Storage`, `Sensitive_Data_Logging`)
 
@@ -42,10 +42,8 @@ Left out because Volti has none of it: notifications, audio, video, sharing, Web
 
 ### Backup: a deliberate exception
 
-Google asks apps to keep data across backups and device transfers (`App_Data_Backup`). Volti doesn't: `data_extraction_rules.xml` excludes everything from cloud backup and device-to-device transfer. Scores can be downloaded again and the folder grant can't move between devices anyway. Annotations are the planned exception (milestone 4 in `plan.md`), because they exist nowhere else.
+Google asks apps to keep data across backups and device transfers (`App_Data_Backup`). Volti doesn't: `data_extraction_rules.xml` excludes everything from cloud backup and device-to-device transfer. Scores can be downloaded again, or imported again. Annotations exist nowhere else, and milestone 4 decided (2026-11-26) not to back them up for now: a lost or reset device loses them. A backup can come later (a file in my own Google Drive, or an export).
 
 ## Not yet following this
 
-- No network security configuration: the manifest has no `android:networkSecurityConfig`. Cleartext is already off by default for this `targetSdk`, so this is a declaration, not a hole.
-- `StrictMode` isn't switched on in debug builds.
-- Annotations are excluded from backup until milestone 4 decides how they are backed up.
+Nothing known.

@@ -35,6 +35,8 @@ import nl.imreboersma.volti.Reader
 import nl.imreboersma.volti.db.VoltiDatabase
 import nl.imreboersma.volti.db.fileKey
 import nl.imreboersma.volti.drive.Syncer
+import nl.imreboersma.volti.drive.DriveProblem
+import nl.imreboersma.volti.ui.skippedText
 import nl.imreboersma.volti.ui.theme.LocalReaderColors
 import kotlin.time.Duration.Companion.seconds
 
@@ -55,10 +57,10 @@ suspend fun findPiece(app: Application, setlistId: Long, from: Int, step: Int): 
     var position = from + step
     while (position in pieces.indices) {
         val piece = pieces[position]
-        var problem: String? = "It isn't in Google Drive any more."
+        var problem: String? = skippedText(DriveProblem.FileGone)
         if (piece.file != null) {
             problem = "Downloading it took too long."
-            withTimeoutOrNull(REACH_TIMEOUT) { problem = syncer.fetch(setlist.ensembleId, piece.fileId, open = true) }
+            withTimeoutOrNull(REACH_TIMEOUT) { problem = syncer.fetch(setlist.ensembleId, piece.fileId, open = true)?.let(::skippedText) }
         }
         val md5 = if (problem == null) db.files().all(setlist.ensembleId).firstOrNull { it.fileId == piece.fileId }?.seenMd5 else null
         if (md5 != null) {

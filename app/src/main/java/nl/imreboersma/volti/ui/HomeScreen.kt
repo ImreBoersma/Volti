@@ -54,6 +54,8 @@ import kotlinx.coroutines.withContext
 import nl.imreboersma.volti.data.FolderStore
 import nl.imreboersma.volti.data.folderName
 import nl.imreboersma.volti.data.pdfsIn
+import nl.imreboersma.volti.drive.ImportProgress
+import nl.imreboersma.volti.drive.ImportStep
 import nl.imreboersma.volti.data.WALK_LIMIT
 import nl.imreboersma.volti.db.Ensemble
 import nl.imreboersma.volti.db.VoltiDatabase
@@ -122,10 +124,10 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
-    private val _copying = MutableStateFlow(false)
+    private val _copying = MutableStateFlow<String?>(null)
 
-    /** The old folder is being copied in. */
-    val copying: StateFlow<Boolean> = _copying.asStateFlow()
+    /** How far copying the old folder in is ("Copying 12 of 300…"); null when it isn't. */
+    val copying: StateFlow<String?> = _copying.asStateFlow()
 
     private val _copied = MutableStateFlow<String?>(null)
 
@@ -145,10 +147,10 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
      * cancelled or failed, the offer stays.
      */
     fun importOldFolder() {
-        if (_copying.value) return
+        if (_copying.value != null) return
         viewModelScope.launch {
             val tree = folders.folder.first() ?: return@launch
-            _copying.value = true
+            _copying.value = "Copying…"
             _folderProblem.value = null
             try {
                 val found = withContext(Dispatchers.IO) { pdfsIn(getApplication<Application>().contentResolver, tree) }
@@ -158,14 +160,16 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                     found.uris.isEmpty() -> "There are no PDFs in this folder."
                     else -> null
                 }
-                if (_folderProblem.value == null) _copied.value = syncer.receive(found.uris, found.folders, oldFolder = true).await().batch
+                if (_folderProblem.value == null) _copied.value = syncer.receive(found.uris, found.folders, oldFolder = true) { done, total ->
+                    _copying.value = importProgressText(ImportProgress(ImportStep.Copying, done, total))
+                }.await().batch
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 Log.w("Volti", "Can't read the old folder", e)
                 _folderProblem.value = "Can't read this folder any more."
             } finally {
-                _copying.value = false
+                _copying.value = null
             }
         }
     }
@@ -234,7 +238,7 @@ fun HomeScreen(
             needsConsent?.let { intent ->
                 item {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        Text("Volti needs read-only access to Google Drive to sync.", modifier = Modifier.weight(1f, fill = false))
+                        Text(SIGNED_OUT, modifier = Modifier.weight(1f, fill = false))
                         Button(onClick = { consent.launch(IntentSenderRequest.Builder(intent).build()) }) {
                             Text("Sign in to Google Drive")
                         }
@@ -283,8 +287,9 @@ fun HomeScreen(
                                 "made on them. Subfolders come along as folders.",
                         )
                         folderProblem?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                        if (copying) {
-                            Text("Copying…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        val progress = copying
+                        if (progress != null) {
+                            Text(progress, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         } else {
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Button(onClick = viewModel::importOldFolder) { Text("Import it") }

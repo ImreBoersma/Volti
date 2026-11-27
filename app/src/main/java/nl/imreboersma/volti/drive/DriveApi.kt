@@ -1,5 +1,6 @@
 package nl.imreboersma.volti.drive
 
+import android.net.TrafficStats
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.IOException
@@ -7,6 +8,9 @@ import java.io.InputStream
 import java.net.URL
 import java.net.URLEncoder
 import javax.net.ssl.HttpsURLConnection
+
+/** Volti's tag on its Google Drive traffic. */
+private const val DRIVE_TRAFFIC_TAG = 0x766F6C74 // "volt"
 
 /** Drive said no. [status] is the HTTP status: 401 means the access token ran out, 403 and 404 no access. */
 class DriveException(val status: Int, message: String) : IOException(message)
@@ -40,6 +44,8 @@ class DriveApi(private val token: String) {
 
     private suspend fun <T> request(path: String, item: DriveFolderLink, read: (InputStream) -> T): T =
         withContext(Dispatchers.IO) {
+            // Tagged, so data use is counted as Volti's Drive traffic (and StrictMode sees no untagged socket).
+            TrafficStats.setThreadStatsTag(DRIVE_TRAFFIC_TAG)
             val connection = URL("https://www.googleapis.com/drive/v3/$path").openConnection() as HttpsURLConnection
             try {
                 connection.connectTimeout = 15_000
@@ -51,6 +57,7 @@ class DriveApi(private val token: String) {
                 connection.inputStream.use(read)
             } finally {
                 connection.disconnect()
+                TrafficStats.clearThreadStatsTag()
             }
         }
 

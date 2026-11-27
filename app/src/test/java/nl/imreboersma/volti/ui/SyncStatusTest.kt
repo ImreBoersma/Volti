@@ -1,6 +1,9 @@
 package nl.imreboersma.volti.ui
 
 import nl.imreboersma.volti.drive.SyncState
+import nl.imreboersma.volti.drive.DriveProblem
+import nl.imreboersma.volti.drive.ImportProgress
+import nl.imreboersma.volti.drive.ImportStep
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -33,8 +36,23 @@ class SyncStatusTest {
 
     @Test
     fun offlineItSaysHowOldTheCopyIs() {
-        val offline = SyncState.Failed("No connection to Google Drive.")
-        assertEquals("No connection to Google Drive. Synced 2 hours ago.", syncText(offline, before(120), now))
-        assertEquals("No connection to Google Drive. Nothing synced yet.", syncText(offline, null, now))
+        val offline = SyncState.Failed(DriveProblem.Unreachable)
+        assertEquals("Couldn't reach Google Drive. Synced 2 hours ago.", syncText(offline, before(120), now))
+        assertEquals("Couldn't reach Google Drive. Nothing synced yet.", syncText(offline, null, now))
+    }
+
+    @Test
+    fun aLongImportSaysHowFarItIsWithThousandsSeparated() {
+        assertEquals("Copying 12 of 1,300…", importProgressText(ImportProgress(ImportStep.Copying, 11, 1300)))
+        assertEquals("Importing 1 of 3…", importProgressText(ImportProgress(ImportStep.Importing, 0, 3)))
+    }
+
+    @Test
+    fun eachDriveProblemHasOneWordingAndAnErrorCodeSaysWhatToDo() {
+        assertEquals(SIGNED_OUT, syncProblemText(DriveProblem.SignedOut))
+        assertEquals(SIGNED_OUT, fileProblemText(DriveProblem.SignedOut))
+        val error = "Google Drive answered with an error (503). Try again later."
+        assertEquals(error, syncProblemText(DriveProblem.DriveError(503)))
+        assertEquals(error, fileProblemText(DriveProblem.DriveError(503)))
     }
 }

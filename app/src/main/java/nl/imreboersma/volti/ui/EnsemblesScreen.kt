@@ -54,6 +54,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import nl.imreboersma.volti.data.EnsembleRow
 import nl.imreboersma.volti.db.EnsembleFile
 import nl.imreboersma.volti.drive.SyncState
+import nl.imreboersma.volti.drive.DriveProblem
 import nl.imreboersma.volti.drive.MAX_PDF_BYTES
 import nl.imreboersma.volti.drive.Rejection
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -199,7 +200,7 @@ fun EnsembleScreen(
                     )
                 }
                 Box {
-                    OutlinedButton(onClick = { choosingImport = true }, enabled = !importing) { Text("Import") }
+                    OutlinedButton(onClick = { choosingImport = true }, enabled = importing == null) { Text("Import") }
                     DropdownMenu(expanded = choosingImport, onDismissRequest = { choosingImport = false }) {
                         DropdownMenuItem(text = { Text("PDFs") }, onClick = {
                             choosingImport = false
@@ -220,7 +221,7 @@ fun EnsembleScreen(
             if (ensemble?.folderId != null) SyncLine(
                 // Signed out: still say how old the copy here is.
                 text = syncText(
-                    if (needsConsent != null) SyncState.Failed("Signed out of Google Drive.") else sync,
+                    if (needsConsent != null) SyncState.Failed(DriveProblem.SignedOut) else sync,
                     ensemble?.lastSynced,
                     System.currentTimeMillis(),
                 ),
@@ -256,7 +257,7 @@ fun EnsembleScreen(
                     TextButton(onClick = viewModel::dontPlace) { Text("Cancel") }
                 }
             }
-            if (importing) Text("Importing…", modifier = Modifier.padding(bottom = 8.dp))
+            importing?.let { Text(it, modifier = Modifier.padding(bottom = 8.dp)) }
             message?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(bottom = 8.dp)) }
             if (notImported.isNotEmpty()) {
                 Text(notImportedText(notImported, deviceName()), color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(bottom = 8.dp))
@@ -440,7 +441,7 @@ private fun FileRow(
         when {
             fetching -> Text("Downloading…", color = MaterialTheme.colorScheme.onSurfaceVariant)
             !downloaded -> Text("Not on this ${deviceName()}", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            file.removed -> Text("Removed in Drive", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            file.removed -> Text("Removed from Google Drive", color = MaterialTheme.colorScheme.onSurfaceVariant)
             file.changed -> Text("Changed", color = MaterialTheme.colorScheme.secondary)
             new -> Text("New", color = MaterialTheme.colorScheme.secondary)
         }

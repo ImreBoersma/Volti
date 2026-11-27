@@ -3174,9 +3174,9 @@
     #noinspection ShrinkerUnresolvedReference
     java.io.File fileFor(java.lang.String);
     #noinspection ShrinkerUnresolvedReference
-    kotlinx.coroutines.Deferred import(long, java.util.List, nl.imreboersma.volti.drive.Received, boolean);
+    kotlinx.coroutines.Deferred import$default(nl.imreboersma.volti.drive.Syncer, long, java.util.List, nl.imreboersma.volti.drive.Received, boolean, kotlin.jvm.functions.Function2, int, java.lang.Object);
     #noinspection ShrinkerUnresolvedReference
-    kotlinx.coroutines.Deferred receive$default(nl.imreboersma.volti.drive.Syncer, java.util.List, java.util.List, boolean, int, java.lang.Object);
+    kotlinx.coroutines.Deferred receive$default(nl.imreboersma.volti.drive.Syncer, java.util.List, java.util.List, boolean, java.lang.Long, kotlin.jvm.functions.Function2, int, java.lang.Object);
     #noinspection ShrinkerUnresolvedReference
     java.lang.Object received(java.lang.String, kotlin.coroutines.Continuation);
 }

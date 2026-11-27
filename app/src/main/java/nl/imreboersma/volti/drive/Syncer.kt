@@ -44,7 +44,7 @@ sealed interface SyncState {
 
     /** [stopped]: the folder was too big to list completely. [failed]: downloads that will be tried next time. */
     data class Done(val stopped: Boolean, val failed: Int) : SyncState
-    data class Failed(val message: String) : SyncState
+    data class Failed(val problem: DriveProblem) : SyncState
 }
 
 /** How long a copy from another app waits to be imported before it is cleaned up. */
@@ -69,6 +69,11 @@ data class Received(
     val problems: List<Pair<String, Rejection>>,
     val oldFolder: Boolean = false,
 )
+
+enum class ImportStep { Copying, Importing }
+
+/** How far an import is: [done] of [total] files in [step]. */
+data class ImportProgress(val step: ImportStep, val done: Int, val total: Int)
 
 /** The name another app gives a file; the end of its address if it gives none, or can't say. */
 fun displayName(resolver: ContentResolver, uri: Uri): String {
@@ -97,9 +102,11 @@ class Syncer private constructor(context: Context) {
     private val app = context.applicationContext
     private val db = VoltiDatabase.get(app)
     private val auth = DriveAuth(app)
-    private val store = File(app.filesDir, "drive").let { dir ->
+    // filesDir, from the data directory's path: the getter reads the disk, and Syncer is made on the main thread.
+    private val files = File(app.applicationInfo.dataDir, "files")
+    private val store = File(files, "drive").let { dir ->
         val storage = app.getSystemService(StorageManager::class.java)
-        PdfStore(dir) { storage.getAllocatableBytes(storage.getUuidForPath(app.filesDir)) }
+        PdfStore(dir) { storage.getAllocatableBytes(storage.getUuidForPath(files)) }
     }
 
     /** One sync, or clean-up, at a time: they share the store, and clean-up deletes what isn't in use. */
@@ -158,7 +165,7 @@ class Syncer private constructor(context: Context) {
     fun consented(data: Intent?) {
         _consent.value = null
         if (auth.tokenFrom(data) == null) {
-            asked.forEach { set(it, SyncState.Failed("Volti needs access to Google Drive to sync.")) }
+            asked.forEach { set(it, SyncState.Failed(DriveProblem.SignedOut)) }
             return
         }
         owner?.let { sync(asked, it, force = true) }
@@ -176,9 +183,9 @@ class Syncer private constructor(context: Context) {
      * Gets one file onto the device, so it can be opened ([open]: and records it as opened, in the same go, so no
      * sync deletes it in between) or because I marked it mine. To open, a version that is here already will do: a
      * newer one comes with the sync, and offline the one here still opens. Waits for at most the one download a sync
-     * is doing. Returns a message when it couldn't; null when the file is here.
+     * is doing. Returns what went wrong when it couldn't; null when the file is here.
      */
-    suspend fun fetch(ensembleId: Long, fileId: String, open: Boolean): String? = try {
+    suspend fun fetch(ensembleId: Long, fileId: String, open: Boolean): DriveProblem? = try {
         // Here already and only to open: no need for Google at all, so it works offline.
         val file = storeLock.withLock {
             db.files().all(ensembleId).firstOrNull { it.fileId == fileId }?.also { file ->
@@ -187,21 +194,21 @@ class Syncer private constructor(context: Context) {
         }
         when {
             file?.localMd5 != null && (open || file.imported) -> null
-            file?.imported == true -> "This file is gone." // An import only ever was here.
+            file?.imported == true -> DriveProblem.ImportGone // An import only ever was here.
             else -> fetchWithAccess(ensembleId, fileId, open, retry = true)
         }
     } catch (e: CancellationException) {
         throw e
     } catch (e: DriveException) {
-        Log.w("Volti", "Fetching a file failed: ${e.status}")
-        if (e.status == 403 || e.status == 404) "This file isn't in Google Drive any more." else "Google Drive answered with an error (${e.status})."
+        Log.w("Volti", "Can't download a file: Google Drive answered ${e.status}", e)
+        if (e.status == 403 || e.status == 404) DriveProblem.FileGone else DriveProblem.DriveError(e.status)
     } catch (e: IOException) {
-        Log.w("Volti", "Fetching a file failed: ${e.message}")
-        "This file isn't here yet, and there's no connection to download it."
+        Log.w("Volti", "Can't download a file", e)
+        DriveProblem.Unreachable
     } catch (e: Exception) {
         // Play services' own errors (offline with an expired token, among others): a message, not a crash.
-        Log.w("Volti", "Fetching a file failed", e)
-        "Couldn't reach Google Drive."
+        Log.w("Volti", "Can't download a file", e)
+        DriveProblem.Unreachable
     }
 
     /**
@@ -214,11 +221,16 @@ class Syncer private constructor(context: Context) {
         uris: List<Uri>,
         folders: List<List<String>> = uris.map { emptyList() },
         oldFolder: Boolean = false,
-    ): Deferred<Received> = scope.async {
+        into: Long? = null,
+        progress: (done: Int, total: Int) -> Unit = { _, _ -> },
+    ): Deferred<Received> = scope.async { try {
         val resolver = app.contentResolver
         val copies = mutableListOf<Incoming>()
         val problems = mutableListOf<Pair<String, Rejection>>()
-        for ((uri, inFolders) in uris.zip(folders)) {
+        for ((i, pair) in uris.zip(folders).withIndex()) {
+            val (uri, inFolders) = pair
+            progress(i, uris.size)
+            showImport(into, ImportProgress(ImportStep.Copying, i, uris.size))
             val name = withContext(Dispatchers.IO) { displayName(resolver, uri) }
             try {
                 val (copy, md5) = withContext(Dispatchers.IO) {
@@ -245,7 +257,9 @@ class Syncer private constructor(context: Context) {
                 if (!temp.renameTo(store.incoming(batch))) throw IOException("Can't keep an import's list")
             }
         }
-    }
+    } finally {
+        showImport(into, null)
+    } }
 
     /** What [receive] copied in as [batch]; null once it is imported, let go or cleaned up, or if it can't be read. */
     suspend fun received(batch: String): Received? = withContext(Dispatchers.IO) {
@@ -265,19 +279,29 @@ class Syncer private constructor(context: Context) {
      * the score changed under them. Without, it gets a name of its own. A new one takes over the marks I made on the
      * same PDF as a local file. Completes with what couldn't be taken in (a copy cleaned up meanwhile).
      */
-    fun import(ensembleId: Long, into: List<String>, received: Received, replace: Boolean): Deferred<List<Pair<String, Rejection>>> =
-        scope.async {
+    fun import(
+        ensembleId: Long,
+        into: List<String>,
+        received: Received,
+        replace: Boolean,
+        progress: (done: Int, total: Int) -> Unit = { _, _ -> },
+    ): Deferred<List<Pair<String, Rejection>>> =
+        scope.async { try {
             val problems = mutableListOf<Pair<String, Rejection>>()
             // Read once, kept up to date here: a folder of thousands doesn't read the table thousands of times.
             val rows = db.files().all(ensembleId).toMutableList()
-            for (file in received.incoming) {
+            for ((i, file) in received.incoming.withIndex()) {
+                progress(i, received.incoming.size)
+                showImport(ensembleId, ImportProgress(ImportStep.Importing, i, received.incoming.size))
                 val folders = into + file.folders
                 try {
                     storeLock.withLock {
-                        withContext(Dispatchers.IO) { store.keep(store.incoming(file.copy), file.md5) }
+                        val size = withContext(Dispatchers.IO) {
+                            store.keep(store.incoming(file.copy), file.md5)
+                            store.fileFor(file.md5).length()
+                        }
                         val here = rows.filter { it.folders == folders }
                         val replaced = if (replace) here.firstOrNull { it.imported && it.name == file.name } else null
-                        val size = store.fileFor(file.md5).length()
                         val row = replaced?.copy(md5 = file.md5, localMd5 = file.md5, size = size) ?: EnsembleFile(
                             ensembleId, UUID.randomUUID().toString(), null, freeName(file.name, here.mapTo(HashSet()) { it.name }),
                             folders, file.md5, size, localMd5 = file.md5, addedAt = System.currentTimeMillis(), imported = true,
@@ -297,7 +321,22 @@ class Syncer private constructor(context: Context) {
             // Its PDFs are Volti's own now: the folder read in place can go, and the offer with it.
             if (received.oldFolder) FolderStore(app).forget()
             problems
-        }
+        } finally {
+            showImport(ensembleId, null)
+        } }
+
+    private val _importing = MutableStateFlow<Map<Long, ImportProgress>>(emptyMap())
+
+    /**
+     * Per ensemble id, how far an import into it is. Here, not in a screen: the import runs on when I leave, and the
+     * screen I come back to still sees it.
+     */
+    val importing: StateFlow<Map<Long, ImportProgress>> = _importing.asStateFlow()
+
+    private fun showImport(ensembleId: Long?, progress: ImportProgress?) {
+        if (ensembleId == null) return
+        _importing.update { if (progress == null) it - ensembleId else it + (ensembleId to progress) }
+    }
 
     /** What I decided not to import: the copies and the batch go. */
     fun discard(received: Received) {
@@ -327,15 +366,15 @@ class Syncer private constructor(context: Context) {
         scope.launch { fetch(ensembleId, fileId, open = false) }
     }
 
-    private suspend fun fetchWithAccess(ensembleId: Long, fileId: String, open: Boolean, retry: Boolean): String? =
+    private suspend fun fetchWithAccess(ensembleId: Long, fileId: String, open: Boolean, retry: Boolean): DriveProblem? =
         when (val access = auth.authorize()) {
             is DriveAccess.NeedsConsent -> {
                 _consent.value = access.intent
-                "Sign in to Google Drive first."
+                DriveProblem.SignedOut
             }
             is DriveAccess.Granted -> try {
                 storeLock.withLock {
-                    val file = db.files().all(ensembleId).firstOrNull { it.fileId == fileId } ?: return@withLock "This file is gone."
+                    val file = db.files().all(ensembleId).firstOrNull { it.fileId == fileId } ?: return@withLock DriveProblem.FileGone
                     if (file.localMd5 == null) download(DriveApi(access.token), file)
                     if (open) db.files().opened(ensembleId, fileId, file.localMd5 ?: file.md5)
                     null
@@ -376,8 +415,8 @@ class Syncer private constructor(context: Context) {
     } catch (e: CancellationException) {
         throw e
     } catch (e: Exception) {
-        Log.w("Volti", "Syncing an ensemble failed", e)
-        SyncState.Failed("Couldn't reach Google Drive.")
+        Log.w("Volti", "Can't sync an ensemble", e)
+        SyncState.Failed(DriveProblem.Unreachable)
     }
 
     private suspend fun syncWithAccess(ensemble: Ensemble, retry: Boolean = true): SyncState? =
@@ -405,7 +444,7 @@ class Syncer private constructor(context: Context) {
         val api = DriveApi(token)
         return try {
             set(id, SyncState.Listing)
-            if (api.folderInfo(folder).mimeType != FOLDER_TYPE) return SyncState.Failed("The link is to a file, not a folder.")
+            if (api.folderInfo(folder).mimeType != FOLDER_TYPE) return SyncState.Failed(DriveProblem.NotAFolder)
             val listing = walkDriveFolder(folder) { f, page -> api.listPage(f, page) }
             val files = db.files()
             val todo = storeLock.withLock {
@@ -435,7 +474,7 @@ class Syncer private constructor(context: Context) {
                     if (e.status == 401) throw e // Start over with a new token.
                     failed++
                 } catch (e: IOException) {
-                    Log.w("Volti", "A download failed: ${e.message}") // Not the name: it may be private.
+                    Log.w("Volti", "Can't download a file", e) // Not the name: it may be private.
                     failed++
                 }
             }
@@ -445,12 +484,12 @@ class Syncer private constructor(context: Context) {
         } catch (e: DriveException) {
             when (e.status) {
                 401 -> throw e
-                403, 404 -> SyncState.Failed("This Google account can't see that folder. Is it shared with you?")
-                else -> SyncState.Failed("Google Drive answered with an error (${e.status}). Try again later.")
+                403, 404 -> SyncState.Failed(DriveProblem.NotShared)
+                else -> SyncState.Failed(DriveProblem.DriveError(e.status))
             }
         } catch (e: IOException) {
-            Log.w("Volti", "Syncing an ensemble failed", e) // Not the folder id: for a link-shared folder, that is the link.
-            SyncState.Failed("No connection to Google Drive.")
+            Log.w("Volti", "Can't sync an ensemble", e) // Not the folder id: for a link-shared folder, that is the link.
+            SyncState.Failed(DriveProblem.Unreachable)
         }
     }
 

@@ -209,7 +209,7 @@ class ReaderViewModel @JvmOverloads constructor(
         viewModelScope.launch {
             delay(openTimeoutMs.milliseconds)
             if (_state.compareAndSet(ReaderState.Loading, ReaderState.Failed(ReaderState.Problem.TooSlow))) {
-                Log.w("Volti", "Gave up on $uri after $openTimeoutMs ms")
+                Log.w("Volti", "Can't open $uri within $openTimeoutMs ms")
             }
         }
     }
@@ -338,7 +338,7 @@ class ReaderViewModel @JvmOverloads constructor(
             try {
                 document?.close()
             } catch (e: Exception) {
-                Log.w("Volti", "Closing $uri failed", e)
+                Log.w("Volti", "Can't close $uri", e)
             }
             document = null
         }

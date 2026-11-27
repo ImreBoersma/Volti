@@ -221,7 +221,7 @@ class EnsembleViewModel(app: Application, private val handle: SavedStateHandle) 
             }
             val here = db.files().all(id).firstOrNull { it.fileId == file.fileId }?.seenMd5
             when {
-                problem != null -> _message.value = problem
+                problem != null -> _message.value = fileProblemText(problem)
                 here != null -> onOpen(Uri.fromFile(syncer.fileFor(here)).toString(), file.scoreKey)
             }
         }
@@ -255,8 +255,12 @@ class EnsembleViewModel(app: Application, private val handle: SavedStateHandle) 
     private val _pending = MutableStateFlow<PendingImport?>(null)
     val pending: StateFlow<PendingImport?> = _pending.asStateFlow()
 
-    private val _importing = MutableStateFlow(false)
-    val importing: StateFlow<Boolean> = _importing.asStateFlow()
+    private val _reading = MutableStateFlow(false)
+
+    /** How far an import into this ensemble is ("Copying 12 of 300…"), also one started before I left; null when none runs. */
+    val importing: StateFlow<String?> = combine(syncer.importing, _reading) { all, reading ->
+        all[id]?.let(::importProgressText) ?: "Reading the folder…".takeIf { reading }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     private val _notImported = MutableStateFlow<List<Pair<String, Rejection>>>(emptyList())
 
@@ -265,7 +269,7 @@ class EnsembleViewModel(app: Application, private val handle: SavedStateHandle) 
 
     /** PDFs picked to import into [folders]: copied in at once, while Volti may read them. */
     fun import(uris: List<Uri>, folders: List<String>) {
-        if (uris.isNotEmpty()) receiveThenAsk(folders) { syncer.receive(uris).await() }
+        if (uris.isNotEmpty()) receiveThenAsk(folders) { syncer.receive(uris, into = id).await() }
     }
 
     /**
@@ -275,6 +279,7 @@ class EnsembleViewModel(app: Application, private val handle: SavedStateHandle) 
     fun importFolder(tree: Uri, folders: List<String>) {
         receiveThenAsk(folders) {
             val resolver = getApplication<Application>().contentResolver
+            _reading.value = true
             val found = try {
                 withContext(Dispatchers.IO) { pdfsIn(resolver, tree) }
             } catch (e: CancellationException) {
@@ -283,6 +288,8 @@ class EnsembleViewModel(app: Application, private val handle: SavedStateHandle) 
                 Log.w("Volti", "Can't read a folder to import", e)
                 _message.value = "Can't read that folder."
                 return@receiveThenAsk null
+            } finally {
+                _reading.value = false
             }
             _message.value = when {
                 !found.complete -> "That folder holds more than $WALK_LIMIT files and folders: the PDFs past those weren't imported. " +
@@ -290,7 +297,7 @@ class EnsembleViewModel(app: Application, private val handle: SavedStateHandle) 
                 found.uris.isEmpty() -> "There are no PDFs in that folder."
                 else -> null
             }
-            syncer.receive(found.uris, found.folders).await()
+            syncer.receive(found.uris, found.folders, into = id).await()
         }
     }
 
@@ -298,12 +305,7 @@ class EnsembleViewModel(app: Application, private val handle: SavedStateHandle) 
         _message.value = null
         _notImported.value = emptyList()
         viewModelScope.launch {
-            _importing.value = true
-            val received = try {
-                receive()
-            } finally {
-                _importing.value = false
-            } ?: return@launch
+            val received = receive() ?: return@launch
             _notImported.value = received.problems
             if (received.incoming.isNotEmpty()) ask(received, into, shared = false)
         }
@@ -331,13 +333,8 @@ class EnsembleViewModel(app: Application, private val handle: SavedStateHandle) 
 
     private suspend fun take(received: Received, into: List<String>, replace: Boolean, shared: Boolean) {
         if (shared) handle[TO_PLACE] = null
-        _importing.value = true
         // The import goes on when I leave the screen; only what it says about it is lost then.
-        val problems = try {
-            syncer.import(id, into, received, replace).await()
-        } finally {
-            _importing.value = false
-        }
+        val problems = syncer.import(id, into, received, replace).await()
         _notImported.value += problems
     }
 

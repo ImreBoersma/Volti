@@ -286,10 +286,10 @@ private fun PieceRow(
         handle()
         Text("$number", style = MaterialTheme.typography.titleMedium, modifier = Modifier.width(32.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(file?.name ?: "No longer in Drive", maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(file?.name ?: "No longer in Google Drive", maxLines = 1, overflow = TextOverflow.Ellipsis)
             val note = when {
                 file == null -> null
-                file.removed -> "Removed in Drive"
+                file.removed -> "Removed from Google Drive"
                 file.localMd5 == null -> "Not on this $device"
                 else -> file.folders.takeIf { it.isNotEmpty() }?.joinToString(" / ")
             }
