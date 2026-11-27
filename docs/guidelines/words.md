@@ -8,7 +8,7 @@ Text speaks to the musician as "you" (see [android.md](android.md), Settings).
 
 One thing, one word, on every screen. The musician's word, not the system's: a musician doesn't think in files.
 
-| Word | Means | Not | Dutch (to confirm in milestone 10) |
+| Word | Means | Not | Dutch |
 |---|---|---|---|
 | **ensemble** | A band or orchestra I play in: its shared Google Drive folder, or only what I imported into it. | band, group, library | ensemble |
 | **part** | One PDF in an ensemble: what I open and play from. `All parts`, `Your parts`, `This part changed`. | score, file, sheet | partij |
@@ -46,7 +46,7 @@ The confirmation dialogue says what goes and what stays (see [messages.md](messa
 
 ## Text that can be translated
 
-From milestone 10 Volti is in English and Dutch. These rules hold from now on, and for all text once it has moved.
+From milestone 10 Volti is in English and Dutch, in Android's per-app language: the system's language unless I pick another, in Android's settings or in Volti's. These rules hold from now on, and for all text once it has moved.
 
 **Text lives in `strings.xml`**, never in Kotlin. Logs and code comments stay English in the code.
 

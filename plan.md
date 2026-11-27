@@ -511,8 +511,8 @@ Decided 2026-11-27: Dutch comes soon. Moving the text out of Kotlin gets more ex
 ### 0. Decisions before building
 
 - [x] One word per thing, the musician's word (2026-11-27): ensemble, part, piece, setlist, marks; PDF before a file is in an ensemble, file only for the file itself, score not at all. Delete for what is gone from the device, Remove for what still exists elsewhere. See [words.md](docs/guidelines/words.md).
-- [ ] The language follows the system, with Android's per-app language (Settings › Apps › Volti › Language, `localeConfig`), and no setting in Volti.
-- [ ] The Dutch terms, checked with players from the orchestra: partij, stuk, setlist, aantekeningen.
+- [x] The language is Android's per-app language (2026-11-27): the system's language unless I pick another for Volti in Settings › Apps › Volti › Language (`localeConfig`). Volti's own Settings has a Language choice too, which sets that same per-app language (`LocaleManager.setApplicationLocales`), so the two never disagree.
+- [x] The Dutch terms (2026-11-27): partij, stuk, setlist, aantekeningen.
 
 ### 1. All text in strings.xml
 
@@ -522,9 +522,9 @@ Done when: no text literal is left in `Text(…)` or a message `when`, and on th
 
 ### 2. Dutch
 
-- [ ] A Dutch translation of every string.
+- [ ] A Dutch translation of every string, and a Language choice in Settings (System, English, Nederlands).
 
-Done when: on the tablet set to Dutch, every screen and every message is Dutch, and no button or chip wraps or is cut off at font scale 2.0.
+Done when: on the tablet set to Dutch, every screen and every message is Dutch, and no button or chip wraps or is cut off at font scale 2.0. Picking English in Volti's Settings shows English at once, and Android's per-app language for Volti then says English too.
 
 ## Later milestones (not planned yet)
 
