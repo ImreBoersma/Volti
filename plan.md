@@ -494,9 +494,13 @@ Found 2026-11-27: the library's spinner stays until every ensemble's downloads a
 
 ### 1. Open while others download
 
-- [ ] A download no longer holds the store while it transfers: it is copied next to it and taken in once complete, as an import is. Opening a file that is here opens at once; one that isn't is downloaded at once, beside the sync's.
+- [x] A download no longer holds the store while it transfers: it is copied next to it and taken in once complete, as an import is. Opening a file that is here opens at once; one that isn't is downloaded at once, beside the sync's.
 
 Done when: on the tablet, during a first sync of a big folder, a file that is here opens straight away, and one that isn't opens as soon as its own download is done.
+
+Done 2026-11-27. A download is written in `files/drive-incoming` without `storeLock`, then taken into the store under it in one go with its row (and `opened`, when it is being opened); whether it is here already is checked under the lock too, so no clean-up comes between. A transfer stopped halfway (the reader opened, the screen went) leaves no copy. Opening goes per file: one that is here opens while another downloads; only the file I tapped last opens, and leaving the list stops downloads started to open one, as the sync stops.
+
+The instrumented tests pass on the tablet. Not yet: the "Done when" with a big Drive folder.
 
 ### 2. Downloading shows on the sheets
 

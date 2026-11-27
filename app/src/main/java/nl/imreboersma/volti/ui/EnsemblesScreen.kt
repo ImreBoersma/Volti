@@ -327,7 +327,7 @@ fun EnsembleScreen(
             val isNew = { file: EnsembleFile -> file.addedAt != null && file.addedAt > since }
             val rowFor = @Composable { file: EnsembleFile, folders: String? ->
                 FileRow(
-                    file, isNew(file), folders, fetching = file.fileId == fetching, onOpen = open,
+                    file, isNew(file), folders, fetching = file.fileId in fetching, onOpen = open,
                     onMine = { viewModel.setMine(file, it) }, onRename = { renaming = file.fileId }, onDelete = { deleting = file },
                 )
             }

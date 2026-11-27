@@ -164,9 +164,13 @@ class LocalCopyTest {
     private val pdf = "%PDF-1.7\n...the rest of a score...".toByteArray()
 
     @Test
-    fun aGoodPdfIsStored() {
+    fun aDownloadWaitsBesideTheStoreUntilTakenInSoACleanUpCantTakeIt() {
         val store = PdfStore(tmp.newFolder("drive")) { Long.MAX_VALUE }
-        store.store(md5(pdf), pdf.size.toLong(), pdf.inputStream())
+        val copy = store.download(md5(pdf), pdf.size.toLong(), pdf.inputStream())
+        assertFalse(store.has(md5(pdf))) // Not in the store while it transfers,
+        store.keepOnly(emptySet()) // so a clean-up meanwhile,
+        assertTrue(copy.exists()) // doesn't touch it.
+        store.keep(copy, md5(pdf))
         assertTrue(store.has(md5(pdf)))
         assertEquals(pdf.toList(), store.fileFor(md5(pdf)).readBytes().toList())
     }

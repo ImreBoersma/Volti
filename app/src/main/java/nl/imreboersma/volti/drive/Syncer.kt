@@ -14,6 +14,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.currentCoroutineContext
@@ -182,8 +183,8 @@ class Syncer private constructor(context: Context) {
     /**
      * Gets one file onto the device, so it can be opened ([open]: and records it as opened, in the same go, so no
      * sync deletes it in between) or because I marked it mine. To open, a version that is here already will do: a
-     * newer one comes with the sync, and offline the one here still opens. Waits for at most the one download a sync
-     * is doing. Returns what went wrong when it couldn't; null when the file is here.
+     * newer one comes with the sync, and offline the one here still opens. Never waits for another file's download: a
+     * transfer holds nothing. Returns what went wrong when it couldn't; null when the file is here.
      */
     suspend fun fetch(ensembleId: Long, fileId: String, open: Boolean): DriveProblem? = try {
         // Here already and only to open: no need for Google at all, so it works offline.
@@ -376,10 +377,12 @@ class Syncer private constructor(context: Context) {
                 DriveProblem.SignedOut
             }
             is DriveAccess.Granted -> try {
-                storeLock.withLock {
-                    val file = db.files().all(ensembleId).firstOrNull { it.fileId == fileId } ?: return@withLock DriveProblem.FileGone
-                    if (file.localMd5 == null) download(DriveApi(access.token), file)
-                    if (open) db.files().opened(ensembleId, fileId, file.localMd5 ?: file.md5)
+                val file = db.files().all(ensembleId).firstOrNull { it.fileId == fileId }
+                if (file == null) {
+                    DriveProblem.FileGone
+                } else {
+                    // Beside whatever the sync downloads: neither waits for the other's transfer.
+                    download(DriveApi(access.token), file) { if (open) db.files().opened(ensembleId, fileId, file.md5) }
                     null
                 }
             } catch (e: DriveException) {
@@ -390,15 +393,34 @@ class Syncer private constructor(context: Context) {
         }
 
     /** Downloads [file]'s version in Drive into the store, unless it is there already. Under [storeLock]. */
-    private suspend fun download(api: DriveApi, file: EnsembleFile) {
-        if (!withContext(Dispatchers.IO) { store.has(file.md5) }) {
-            // Stops within a buffer when the sync is stopped: a blocking read doesn't notice by itself.
-            val context = currentCoroutineContext()
-            api.download(DriveFolderLink(file.fileId, file.resourceKey)) {
-                store.store(file.md5, file.size, it) { context.ensureActive() }
+    private suspend fun download(api: DriveApi, file: EnsembleFile, alsoUnderLock: suspend () -> Unit = {}) {
+        var copy: File? = null
+        try {
+            while (true) {
+                // Here already (checked under the lock, so no clean-up comes between), or just copied: into the store
+                // and recorded in one go.
+                val done = storeLock.withLock {
+                    val here = withContext(Dispatchers.IO) { store.has(file.md5) }
+                    val taking = copy
+                    if (taking == null && !here) return@withLock false
+                    if (taking != null) withContext(Dispatchers.IO) { store.keep(taking, file.md5) }
+                    copy = null
+                    db.files().downloaded(file.ensembleId, file.fileId, file.md5)
+                    alsoUnderLock()
+                    true
+                }
+                if (done) return
+                // The transfer without the lock: a minute of it holds up nothing else. Stops within a buffer when the
+                // sync is stopped: a blocking read doesn't notice by itself.
+                val context = currentCoroutineContext()
+                copy = api.download(DriveFolderLink(file.fileId, file.resourceKey)) {
+                    store.download(file.md5, file.size, it) { context.ensureActive() }
+                }
             }
+        } finally {
+            // Stopped (the reader opened, the screen went) between the transfer and the store: no full copy left behind.
+            copy?.let { withContext(NonCancellable + Dispatchers.IO) { it.delete() } }
         }
-        db.files().downloaded(file.ensembleId, file.fileId, file.md5)
     }
 
     /** Deletes the ensemble, and the PDFs only it needed. */
@@ -468,11 +490,9 @@ class Syncer private constructor(context: Context) {
             todo.forEachIndexed { i, file ->
                 set(id, SyncState.Downloading(i, todo.size))
                 try {
-                    // One file at a time under the lock, so opening a file waits for one download, not all.
-                    storeLock.withLock {
-                        val now = files.all(id).firstOrNull { it.fileId == file.fileId }
-                        if (now != null && now.md5 == file.md5 && now.localMd5 != now.md5) download(api, now)
-                    }
+                    // The transfer without the lock: opening another file meanwhile doesn't wait for it.
+                    val now = files.all(id).firstOrNull { it.fileId == file.fileId }
+                    if (now != null && now.md5 == file.md5 && now.localMd5 != now.md5) download(api, now)
                 } catch (e: DriveException) {
                     if (e.status == 401) throw e // Start over with a new token.
                     failed++

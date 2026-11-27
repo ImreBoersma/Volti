@@ -117,16 +117,16 @@ class PdfStore(private val dir: File, private val freeBytes: () -> Long) {
 
     fun has(md5: String) = fileFor(md5).isFile
 
-    /** Downloads into a temporary file and moves it into place only once it passed [copyChecked]. */
-    fun store(md5: String, size: Long, input: InputStream, check: () -> Unit = {}) {
-        dir.mkdirs()
+    /**
+     * Downloads version [md5] next to the store, as an import is copied: a transfer can take a minute, and the store
+     * isn't held meanwhile. The copy passed [copyChecked]; [keep] takes it in.
+     */
+    fun download(md5: String, size: Long, input: InputStream, check: () -> Unit = {}): File {
+        incoming.mkdirs()
         if (freeBytes() < size + KEEP_FREE_BYTES) throw DownloadRejected(Rejection.NoSpace, "Not enough space on this device")
-        val temp = File(dir, "download-${UUID.randomUUID()}.tmp")
+        val temp = File(incoming, "${UUID.randomUUID()}.tmp")
         copyChecked(input, temp, md5, check = check)
-        if (!temp.renameTo(fileFor(md5))) {
-            temp.delete()
-            throw IOException("Couldn't store the download")
-        }
+        return temp
     }
 
     /** Where imports are copied first: outside the store, so a clean-up can't sweep one away mid-copy. */
