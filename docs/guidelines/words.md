@@ -24,9 +24,11 @@ One thing, one word, on every screen. The musician's word, not the system's: a m
 
 ## Delete and remove
 
-**Delete**: gone from this device, and it doesn't come back by itself. An imported part, a setlist.
+**Delete** (Dutch: Verwijderen, as Android itself says it): gone from this device, and it doesn't come back by itself. An imported part, a setlist.
 
-**Remove**: out of a list, or out of Volti, but it still exists somewhere. A piece from a setlist (the part stays in the ensemble), an ensemble (its folder stays in Google Drive, my marks stay on the device), the old folder after the move to ensembles.
+**Remove** (Dutch: Weghalen): out of a list, or out of Volti, but it still exists somewhere. A piece from a setlist (the part stays in the ensemble), an ensemble (its folder stays in Google Drive, my marks stay on the device), the old folder after the move to ensembles.
+
+**Clear** empties a field (the search), and is no third verb for things: Dutch Wissen, never for Delete.
 
 The confirmation dialogue says what goes and what stays (see [messages.md](messages.md), Where it appears). No third verb.
 

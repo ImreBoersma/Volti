@@ -566,7 +566,7 @@ Done when: on the tablet set to Dutch, every screen and every message is Dutch, 
 
 Done 2026-11-27. `values-nl/strings.xml` translates every string, with "je" and the words.md terms (partij, stuk, setlist, aantekeningen; deze tablet, deze telefoon, dit apparaat). Volti's Settings has Language (System, English, Nederlands), which sets Android's per-app language (`LocaleManager`, `locales_config.xml`), so it and Android's own setting never disagree. The instrumented tests run in English whatever the device language (`VoltiTestRunner`); `LanguageTest` picks Nederlands and sees Dutch.
 
-The instrumented suite passes on the emulator (272 tests). Not yet: reading every screen in Dutch on the tablet, at font scale 2.0. Choices to review there: Delete = Wissen, Remove = Verwijderen; Rename = Hernoemen; "1 partij is waarschijnlijk van jou"; Up to date = Bijgewerkt; Play = Spelen; Undo = Ongedaan maken (long); the symbol names (Ademteken, Herstellingsteken, Let op de dirigent, Gum, Kruis, Mol).
+The instrumented suite passes on the emulator (272 tests). Not yet: reading every screen in Dutch on the tablet, at font scale 2.0. Choices to review there: Delete = Verwijderen (as Android says it), Remove = Weghalen, Clear = Wissen (settled after review: Wissen meant both Delete and Clear); Rename = Hernoemen; "1 partij is waarschijnlijk van jou"; Up to date = Bijgewerkt; Play = Spelen; Undo = Ongedaan maken (long); the symbol names (Ademteken, Herstellingsteken, Let op de dirigent, Gum, Kruis, Mol).
 
 ## Later milestones (not planned yet)
 

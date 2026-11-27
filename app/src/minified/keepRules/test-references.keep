@@ -2001,6 +2001,8 @@
     #noinspection ShrinkerUnresolvedReference
     byte[] readBytes(java.io.File);
     #noinspection ShrinkerUnresolvedReference
+    java.lang.String readText$default(java.io.File, java.nio.charset.Charset, int, java.lang.Object);
+    #noinspection ShrinkerUnresolvedReference
     void writeBytes(java.io.File, byte[]);
     #noinspection ShrinkerUnresolvedReference
     void writeText$default(java.io.File, java.lang.String, java.nio.charset.Charset, int, java.lang.Object);

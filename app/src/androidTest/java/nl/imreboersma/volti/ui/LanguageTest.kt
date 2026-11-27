@@ -11,6 +11,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import nl.imreboersma.volti.MainActivity
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -42,6 +43,6 @@ class LanguageTest {
         compose.waitUntil(10_000) { showing("Marges bijsnijden") }
         assertEquals("nl", locales.applicationLocales.toLanguageTags())
         // The row says which one is picked, in it.
-        assert(showing("Taal") && showing("Nederlands"))
+        assertTrue("the Language row reads Dutch, with Nederlands picked", showing("Taal") && showing("Nederlands"))
     }
 }

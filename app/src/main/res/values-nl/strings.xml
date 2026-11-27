@@ -8,8 +8,8 @@
     <string name="save">Opslaan</string>
     <string name="rename">Hernoemen</string>
     <!-- Delete (gone from this device) and Remove (it still exists elsewhere) stay two verbs: wissen, verwijderen. -->
-    <string name="delete">Wissen</string>
-    <string name="remove">Verwijderen</string>
+    <string name="delete">Verwijderen</string>
+    <string name="remove">Weghalen</string>
     <string name="settings">Instellingen</string>
     <string name="ensembles">Ensembles</string>
     <string name="ensemble_label">Ensemble</string>
@@ -23,7 +23,7 @@
     <string name="move_up">Omhoog</string>
     <string name="move_down">Omlaag</string>
     <string name="more_for">Meer voor %1$s</string>
-    <string name="delete_title">%1$s wissen?</string>
+    <string name="delete_title">%1$s verwijderen?</string>
 
     <string name="not_on_this_tablet">Niet op deze tablet</string>
     <string name="not_on_this_phone">Niet op deze telefoon</string>
@@ -211,10 +211,10 @@
     <string name="half_page_turns_detail">Sla eerst de bovenste helft van de pagina om, zodat het eind van de ene pagina en het begin van de volgende samen te zien zijn.</string>
     <string name="no_ensembles">Nog geen. Voeg er een toe vanuit de bibliotheek.</string>
     <string name="what_you_play">Wat je speelt</string>
-    <string name="remove_title">%1$s verwijderen?</string>
-    <string name="remove_ensemble_text_tablet">De partijen, en welke daarvan van jou zijn, worden van deze tablet gewist. De map in Google Drive blijft zoals hij is.</string>
-    <string name="remove_ensemble_text_phone">De partijen, en welke daarvan van jou zijn, worden van deze telefoon gewist. De map in Google Drive blijft zoals hij is.</string>
-    <string name="remove_ensemble_text_device">De partijen, en welke daarvan van jou zijn, worden van dit apparaat gewist. De map in Google Drive blijft zoals hij is.</string>
+    <string name="remove_title">%1$s weghalen?</string>
+    <string name="remove_ensemble_text_tablet">De partijen, en welke daarvan van jou zijn, worden van deze tablet verwijderd. De map in Google Drive blijft zoals hij is.</string>
+    <string name="remove_ensemble_text_phone">De partijen, en welke daarvan van jou zijn, worden van deze telefoon verwijderd. De map in Google Drive blijft zoals hij is.</string>
+    <string name="remove_ensemble_text_device">De partijen, en welke daarvan van jou zijn, worden van dit apparaat verwijderd. De map in Google Drive blijft zoals hij is.</string>
 
     <!-- The reader. -->
     <string name="next_page">Volgende pagina</string>
@@ -224,7 +224,7 @@
     <string name="pdf_unreadable">Kan deze partij niet openen.</string>
     <string name="show_back_button">Terugknop tonen</string>
     <string name="page_of">Pagina %1$s van %2$s</string>
-    <string name="page_and_top_of">Pagina %1$s en de bovenkant van %2$s, van %3$s</string>
+    <string name="page_and_top_of">Pagina %1$s en de bovenkant van pagina %2$s (van %3$s)</string>
     <string name="cant_show_page">Kan pagina %1$s niet tonen.</string>
 
     <!-- Marks. -->
@@ -280,7 +280,7 @@
     <string name="delete_setlist_text">Alleen de setlist verdwijnt; de stukken blijven in het ensemble.</string>
     <string name="no_longer_in_drive">Niet meer in Google Drive</string>
     <string name="more_for_piece">Meer voor dit stuk</string>
-    <string name="remove_from_setlist">Uit de setlist verwijderen</string>
+    <string name="remove_from_setlist">Uit de setlist halen</string>
     <string name="drag_to_move">Slepen om te verplaatsen</string>
     <string name="nothing_left_to_add">Niets meer om toe te voegen.</string>
     <plurals name="add_count">
