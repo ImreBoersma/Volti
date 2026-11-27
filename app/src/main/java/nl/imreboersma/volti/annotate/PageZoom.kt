@@ -3,8 +3,6 @@ package nl.imreboersma.volti.annotate
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.PointerType
@@ -60,15 +58,6 @@ class PageZoom {
         scale = 1f
         offset = Offset.Zero
     }
-}
-
-/** The page image as [zoom] shows it. Its marks are drawn by the overlay, through [PageGeometry], to match. */
-fun Modifier.zoomedPage(zoom: PageZoom) = graphicsLayer {
-    transformOrigin = TransformOrigin(0f, 0f)
-    scaleX = zoom.scale
-    scaleY = zoom.scale
-    translationX = zoom.offset.x
-    translationY = zoom.offset.y
 }
 
 /**

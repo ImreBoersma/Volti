@@ -152,6 +152,7 @@ class ReaderViewModel @JvmOverloads constructor(
         if (lastSize == null) watchFirstPage()
         lastSize = size
         resizeJob?.cancel()
+        sharpJob?.cancel()
         resizeJob = onPdfThread {
             val doc = document ?: try {
                 open(uri).also {
@@ -237,12 +238,63 @@ class ReaderViewModel @JvmOverloads constructor(
 
     private fun sameBitmaps(a: List<Bitmap>?, b: List<Bitmap>) = a != null && a.size == b.size && a.indices.all { a[it] === b[it] }
 
+    /** A part of page [index] rendered sharp for where it shows enlarged ([part]). */
+    class Sharp(val index: Int, val part: SharpPart, val bitmap: Bitmap)
+
+    private val _sharp = MutableStateFlow<Sharp?>(null)
+
+    /** What of the enlarged page is on screen, rendered at the screen's resolution: the music sharp, not stretched. */
+    val sharp: StateFlow<Sharp?> = _sharp
+
+    private var sharpJob: Job? = null
+
+    /**
+     * The bitmaps sharp parts are rendered into, the newest last: one is drawn again only once it is off screen (as
+     * for pages, [safeToDrawInto]), and no more than two are kept. Each is the size of the screen.
+     */
+    private val sharpBitmaps = ArrayDeque<Bitmap>()
+
+    /**
+     * Renders [part] of page [index] at the size it shows, after the last one asked for (the fingers moved on);
+     * null: none, the page shows whole, and the bitmaps for it go.
+     */
+    fun sharpen(index: Int, part: SharpPart?) {
+        sharpJob?.cancel()
+        if (part == null) {
+            _sharp.value = null
+            onPdfThread { sharpBitmaps.clear() }
+            return
+        }
+        sharpJob = onPdfThread {
+            val doc = document ?: return@onPdfThread
+            val shown = _sharp.value?.bitmap
+            val reuse = safeToDrawInto(sharpBitmaps.filter { it !== shown && it.width == part.width && it.height == part.height })
+            val bitmap = try {
+                doc.renderPage(index, PixelSize(part.width, part.height), reuse, area = part.area)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // The enlarged page still shows, only softer: nothing to tell.
+                Log.w("Volti", "Can't render page ${index + 1} of $uri sharp", e)
+                return@onPdfThread
+            }
+            if (bitmap !== reuse) {
+                sharpBitmaps.addLast(bitmap)
+                while (sharpBitmaps.size > 2) sharpBitmaps.removeFirst()
+            }
+            // Asked away meanwhile (Done, a turn): the render can't be stopped, its result isn't shown.
+            currentCoroutineContext().ensureActive()
+            _sharp.value = Sharp(index, part, bitmap)
+        }
+    }
+
     fun next() = turn(+1)
 
     fun previous() = turn(-1)
 
     private fun turn(delta: Int) {
         if (_state.value !is ReaderState.Page) return
+        sharpJob?.cancel() // A turn doesn't wait behind a sharp part of the page it leaves.
         val tapped = SystemClock.uptimeMillis()
         onPdfThread {
             val doc = document ?: return@onPdfThread

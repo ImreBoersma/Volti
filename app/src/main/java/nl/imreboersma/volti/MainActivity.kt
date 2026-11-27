@@ -49,7 +49,6 @@ import nl.imreboersma.volti.annotate.AnnotationViewModel
 import nl.imreboersma.volti.annotate.PageAnnotations
 import nl.imreboersma.volti.annotate.PageZoom
 import nl.imreboersma.volti.annotate.zoomToAnnotate
-import nl.imreboersma.volti.annotate.zoomedPage
 import nl.imreboersma.volti.setlist.SetlistLine
 import nl.imreboersma.volti.setlist.SetlistPlayerViewModel
 import nl.imreboersma.volti.setlist.SetlistScreen
@@ -59,6 +58,7 @@ import nl.imreboersma.volti.ui.HomeScreen
 import nl.imreboersma.volti.ui.ImportIntoScreen
 import nl.imreboersma.volti.ui.SettingsScreen
 import nl.imreboersma.volti.ui.ReaderScreen
+import nl.imreboersma.volti.ui.Enlarged
 import nl.imreboersma.volti.ui.ReaderState
 import nl.imreboersma.volti.ui.ReaderViewModel
 import nl.imreboersma.volti.ui.StageMode
@@ -304,7 +304,7 @@ fun VoltiApp(navController: NavHostController = rememberNavController(), shared:
             val zoom = remember { PageZoom() }
             ReaderScreen(
                 modifier = Modifier.zoomToAnnotate(zoom, enabled = annotating),
-                pageModifier = Modifier.zoomedPage(zoom),
+                enlarged = { Enlarged(zoom.scale, zoom.offset.x, zoom.offset.y) },
                 // Only while the reader is the resumed screen: a second tap during the crossfade would also pop the
                 // library and leave nothing on screen.
                 onBack = dropUnlessResumed { navController.popBackStack() },

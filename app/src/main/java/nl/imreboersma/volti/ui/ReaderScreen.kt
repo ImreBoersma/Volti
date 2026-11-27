@@ -43,6 +43,12 @@ import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
+import kotlinx.coroutines.flow.collectLatest
+import androidx.compose.runtime.snapshotFlow
+import kotlin.time.Duration.Companion.milliseconds
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalView
@@ -74,8 +80,9 @@ data class PageOverlay(val index: Int, val area: PageArea, val bitmapWidth: Int,
 /**
  * The reader. [overlay] is drawn over each page and [controls] over the reader, for what the reader itself doesn't
  * know about (annotations): it only says where the page is. [onEdge] hears of a turn past the last page (+1) or before
- * the first (-1), for a score that has a next one (a setlist). [pageModifier] goes on the page image only, not its
- * overlays: whatever shows it differently (enlarged, while annotating) and redraws its overlay to match.
+ * the first (-1), for a score that has a next one (a setlist). [enlarged]: the page shows enlarged (while annotating);
+ * the reader draws its image so and renders the part on screen sharp. The overlays draw themselves to match. A
+ * function, read while drawing: a pinch doesn't compose the reader again for every frame.
  */
 @Composable
 fun ReaderScreen(
@@ -84,7 +91,7 @@ fun ReaderScreen(
     overlay: @Composable (PageOverlay) -> Unit = {},
     controls: @Composable BoxScope.() -> Unit = {},
     onEdge: ((Int) -> Unit)? = null,
-    pageModifier: Modifier = Modifier,
+    enlarged: () -> Enlarged = { Enlarged.NONE },
     viewModel: ReaderViewModel = viewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -132,7 +139,7 @@ fun ReaderScreen(
                     },
                     color = LocalReaderColors.current.message,
                 )
-                is ReaderState.Page -> PageView(s, viewModel, overlay, pageModifier)
+                is ReaderState.Page -> PageView(s, viewModel, overlay, enlarged)
             }
             controls()
             BackButton(onBack, Modifier.align(Alignment.TopStart))
@@ -230,8 +237,34 @@ private fun PageView(
     page: ReaderState.Page,
     viewModel: ReaderViewModel,
     overlay: @Composable (PageOverlay) -> Unit,
-    pageModifier: Modifier,
+    enlarged: () -> Enlarged,
 ) {
+    // Enlarged: the image as it is, stretched, at once (read while drawing); the part on screen sharp at rest.
+    val pageModifier = Modifier.graphicsLayer {
+        val now = enlarged()
+        transformOrigin = TransformOrigin(0f, 0f)
+        scaleX = now.scale
+        scaleY = now.scale
+        translationX = now.x
+        translationY = now.y
+    }
+    var box by remember { mutableStateOf(IntSize.Zero) }
+    // The part rendered sharp, once the fingers rest; null while they move or at the whole page. Composition sees a
+    // pinch twice: as it starts, and at rest.
+    var resting by remember { mutableStateOf<SharpPart?>(null) }
+    LaunchedEffect(page.index, page.bitmap, page.area, page.half, box) {
+        snapshotFlow { enlarged() }.collectLatest { now ->
+            resting = null
+            val bitmap = page.bitmap
+            val part = if (bitmap == null || page.half || box == IntSize.Zero) null
+            else sharpPart(now, page.area, bitmap.width, bitmap.height, box.width.toFloat(), box.height.toFloat())
+            if (part != null) delay(SHARPEN_AFTER)
+            viewModel.sharpen(page.index, part)
+            resting = part
+        }
+    }
+    val sharp by viewModel.sharp.collectAsStateWithLifecycle()
+    val shownSharp = sharp?.takeIf { it.index == page.index && it.part == resting && resting != null }
     val view = LocalView.current
     // Once no page is drawn any more (an error message, leaving the reader), say so when that frame is on
     // screen, so the last bitmaps can be reused.
@@ -246,6 +279,7 @@ private fun PageView(
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .onSizeChanged { box = it }
             // Which page is showing, for accessibility services, and for tests.
             .semantics {
                 stateDescription = "Page ${page.index + 1}${if (page.half) " and the top of ${page.index + 2}" else ""} of ${page.pageCount}"
@@ -255,13 +289,20 @@ private fun PageView(
             // not every frame.
             .drawWithContent {
                 drawContent()
-                val shown = page.bitmaps
+                val shown = page.bitmaps + listOfNotNull(shownSharp?.bitmap)
                 viewModel.onDrawn(shown)
                 view.viewTreeObserver.registerFrameCommitCallback { viewModel.onPresented(shown) }
             },
     ) {
         val region = if (page.half) Region.BottomHalf else Region.Whole
         PageImage(page.bitmap, page.index, region, pageModifier)
+        shownSharp?.let { shown ->
+            val image = remember(shown) { shown.bitmap.asImageBitmap() }
+            // At its own size, 1:1: it was rendered at the screen's scale, so it lines up with the page and the marks.
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                drawImage(image, topLeft = Offset(shown.part.left, shown.part.top))
+            }
+        }
         page.bitmap?.let { overlay(PageOverlay(page.index, page.area, it.width, it.height, region)) }
         if (page.half) {
             Box(
@@ -313,3 +354,6 @@ private fun PageImage(bitmap: Bitmap?, index: Int, region: Region, modifier: Mod
         )
     }
 }
+
+/** How long the fingers rest before the part on screen is rendered sharp: no render for every step of a pinch. */
+private val SHARPEN_AFTER = 150.milliseconds

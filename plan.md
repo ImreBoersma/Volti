@@ -470,11 +470,17 @@ Checked on the tablet: the wet stroke follows the zoom (first version); the inst
 
 ### 2. Sharp when zoomed in
 
-- [ ] Zoomed in, the music is as sharp as at the whole page: the part on screen is rendered again at the zoom's resolution once the fingers stop, the enlarged page shows meanwhile. Within the renderer's limits (memory, the isolated process), and none of it while reading.
+- [x] Zoomed in, the music is as sharp as at the whole page: the part on screen is rendered again at the zoom's resolution once the fingers stop, the enlarged page shows meanwhile. Within the renderer's limits (memory, the isolated process), and none of it while reading.
 
 Done when: on the tablet, at four times, a note's stem and a dynamic are as crisp as at the whole page.
 
 Found 2026-11-27 with step 1: enlarging the page's image makes the notes soft at four times, too soft to place a mark precisely.
+
+Done 2026-11-27. 150 ms after the fingers rest, the reader renders the part of the page on screen at the screen's size (`renderPage` of that area: no change in the isolated renderer) and draws it 1:1 over the stretched page, under the marks. Renders fit in exact numbers, so a small area at a large size keeps its shape to the pixel. The reader takes the zoom as `Enlarged` (scale and offset) and reads it while drawing: a pinch composes the reader only as it starts and at rest. Sharp parts are drawn into two bitmaps at most, reused once off screen as page bitmaps are; a render finished after Done or a turn isn't shown, and a turn doesn't wait behind one. One fit function (`ui/Enlarged.kt`) places both the page for the marks (`PageGeometry`) and the sharp part.
+
+Structure, changed from milestone 8's note: the zoom (state and gesture) is still the annotation layer's; the reader knows "shown enlarged" as a plain value, because rendering is its job.
+
+The instrumented suite passes on the tablet. Not yet: the "Done when" by eye, with a real score.
 
 ### 3. Colours
 

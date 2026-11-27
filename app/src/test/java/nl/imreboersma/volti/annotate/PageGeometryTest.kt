@@ -1,6 +1,8 @@
 package nl.imreboersma.volti.annotate
 
 import nl.imreboersma.volti.data.PageArea
+import nl.imreboersma.volti.ui.Enlarged
+import nl.imreboersma.volti.ui.sharpPart
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -65,5 +67,16 @@ class PageGeometryTest {
         // A quarter of the box left of the middle is only an eighth of the page left of it: the page is larger.
         near(Point(500f - 125f, whole.toPage(pen).y), zoomed.toPage(Point(176.75f, 500f)))
         assertEquals(whole.scale * 2, zoomed.scale, 0.0001f)
+    }
+
+    @Test
+    fun theSharpPartLandsWhereTheMarksSeeThePage() {
+        // The reader's sharp part and annotate's geometry share one fit: the part's corner is where the marks put it.
+        val cropped = PageArea(0.1f, 0.05f, 0.9f, 0.95f)
+        val geometry = PageGeometry(cropped, 800, 1350, 1000f, 1600f, zoom = 3f, panX = -1200f, panY = -900f)
+        val part = sharpPart(Enlarged(3f, -1200f, -900f), cropped, 800, 1350, 1000f, 1600f)!!
+        val corner = geometry.toScreen(Point(part.area.left * PAGE_WIDTH, part.area.top * geometry.pageHeight))
+        assertEquals(part.left, corner.x, 0.5f)
+        assertEquals(part.top, corner.y, 0.5f)
     }
 }

@@ -97,7 +97,8 @@ fun PageAnnotations(page: PageOverlay, viewModel: AnnotationViewModel, zoom: Pag
         zoom.allow(whole = page.region == Region.Whole)
     }
     var box by remember { mutableStateOf(IntSize.Zero) }
-    // Enlarged as the page image is (zoomedPage): marks drawn and input read through the same transform.
+    // Enlarged as the reader shows the page image (MainActivity gives it the same zoom): marks drawn and input read
+    // through the same transform.
     val geometry = remember(page, box, zoom.scale, zoom.offset) {
         if (box == IntSize.Zero) null
         else PageGeometry(

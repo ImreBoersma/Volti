@@ -1,6 +1,7 @@
 package nl.imreboersma.volti.annotate
 
 import nl.imreboersma.volti.data.PageArea
+import nl.imreboersma.volti.ui.fitted
 
 /** Annotations live in page units: the page is [PAGE_WIDTH] wide, and as high as its shape makes it. */
 const val PAGE_WIDTH = 1000f
@@ -24,13 +25,13 @@ data class PageGeometry(
     val panX: Float = 0f,
     val panY: Float = 0f,
 ) {
-    /** On screen, the bitmap is drawn this much larger than its pixels (Fit), starting at [left], [top]. */
-    private val fit = minOf(boxWidth / bitmapWidth, boxHeight / bitmapHeight)
-    private val left = (boxWidth - bitmapWidth * fit) / 2
-    private val top = (boxHeight - bitmapHeight * fit) / 2
+    /** On screen, the bitmap is fitted in the box as the reader draws it. */
+    private val shown = fitted(bitmapWidth, bitmapHeight, boxWidth, boxHeight)
+    private val left = shown.left
+    private val top = shown.top
 
     /** Screen pixels per page unit at the whole page: the bitmap shows the area's width of the page across its own width. */
-    private val fitScale: Float = bitmapWidth * fit / ((area.right - area.left) * PAGE_WIDTH)
+    private val fitScale: Float = shown.width / ((area.right - area.left) * PAGE_WIDTH)
 
     /** Screen pixels per page unit, as shown now. */
     val scale: Float = fitScale * zoom

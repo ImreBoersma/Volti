@@ -55,6 +55,22 @@ class ScoreDocumentTest {
     }
 
     @Test
+    fun aSmallPartRenderedLargeKeepsItsExactShapeAndPlace() {
+        openScore(resolver, Uri.fromFile(writePdf())).use { doc ->
+            // A fifth of the page across, around the black block's right edge (at 297 of 595 points), zoomed in far.
+            val area = PageArea(0.4f, 0.4f, 0.6f, 0.6f)
+            val bitmap = doc.renderPage(0, PixelSize(1600, 2560), area = area)
+            val cropWidth = 595 * 0.2f
+            val cropHeight = 842 * 0.2f
+            assertEquals(bitmap.width / cropWidth, bitmap.height / cropHeight, 1f / cropHeight) // One scale both ways.
+            // The edge lands where that scale puts it, to the pixel: no stretch on either axis.
+            val edge = ((297 - 595 * 0.4f) / cropWidth * bitmap.width).toInt()
+            assertEquals(Color.BLACK, bitmap.getPixel(edge - 2, bitmap.height / 2))
+            assertEquals(Color.WHITE, bitmap.getPixel(edge + 2, bitmap.height / 2))
+        }
+    }
+
+    @Test
     fun drawsIntoAReusedBitmapOfTheRightSize() {
         openScore(resolver, Uri.fromFile(writePdf())).use { doc ->
             val first = doc.renderPage(0, PixelSize(600, 600))

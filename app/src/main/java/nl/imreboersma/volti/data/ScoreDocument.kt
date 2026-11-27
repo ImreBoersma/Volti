@@ -109,9 +109,13 @@ private abstract class PdfiumDocument : ScoreDocument {
     override fun renderPage(index: Int, max: PixelSize, reuse: Bitmap?, area: PageArea): Bitmap = withPage(index) { page ->
         val cropWidth = page.width * (area.right - area.left)
         val cropHeight = page.height * (area.bottom - area.top)
-        val size = fitInside(cropWidth.roundToInt(), cropHeight.roundToInt(), max)
+        require(cropWidth > 0 && cropHeight > 0) { "Nothing of the page to render: $area" }
+        require(max.width > 0 && max.height > 0) { "No room to render: $max" }
+        // Fitted in exact numbers, at the scale of the side that limits it: a small area at a large size (zoomed
+        // in) keeps its exact shape, so the render lines up with the page and the marks to the pixel.
+        val scale = minOf(max.width / cropWidth, max.height / cropHeight)
+        val size = PixelSize((cropWidth * scale).roundToInt().coerceIn(1, max.width), (cropHeight * scale).roundToInt().coerceIn(1, max.height))
         blankBitmap(size, reuse).also { bitmap ->
-            val scale = size.width / cropWidth
             page.render(bitmap, Matrix().apply {
                 setScale(scale, scale)
                 preTranslate(-page.width * area.left, -page.height * area.top)
