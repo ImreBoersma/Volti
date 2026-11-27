@@ -46,6 +46,12 @@ class SetlistsViewModel(app: Application, private val handle: SavedStateHandle) 
     }
 }
 
+/** Why Play didn't start, worded by the setlist's screen: no pieces, or every piece was [Skipped]. */
+sealed interface PlayProblem {
+    data object NoPieces : PlayProblem
+    data class Skipped(val skipped: List<Skip>) : PlayProblem
+}
+
 /** One setlist: its pieces in order, adding, removing, reordering, renaming. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class SetlistViewModel(app: Application, handle: SavedStateHandle) : AndroidViewModel(app) {
@@ -83,10 +89,10 @@ class SetlistViewModel(app: Application, handle: SavedStateHandle) : AndroidView
         viewModelScope.launch { dao.reorder(setlistId, fileIds) }
     }
 
-    private val _problem = MutableStateFlow<String?>(null)
+    private val _problem = MutableStateFlow<PlayProblem?>(null)
 
     /** Why Play didn't start: no piece could be opened. */
-    val problem: StateFlow<String?> = _problem.asStateFlow()
+    val problem: StateFlow<PlayProblem?> = _problem.asStateFlow()
 
     private var starting = false
 
@@ -98,7 +104,7 @@ class SetlistViewModel(app: Application, handle: SavedStateHandle) : AndroidView
         viewModelScope.launch {
             val reached = findPiece(getApplication(), setlistId, from = -1, step = +1)
             val first = reached.reader
-            if (first == null) _problem.value = reached.skipped ?: "This setlist has no pieces." else onPlay(first)
+            if (first == null) _problem.value = if (reached.skipped.isEmpty()) PlayProblem.NoPieces else PlayProblem.Skipped(reached.skipped) else onPlay(first)
             starting = false
         }
     }

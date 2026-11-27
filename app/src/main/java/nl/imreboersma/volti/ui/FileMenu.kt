@@ -25,7 +25,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import nl.imreboersma.volti.R
 import nl.imreboersma.volti.data.cleanName
 import nl.imreboersma.volti.db.EnsembleFile
 
@@ -64,25 +66,25 @@ fun RenameFile(file: EnsembleFile, onSave: (String?) -> Unit, onCancel: () -> Un
     fun save() = onSave(chosenName(file, name))
     AlertDialog(
         onDismissRequest = onCancel,
-        title = { Text("Rename") },
+        title = { Text(stringResource(R.string.rename)) },
         text = {
             Column {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Name, e.g. Bizet - Farandole - F Horn 1") },
+                    label = { Text(stringResource(R.string.rename_part_label)) },
                     singleLine = true,
                     // Enter does what Save does (android.md).
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                     keyboardActions = KeyboardActions(onDone = { save() }),
                 )
                 // What it is called in Google Drive or where it came from: that stays as it is.
-                Text("File: ${file.name}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                if (file.displayName != null) TextButton(onClick = { onSave(null) }) { Text("Use the file name") }
+                Text(stringResource(R.string.file_name, file.name), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (file.displayName != null) TextButton(onClick = { onSave(null) }) { Text(stringResource(R.string.use_file_name)) }
             }
         },
-        confirmButton = { TextButton(onClick = ::save) { Text("Save") } },
-        dismissButton = { TextButton(onClick = onCancel) { Text("Cancel") } },
+        confirmButton = { TextButton(onClick = ::save) { Text(stringResource(R.string.save)) } },
+        dismissButton = { TextButton(onClick = onCancel) { Text(stringResource(R.string.cancel)) } },
     )
 }
 

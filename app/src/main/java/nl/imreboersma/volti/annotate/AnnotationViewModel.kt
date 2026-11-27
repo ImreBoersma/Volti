@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nl.imreboersma.volti.Reader
+import nl.imreboersma.volti.ReaderTypes
 import nl.imreboersma.volti.db.VoltiDatabase
 import nl.imreboersma.volti.db.fileIdOf
 import nl.imreboersma.volti.db.localKey
@@ -116,7 +117,7 @@ class AnnotationViewModel(app: Application, handle: SavedStateHandle) : AndroidV
     private var erasing: Pair<MutableList<AnnotationStroke>, MutableList<AnnotationSymbol>>? = null
 
     init {
-        val route = handle.toRoute<Reader>()
+        val route = handle.toRoute<Reader>(ReaderTypes)
         // The colour used last; unless I picked one already while it was being read.
         viewModelScope.launch { penColors.last().let { if (!picked) _color.value = it } }
         viewModelScope.launch {

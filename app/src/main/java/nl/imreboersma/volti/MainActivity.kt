@@ -43,6 +43,11 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import androidx.navigation.NavType
+import kotlin.reflect.KType
+import kotlin.reflect.typeOf
+import nl.imreboersma.volti.setlist.Skip
 import nl.imreboersma.volti.ui.EnsembleScreen
 import nl.imreboersma.volti.annotate.AnnotationControls
 import nl.imreboersma.volti.annotate.AnnotationViewModel
@@ -107,7 +112,17 @@ data class Reader(
     val fromEnd: Boolean = false,
     val setlistId: Long? = null,
     val position: Int = 0,
-    val skipped: String? = null,
+    val skipped: List<Skip> = emptyList(),
+)
+
+/** How [Reader.skipped] travels in the route: as JSON. Given to every `toRoute<Reader>` on a SavedStateHandle. */
+val ReaderTypes: Map<KType, NavType<*>> = mapOf(
+    typeOf<List<Skip>>() to object : NavType<List<Skip>>(isNullableAllowed = false) {
+        override fun put(bundle: Bundle, key: String, value: List<Skip>) = bundle.putString(key, Json.encodeToString(value))
+        override fun get(bundle: Bundle, key: String): List<Skip>? = bundle.getString(key)?.let { Json.decodeFromString(it) }
+        override fun parseValue(value: String): List<Skip> = Json.decodeFromString(value)
+        override fun serializeAsValue(value: List<Skip>): String = Uri.encode(Json.encodeToString(value))
+    },
 )
 
 class MainActivity : ComponentActivity() {
@@ -275,7 +290,7 @@ fun VoltiApp(navController: NavHostController = rememberNavController(), shared:
                 onDeleted = dropUnlessResumed { navController.popBackStack() },
             )
         }
-        composable<Reader> { entry ->
+        composable<Reader>(typeMap = ReaderTypes) { entry ->
             // Annotations go over the reader through its slots; the reader itself doesn't know about them.
             val annotations: AnnotationViewModel = viewModel()
             // So does a setlist: past a piece's ends, the next or previous piece takes this one's place, so Back
@@ -307,7 +322,7 @@ fun VoltiApp(navController: NavHostController = rememberNavController(), shared:
                             if (entry.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
                                 // To look at only: not as a piece of a setlist, and from its start.
                                 navController.navigate(
-                                    entry.toRoute<Reader>().copy(uri = uri, previous = true, fromEnd = false, setlistId = null, skipped = null),
+                                    entry.toRoute<Reader>().copy(uri = uri, previous = true, fromEnd = false, setlistId = null, skipped = emptyList()),
                                 )
                             }
                         },

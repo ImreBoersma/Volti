@@ -31,7 +31,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import nl.imreboersma.volti.R
 import androidx.compose.foundation.selection.toggleable
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -95,30 +97,30 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = viewModel(
                 .padding(16.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                AppBackButton(onBack, "Back to the library")
-                Text("Settings", style = MaterialTheme.typography.headlineLarge)
+                AppBackButton(onBack, stringResource(R.string.back_to_library))
+                Text(stringResource(R.string.settings), style = MaterialTheme.typography.headlineLarge)
             }
             LazyColumn(modifier = Modifier.fillMaxSize()) {
-                item { Section("Reading") }
+                item { Section(stringResource(R.string.reading)) }
                 item {
                     SwitchRow(
-                        title = "Crop margins",
-                        detail = "Leave out the white around the music, the same for every page of a score, so the notes are bigger.",
+                        title = stringResource(R.string.crop_margins),
+                        detail = stringResource(R.string.crop_margins_detail),
                         checked = settings.cropMargins,
                         onChange = viewModel::setCropMargins,
                     )
                 }
                 item {
                     SwitchRow(
-                        title = "Half-page turns",
-                        detail = "Turn the top half of the page first, so the end of one page and the start of the next show together.",
+                        title = stringResource(R.string.half_page_turns),
+                        detail = stringResource(R.string.half_page_turns_detail),
                         checked = settings.halfPageTurns,
                         onChange = viewModel::setHalfPageTurns,
                     )
                 }
-                item { Section("Ensembles") }
+                item { Section(stringResource(R.string.ensembles)) }
                 if (ensembles?.isEmpty() == true) {
-                    item { Text("None yet. Add one from the library.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    item { Text(stringResource(R.string.no_ensembles), color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 }
                 items(ensembles.orEmpty(), key = { it.id }) { ensemble ->
                     EnsembleSettings(ensemble, onSave = viewModel::rename, onRemove = viewModel::remove)
@@ -167,14 +169,14 @@ private fun EnsembleSettings(ensemble: Ensemble, onSave: (Ensemble, String, Stri
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text("Ensemble") },
+                label = { Text(stringResource(R.string.ensemble_label)) },
                 singleLine = true,
                 modifier = Modifier.weight(1f),
             )
             OutlinedTextField(
                 value = instrument,
                 onValueChange = { instrument = it },
-                label = { Text("What I play") },
+                label = { Text(stringResource(R.string.what_you_play)) },
                 singleLine = true,
                 modifier = Modifier.weight(1f),
             )
@@ -183,22 +185,24 @@ private fun EnsembleSettings(ensemble: Ensemble, onSave: (Ensemble, String, Stri
             Button(
                 onClick = { onSave(ensemble, name, instrument) },
                 enabled = changed && name.isNotBlank() && instrument.isNotBlank(),
-            ) { Text("Save") }
-            OutlinedButton(onClick = { confirming = true }) { Text("Remove") }
+            ) { Text(stringResource(R.string.save)) }
+            OutlinedButton(onClick = { confirming = true }) { Text(stringResource(R.string.remove)) }
         }
     }
     if (confirming) {
         AlertDialog(
             onDismissRequest = { confirming = false },
-            title = { Text("Remove ${ensemble.name}?") },
-            text = { Text("Its PDFs and which of them are mine are deleted from this ${deviceName()}. The folder in Google Drive stays as it is.") },
+            title = { Text(stringResource(R.string.remove_title, ensemble.name)) },
+            text = {
+                Text(stringResource(device().pick(R.string.remove_ensemble_text_tablet, R.string.remove_ensemble_text_phone, R.string.remove_ensemble_text_device)))
+            },
             confirmButton = {
                 TextButton(onClick = {
                     confirming = false
                     onRemove(ensemble)
-                }) { Text("Remove") }
+                }) { Text(stringResource(R.string.remove)) }
             },
-            dismissButton = { TextButton(onClick = { confirming = false }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { confirming = false }) { Text(stringResource(R.string.cancel)) } },
         )
     }
 }

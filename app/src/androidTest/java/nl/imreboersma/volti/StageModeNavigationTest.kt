@@ -87,7 +87,7 @@ class StageModeNavigationTest {
     fun offWhenTheFileCannotBeOpened() {
         val fake = File(tmp.root, "fake.pdf").apply { writeText("hello") }
         onMain { nav.navigate(Reader(Uri.fromFile(fake).toString())) }
-        compose.waitUntil(5_000) { compose.onAllNodesWithText("Can't open this file.").fetchSemanticsNodes().isNotEmpty() }
+        compose.waitUntil(5_000) { compose.onAllNodesWithText("Can't open this part.").fetchSemanticsNodes().isNotEmpty() }
         compose.waitForIdle()
         assertEquals(false, screenOn())
     }

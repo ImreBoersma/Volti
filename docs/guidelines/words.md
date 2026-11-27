@@ -58,8 +58,4 @@ From milestone 10 Volti is in English and Dutch, in Android's per-app language: 
 
 ## Not yet following this
 
-- All text is in Kotlin, not `strings.xml` (milestone 10).
-- Terms: `All files` (`EnsemblesScreen.kt`, `SetlistScreens.kt`), "1 file looks like my part" (`EnsemblesScreen.kt`), "No PDFs here yet." (`EnsemblesScreen.kt`), "Imported files only" (`HomeScreen.kt`), "This score changed since you made your marks" (`AnnotationOverlay.kt`), "If other scores stay blank too" (`ReaderScreen.kt`), "every page of a score" (`SettingsScreen.kt`), "1 PDF couldn't be downloaded" (`SyncStatus.kt`): parts, once they are in an ensemble.
-- `Let it go` (`HomeScreen.kt`) is a third verb: `Remove`.
-- `Later` (`AnnotationOverlay.kt`) for a question that comes back: `Not now`.
-- Sentences stitched together: "this ${deviceName()}" (9 places), the count in "files look like my part" (`EnsemblesScreen.kt`), `5,000` written into `SyncStatus.kt`.
+Nothing known.

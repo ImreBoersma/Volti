@@ -19,10 +19,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import nl.imreboersma.volti.MAX_SHARED
+import nl.imreboersma.volti.R
 import nl.imreboersma.volti.drive.Rejection
 import nl.imreboersma.volti.ui.theme.MaxContentWidth
 
@@ -42,37 +46,38 @@ fun ImportIntoScreen(
     viewModel: HomeViewModel = viewModel(),
 ) {
     val ensembles by viewModel.ensembles.collectAsStateWithLifecycle()
+    val res = LocalResources.current
     Scaffold(modifier = Modifier.fillMaxSize()) { padding ->
         Column(modifier = Modifier.widthIn(max = MaxContentWidth).fillMaxSize().padding(padding).padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                AppBackButton(onCancel, "Don't import")
+                AppBackButton(onCancel, stringResource(R.string.dont_import))
                 Text(
-                    when (count) {
-                        0 -> "Nothing to import"
-                        1 -> "Import a PDF"
-                        else -> "Import $count PDFs"
+                    if (count == 0) {
+                        stringResource(R.string.nothing_to_import)
+                    } else {
+                        pluralStringResource(R.plurals.import_pdfs, count, count(res, count))
                     },
                     style = MaterialTheme.typography.headlineLarge,
                 )
             }
             if (notReceived.isNotEmpty()) {
-                Text(notImportedText(notReceived, deviceName()), color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 16.dp))
+                Text(notImportedText(res, notReceived, device()), color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 16.dp))
             }
             if (dropped > 0) {
                 Text(
-                    "Only the first $MAX_SHARED PDFs of a share are imported; $dropped more weren't.",
+                    pluralStringResource(R.plurals.share_dropped, dropped, count(res, MAX_SHARED), count(res, dropped)),
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.padding(top = 16.dp),
                 )
             }
             if (count == 0) return@Column // Nothing came in: only why.
-            Text("Into which ensemble?", modifier = Modifier.padding(vertical = 16.dp))
+            Text(stringResource(R.string.into_which_ensemble), modifier = Modifier.padding(vertical = 16.dp))
             LazyColumn(modifier = Modifier.weight(1f, fill = false)) {
                 items(ensembles.orEmpty(), key = { it.id }) { ensemble ->
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable(onClickLabel = "Import into ${ensemble.name}") { onChoose(ensemble.id) }
+                            .clickable(onClickLabel = stringResource(R.string.import_into, ensemble.name)) { onChoose(ensemble.id) }
                             .padding(vertical = 12.dp),
                     ) {
                         Text(ensemble.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
@@ -81,7 +86,7 @@ fun ImportIntoScreen(
                     HorizontalDivider()
                 }
             }
-            OutlinedButton(onClick = onNewEnsemble, modifier = Modifier.padding(top = 12.dp)) { Text("New ensemble") }
+            OutlinedButton(onClick = onNewEnsemble, modifier = Modifier.padding(top = 12.dp)) { Text(stringResource(R.string.new_ensemble)) }
         }
     }
 }

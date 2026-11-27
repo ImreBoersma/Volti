@@ -57,14 +57,21 @@ import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import nl.imreboersma.volti.R
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import nl.imreboersma.volti.Reader
 import nl.imreboersma.volti.db.EnsembleFile
 import nl.imreboersma.volti.ui.AppBackButton
-import nl.imreboersma.volti.ui.deviceName
+import nl.imreboersma.volti.ui.count
+import nl.imreboersma.volti.ui.skippedText
+import nl.imreboersma.volti.ui.device
 import nl.imreboersma.volti.ui.MoreMenu
 import nl.imreboersma.volti.ui.RenameFile
 import nl.imreboersma.volti.ui.theme.MaxContentWidth
@@ -84,15 +91,16 @@ fun ColumnScope.SetlistsSection(onOpen: (Long) -> Unit, viewModel: SetlistsViewM
     val all by viewModel.showAll.collectAsStateWithLifecycle()
     var naming by rememberSaveable { mutableStateOf(false) }
     val list = setlists ?: return
+    val locale = LocalConfiguration.current.locales[0]
     // A heading: TalkBack can jump from the setlists to the scores.
     Text(
-        "Setlists",
+        stringResource(R.string.setlists),
         style = MaterialTheme.typography.titleMedium,
         modifier = Modifier.padding(top = 8.dp, bottom = 4.dp).semantics { heading() },
     )
     if (list.isEmpty()) {
         Text(
-            "No setlists yet. Make one for a concert or a rehearsal, and put its pieces in the order you play them.",
+            stringResource(R.string.no_setlists),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -101,12 +109,12 @@ fun ColumnScope.SetlistsSection(onOpen: (Long) -> Unit, viewModel: SetlistsViewM
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(onClickLabel = "Open ${setlist.name}") { onOpen(setlist.id) }
+                .clickable(onClickLabel = stringResource(R.string.open_setlist, setlist.name)) { onOpen(setlist.id) }
                 .padding(vertical = 10.dp),
         ) {
             Text(setlist.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
             Text(
-                "Made " + DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(setlist.createdAt)),
+                stringResource(R.string.setlist_made, DateFormat.getDateInstance(DateFormat.MEDIUM, locale).format(Date(setlist.createdAt))),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -115,15 +123,15 @@ fun ColumnScope.SetlistsSection(onOpen: (Long) -> Unit, viewModel: SetlistsViewM
     }
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 8.dp)) {
         if (list.size > SHOWN_SETLISTS) {
-            TextButton(onClick = { viewModel.showAll(!all) }) { Text(if (all) "Fewer" else "All ${list.size} setlists") }
+            TextButton(onClick = { viewModel.showAll(!all) }) { Text(if (all) stringResource(R.string.fewer) else pluralStringResource(R.plurals.all_setlists, list.size, count(LocalResources.current, list.size))) }
         }
-        OutlinedButton(onClick = { naming = true }) { Text("New setlist") }
+        OutlinedButton(onClick = { naming = true }) { Text(stringResource(R.string.new_setlist)) }
     }
     if (naming) {
         NameDialog(
-            title = "New setlist",
+            title = stringResource(R.string.new_setlist),
             initial = "",
-            confirm = "Make it",
+            confirm = stringResource(R.string.make_it),
             onDone = { name ->
                 naming = false
                 viewModel.create(name, onOpen)
@@ -169,7 +177,7 @@ fun SetlistScreen(
     Scaffold(modifier = Modifier.fillMaxSize()) { padding ->
         Column(modifier = Modifier.widthIn(max = MaxContentWidth).fillMaxSize().padding(padding).padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                AppBackButton(onBack, "Back to the ensemble")
+                AppBackButton(onBack, stringResource(R.string.back_to_ensemble))
                 Text(
                     setlist?.name.orEmpty(),
                     style = MaterialTheme.typography.headlineLarge,
@@ -177,17 +185,23 @@ fun SetlistScreen(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )
-                TextButton(onClick = { renaming = true }) { Text("Rename") }
-                TextButton(onClick = { deleting = true }) { Text("Delete") }
+                TextButton(onClick = { renaming = true }) { Text(stringResource(R.string.rename)) }
+                TextButton(onClick = { deleting = true }) { Text(stringResource(R.string.delete)) }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 12.dp)) {
                 // From the first piece on, turning straight into the next.
-                if (!pieces.isNullOrEmpty()) Button(onClick = { viewModel.play(onPlay) }) { Text("Play") }
-                OutlinedButton(onClick = { adding = true }) { Text("Add pieces") }
+                if (!pieces.isNullOrEmpty()) Button(onClick = { viewModel.play(onPlay) }) { Text(stringResource(R.string.play)) }
+                OutlinedButton(onClick = { adding = true }) { Text(stringResource(R.string.add_pieces)) }
             }
-            problem?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            problem?.let {
+                val text = when (it) {
+                    PlayProblem.NoPieces -> stringResource(R.string.setlist_no_pieces)
+                    is PlayProblem.Skipped -> it.skipped.map { skip -> skippedText(LocalResources.current, skip) }.joinToString("\n")
+                }
+                Text(text, color = MaterialTheme.colorScheme.error)
+            }
             if (pieces?.isEmpty() == true) {
-                Text("No pieces yet. Add them from your parts.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.no_pieces), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 order.forEachIndexed { index, piece ->
@@ -266,7 +280,7 @@ fun SetlistScreen(
         }, onCancel = { adding = false })
     }
     if (renaming) {
-        NameDialog("Rename setlist", setlist?.name.orEmpty(), "Rename", onDone = {
+        NameDialog(stringResource(R.string.rename_setlist), setlist?.name.orEmpty(), stringResource(R.string.rename), onDone = {
             renaming = false
             viewModel.rename(it)
         }, onCancel = { renaming = false })
@@ -274,15 +288,15 @@ fun SetlistScreen(
     if (deleting) {
         AlertDialog(
             onDismissRequest = { deleting = false },
-            title = { Text("Delete ${setlist?.name.orEmpty()}?") },
-            text = { Text("Only the setlist goes; its pieces stay in the ensemble.") },
+            title = { Text(stringResource(R.string.delete_title, setlist?.name.orEmpty())) },
+            text = { Text(stringResource(R.string.delete_setlist_text)) },
             confirmButton = {
                 TextButton(onClick = {
                     deleting = false
                     viewModel.delete(onDeleted)
-                }) { Text("Delete") }
+                }) { Text(stringResource(R.string.delete)) }
             },
-            dismissButton = { TextButton(onClick = { deleting = false }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { deleting = false }) { Text(stringResource(R.string.cancel)) } },
         )
     }
 }
@@ -301,7 +315,8 @@ private fun PieceRow(
     modifier: Modifier = Modifier,
 ) {
     val file = piece.file
-    val device = deviceName()
+    val moveUp = stringResource(R.string.move_up)
+    val moveDown = stringResource(R.string.move_down)
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
@@ -309,27 +324,31 @@ private fun PieceRow(
             .height(ROW)
             .semantics {
                 customActions = listOfNotNull(
-                    CustomAccessibilityAction("Move up") { onMove(index - 1); true }.takeIf { index > 0 },
-                    CustomAccessibilityAction("Move down") { onMove(index + 1); true }.takeIf { index < last },
+                    CustomAccessibilityAction(moveUp) { onMove(index - 1); true }.takeIf { index > 0 },
+                    CustomAccessibilityAction(moveDown) { onMove(index + 1); true }.takeIf { index < last },
                 )
             },
     ) {
         handle()
-        Text("$number", style = MaterialTheme.typography.titleMedium, modifier = Modifier.width(32.dp))
+        Text(count(LocalResources.current, number), style = MaterialTheme.typography.titleMedium, modifier = Modifier.width(32.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(file?.shownName ?: "No longer in Google Drive", maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(file?.shownName ?: stringResource(R.string.no_longer_in_drive), maxLines = 1, overflow = TextOverflow.Ellipsis)
             val note = when {
                 file == null -> null
-                file.removed -> "Removed from Google Drive"
-                file.localMd5 == null -> if (downloading) "Downloading…" else "Not on this $device"
+                file.removed -> stringResource(R.string.removed_from_drive)
+                file.localMd5 == null -> if (downloading) {
+                    stringResource(R.string.downloading)
+                } else {
+                    stringResource(device().pick(R.string.not_on_this_tablet, R.string.not_on_this_phone, R.string.not_on_this_device))
+                }
                 else -> file.folders.takeIf { it.isNotEmpty() }?.joinToString(" / ")
             }
             note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
         MoreMenu(
-            "More for ${file?.shownName ?: "this piece"}",
+            if (file == null) stringResource(R.string.more_for_piece) else stringResource(R.string.more_for, file.shownName),
             // A piece whose file is gone has no name left to give.
-            listOfNotNull(("Rename" to onRename).takeIf { file != null }, "Remove from the setlist" to onRemove),
+            listOfNotNull((stringResource(R.string.rename) to onRename).takeIf { file != null }, stringResource(R.string.remove_from_setlist) to onRemove),
         )
     }
 }
@@ -337,7 +356,8 @@ private fun PieceRow(
 /** The handle: three lines, dragged to move the piece. */
 @Composable
 private fun DragHandle(modifier: Modifier) {
-    Box(contentAlignment = Alignment.Center, modifier = modifier.size(48.dp).semantics { contentDescription = "Drag to move" }) {
+    val dragToMove = stringResource(R.string.drag_to_move)
+    Box(contentAlignment = Alignment.Center, modifier = modifier.size(48.dp).semantics { contentDescription = dragToMove }) {
         val ink = MaterialTheme.colorScheme.onSurfaceVariant
         Canvas(modifier = Modifier.size(24.dp)) {
             listOf(0.3f, 0.5f, 0.7f).forEach { y ->
@@ -357,14 +377,14 @@ private fun AddPieces(candidates: List<EnsembleFile>, onAdd: (List<String>) -> U
     val shown = if (all) candidates else candidates.filter { it.mine }
     AlertDialog(
         onDismissRequest = onCancel,
-        title = { Text("Add pieces") },
+        title = { Text(stringResource(R.string.add_pieces)) },
         text = {
             Column {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(selected = !all, onClick = { picked = false }, label = { Text("My parts") })
-                    FilterChip(selected = all, onClick = { picked = true }, label = { Text("All files") })
+                    FilterChip(selected = !all, onClick = { picked = false }, label = { Text(stringResource(R.string.your_parts)) })
+                    FilterChip(selected = all, onClick = { picked = true }, label = { Text(stringResource(R.string.all_parts)) })
                 }
-                if (shown.isEmpty()) Text("Nothing left to add.", modifier = Modifier.padding(top = 16.dp))
+                if (shown.isEmpty()) Text(stringResource(R.string.nothing_left_to_add), modifier = Modifier.padding(top = 16.dp))
                 LazyColumn {
                     items(shown, key = { it.fileId }) { file ->
                         val on = file.fileId in ticked
@@ -391,10 +411,10 @@ private fun AddPieces(candidates: List<EnsembleFile>, onAdd: (List<String>) -> U
         },
         confirmButton = {
             TextButton(onClick = { onAdd(shown.map { it.fileId }.filter { it in ticked }) }, enabled = ticked.isNotEmpty()) {
-                Text(if (ticked.size == 1) "Add 1" else "Add ${ticked.size}")
+                Text(pluralStringResource(R.plurals.add_count, ticked.size, count(LocalResources.current, ticked.size)))
             }
         },
-        dismissButton = { TextButton(onClick = onCancel) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onCancel) { Text(stringResource(R.string.cancel)) } },
     )
 }
 
@@ -408,7 +428,7 @@ private fun NameDialog(title: String, initial: String, confirm: String, onDone: 
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text("Name, e.g. Concert 14 December") },
+                label = { Text(stringResource(R.string.setlist_name_label)) },
                 singleLine = true,
                 // Enter does what the button does (android.md).
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
@@ -416,6 +436,6 @@ private fun NameDialog(title: String, initial: String, confirm: String, onDone: 
             )
         },
         confirmButton = { TextButton(onClick = { onDone(name) }, enabled = name.isNotBlank()) { Text(confirm) } },
-        dismissButton = { TextButton(onClick = onCancel) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onCancel) { Text(stringResource(R.string.cancel)) } },
     )
 }

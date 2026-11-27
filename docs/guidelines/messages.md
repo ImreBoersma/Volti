@@ -4,7 +4,7 @@ The reader is a musician at a stand, often mid-rehearsal, with an instrument in 
 
 ## The shape of a message
 
-**What happened, in their terms.** Scores, PDFs, pages, folders, ensembles, Google Drive. Never URIs, ids, exceptions, "API", "token" or "sync job".
+**What happened, in their terms.** Parts, PDFs, pages, folders, ensembles, Google Drive. Never URIs, ids, exceptions, "API", "token" or "sync job".
 
 **Then, only if it helps: what still works, or the one thing to do.** Leave out advice they can't act on.
 
@@ -12,17 +12,17 @@ The reader is a musician at a stand, often mid-rehearsal, with an instrument in 
 |---------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------|
 | `This PDF is password-protected.`                                                           | The cause is the file; nothing to do in Volti.                                     |
 | `This Google account can't see that folder. Is it shared with you?`                         | Names the likely cause as a question, because we can't be sure.                    |
-| `This file takes too long to open. If other scores stay blank too, close and reopen Volti.` | The one action that helps, and when it applies.                                    |
-| `Couldn't reach Google Drive. Synced 4 min ago.`                                            | What failed, then how fresh the copy on the device is: the scores here still work. |
-| `Up to date. 1 PDF couldn't be downloaded; it is tried again next time`                     | A warning leads with what worked, then what didn't, then what happens next.        |
+| `This part takes too long to open. If other parts stay blank too, close and reopen Volti.`  | The one action that helps, and when it applies.                                    |
+| `Couldn't reach Google Drive. Synced 4 min ago.`                                            | What failed, then how fresh the copy on the device is: the parts here still work.  |
+| `Up to date. 1 part couldn't be downloaded; it is tried again next time`                    | A warning leads with what worked, then what didn't, then what happens next.        |
 
 ## Wording
 
-**Can't vs couldn't.** `Can't` for a state that holds now (`Can't open this file.`, `Can't read this folder.`). `Couldn't` for one attempt that failed and may work next time (`Couldn't reach Google Drive.`).
+**Can't vs couldn't.** `Can't` for a state that holds now (`Can't open this part.`, `Can't read this folder.`). `Couldn't` for one attempt that failed and may work next time (`Couldn't reach Google Drive.`).
 
-**Point at the thing on screen.** `This file`, `this folder`, `that folder` (the one just typed in). Not the file name: it is already visible.
+**Point at the thing on screen.** `This part`, `this folder`, `that folder` (the one just typed in). Not its name: it is already visible.
 
-**Say the device with `deviceName()`**, never a literal "tablet" or "phone": `Not on this ${deviceName()}`.
+**Say the device with `device()`**, never a literal "tablet" or "phone" in the code: one string per device, picked with `device().pick(…)`: `Not on this tablet`, `Not on this phone`, `Not on this device`.
 
 **Google Drive** in full when it stands alone. `Drive` only as a modifier: `a Drive folder`, `the shared Drive folder`.
 
@@ -40,7 +40,7 @@ A sentence ends with a full stop. A label does not: chips, buttons, row status, 
 
 In the place the problem is, and it stays until the problem is gone. A page that can't render shows its message where the page would be; a folder that can't be read shows it instead of the list; a sync problem goes in that ensemble's status line, with `Try again` or `Sign in to Google Drive` beside it.
 
-No toasts or snackbars. They disappear while the player's hands are busy, and on stage a moving element draws the eye. A confirmation dialogue only before something that deletes, and it says what is deleted and what is kept: `Its PDFs and which of them are mine are deleted from this tablet. The folder in Google Drive stays as it is.`
+No toasts or snackbars. They disappear while the player's hands are busy, and on stage a moving element draws the eye. A confirmation dialogue only before something that deletes, and it says what is deleted and what is kept: `Its parts and which of them are yours are deleted from this tablet. The folder in Google Drive stays as it is.`
 
 In the reader, use `LocalReaderColors.current.message` so the text follows the page colours.
 
@@ -48,7 +48,7 @@ In the reader, use `LocalReaderColors.current.message` so the text follows the p
 
 The layer that knows what went wrong returns a type, the UI turns it into words. `ReaderState.Problem` and its `when` in `ReaderScreen` is the pattern; so are `DriveProblem` and `syncProblemText` / `fileProblemText` in `SyncStatus.kt`, and `Rejection` for imports. This keeps wording in one layer and lets tests assert on the problem, not on a sentence.
 
-Text is English, written in the Kotlin code, until milestone 10 moves it to `strings.xml` and adds Dutch. These rules then apply per language; how to write translatable text is in [words.md](words.md).
+The words themselves are in `strings.xml`: the `when` picks the string, `stringResource` (or `Resources`, outside composition) reads it. These rules apply per language; how to write translatable text is in [words.md](words.md).
 
 ## Logs and exceptions
 

@@ -8,7 +8,7 @@ The reference device is the Galaxy Tab S7 FE (Android 14, 1280×800 dp). The app
 
 **Any size, any orientation.** No `android:screenOrientation`, no `resizeableActivity="false"`. The app fills its window in portrait, landscape, split screen and freeform; it is never letterboxed. (Adaptive Tier 3, `Config_Changes`.)
 
-**One pane, with one exception.** The reader needs the whole window, and other screens show one list, so there is no list-and-detail layout. Wide windows are handled by the maximum width below. The exception is an ensemble: at the expanded window width class (840 dp and wider, the tablet in landscape) its setlists get a narrow pane beside its scores; narrower, they are the top of the scores' list. A second pane is chosen by the window's width class (`LocalWindowInfo`'s size against 840 dp, the expanded breakpoint; or `currentWindowAdaptiveInfo().windowSizeClass` if that library comes in), never by the device: `deviceName()` is for wording only, and a tablet in split screen has a compact window.
+**One pane, with one exception.** The reader needs the whole window, and other screens show one list, so there is no list-and-detail layout. Wide windows are handled by the maximum width below. The exception is an ensemble: at the expanded window width class (840 dp and wider, the tablet in landscape) its setlists get a narrow pane beside its scores; narrower, they are the top of the scores' list. A second pane is chosen by the window's width class (`LocalWindowInfo`'s size against 840 dp, the expanded breakpoint; or `currentWindowAdaptiveInfo().windowSizeClass` if that library comes in), never by the device: `device()` is for wording only, and a tablet in split screen has a compact window.
 
 **Nothing stretches to full width on a wide window.** Text fields, buttons, dialogues and settings rows sit in a column of at most 600 dp: `Modifier.widthIn(max = MaxContentWidth)` before `fillMaxSize()`. At body size that also keeps a line of text under about 75 characters, Google's limit for reading (`Line_Length`, 45 to 75). Two exceptions: the score uses all the space there is, and a search field spans the full-width list it filters. (Tier 2, `UI_Secondary_Elements`.)
 
@@ -82,7 +82,6 @@ Check new screens with TalkBack and the Accessibility Scanner on the tablet.
 
 ## Not yet following this
 
-- Text in the first person, from before the "you" rule: `My parts` (`EnsemblesScreen.kt`, `SetlistScreens.kt`), `Mine`, `What I play` (`EnsemblesScreen.kt`, `SettingsScreen.kt`), "looks like my part", "my marks" and "Are these my parts?" (`EnsemblesScreen.kt`).
 - Zooming in to annotate is only by gesture (two fingers). It is a help for the pen, which TalkBack users don't write with; a button would still be the rule.
 
 Verified on the emulator only; check pedal, TalkBack and the edge stroke on the tablet.

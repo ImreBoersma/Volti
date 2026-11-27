@@ -32,6 +32,8 @@ import nl.imreboersma.volti.drive.SyncState
 import nl.imreboersma.volti.drive.Syncer
 import nl.imreboersma.volti.drive.Rejection
 import nl.imreboersma.volti.drive.Received
+import nl.imreboersma.volti.drive.DriveProblem
+import nl.imreboersma.volti.drive.ImportProgress
 import nl.imreboersma.volti.data.pdfsIn
 import nl.imreboersma.volti.data.WALK_LIMIT
 import android.util.Log
@@ -44,11 +46,14 @@ import kotlinx.coroutines.flow.map
 import android.net.Uri
 import nl.imreboersma.volti.db.EnsembleFile
 
+/** What is wrong with the form to add an ensemble: one at a time, worded by the screen. */
+enum class AddProblem { NotALink, NoName, NoInstrument, AlreadyAdded }
+
 class EnsemblesViewModel(app: Application) : AndroidViewModel(app) {
     private val dao = VoltiDatabase.get(app).ensembles()
 
-    private val _error = MutableStateFlow<String?>(null)
-    val error: StateFlow<String?> = _error.asStateFlow()
+    private val _error = MutableStateFlow<AddProblem?>(null)
+    val error: StateFlow<AddProblem?> = _error.asStateFlow()
 
     private var adding: Job? = null
 
@@ -60,9 +65,9 @@ class EnsemblesViewModel(app: Application) : AndroidViewModel(app) {
         if (adding?.isActive == true) return // A second tap on Add.
         val folder = link.takeIf { it.isNotBlank() }?.let(::parseFolderLink)
         _error.value = when {
-            link.isNotBlank() && folder == null -> "That isn't a link to a Drive folder."
-            name.isBlank() -> "Give the ensemble a name."
-            instrument.isBlank() -> "Say what you play in it."
+            link.isNotBlank() && folder == null -> AddProblem.NotALink
+            name.isBlank() -> AddProblem.NoName
+            instrument.isBlank() -> AddProblem.NoInstrument
             else -> null
         }
         if (_error.value != null) return
@@ -76,10 +81,25 @@ class EnsemblesViewModel(app: Application) : AndroidViewModel(app) {
                 )
                 onAdded(dao.add(ensemble))
             } catch (_: SQLiteConstraintException) {
-                _error.value = "That folder is already an ensemble."
+                _error.value = AddProblem.AlreadyAdded
             }
         }
     }
+}
+
+/** What the ensemble's screen says above its list, worded there. */
+sealed interface EnsembleMessage {
+    /** The file I tapped couldn't be opened. */
+    data class Open(val problem: DriveProblem) : EnsembleMessage
+
+    /** The folder picked to import can't be read. */
+    data object FolderUnreadable : EnsembleMessage
+
+    /** The folder picked to import holds more than [WALK_LIMIT] files and folders. */
+    data object FolderTooLarge : EnsembleMessage
+
+    /** The folder picked to import holds no PDFs. */
+    data object NoPdfs : EnsembleMessage
 }
 
 sealed interface EnsembleView {
@@ -199,10 +219,10 @@ class EnsembleViewModel(app: Application, private val handle: SavedStateHandle) 
     /** The files downloading right now, whatever for: the sync, to open one, or because I marked it mine. */
     val downloading: StateFlow<Set<String>> = syncer.downloading
 
-    private val _message = MutableStateFlow<String?>(null)
+    private val _message = MutableStateFlow<EnsembleMessage?>(null)
 
-    /** Why the last file I tapped didn't open. */
-    val message: StateFlow<String?> = _message.asStateFlow()
+    /** Why the last file I tapped didn't open, or what is wrong with the folder I picked to import. */
+    val message: StateFlow<EnsembleMessage?> = _message.asStateFlow()
 
     /**
      * Opens the newest version on the device, once it is recorded as the one I saw: from then on it is kept, also
@@ -226,7 +246,7 @@ class EnsembleViewModel(app: Application, private val handle: SavedStateHandle) 
             if (file.fileId != latest) return@launch // I tapped another meanwhile: that one opens, this one is here now.
             val here = db.files().all(id).firstOrNull { it.fileId == file.fileId }?.seenMd5
             when {
-                problem != null -> _message.value = fileProblemText(problem)
+                problem != null -> _message.value = EnsembleMessage.Open(problem)
                 here != null -> onOpen(Uri.fromFile(syncer.fileFor(here)).toString(), file.scoreKey)
             }
         }
@@ -268,10 +288,12 @@ class EnsembleViewModel(app: Application, private val handle: SavedStateHandle) 
 
     private val _reading = MutableStateFlow(false)
 
+    /** A folder picked to import is being read, before its PDFs are copied in. */
+    val reading: StateFlow<Boolean> = _reading.asStateFlow()
+
     /** How far an import into this ensemble is ("Copying 12 of 300…"), also one started before I left; null when none runs. */
-    val importing: StateFlow<String?> = combine(syncer.importing, _reading) { all, reading ->
-        all[id]?.let(::importProgressText) ?: "Reading the folder…".takeIf { reading }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    val importing: StateFlow<ImportProgress?> = syncer.importing.map { it[id] }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     private val _notImported = MutableStateFlow<List<Pair<String, Rejection>>>(emptyList())
 
@@ -297,15 +319,14 @@ class EnsembleViewModel(app: Application, private val handle: SavedStateHandle) 
                 throw e
             } catch (e: Exception) {
                 Log.w("Volti", "Can't read a folder to import", e)
-                _message.value = "Can't read that folder."
+                _message.value = EnsembleMessage.FolderUnreadable
                 return@receiveThenAsk null
             } finally {
                 _reading.value = false
             }
             _message.value = when {
-                !found.complete -> "That folder holds more than $WALK_LIMIT files and folders: the PDFs past those weren't imported. " +
-                    "Import its subfolders one at a time."
-                found.uris.isEmpty() -> "There are no PDFs in that folder."
+                !found.complete -> EnsembleMessage.FolderTooLarge
+                found.uris.isEmpty() -> EnsembleMessage.NoPdfs
                 else -> null
             }
             syncer.receive(found.uris, found.folders, into = id).await()

@@ -2,6 +2,7 @@ package nl.imreboersma.volti.annotate
 
 import android.graphics.Paint
 import android.graphics.Typeface
+import androidx.annotation.StringRes
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -12,21 +13,22 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
+import nl.imreboersma.volti.R
 
 /** The marks I write most. Drawn by Volti itself, so they look the same whatever fonts the device has. */
-enum class Symbol(val label: String) {
-    Breath("Breath mark"),
-    Fermata("Fermata"),
-    Glasses("Watch the conductor"),
-    PP("pp"),
-    P("p"),
-    MP("mp"),
-    MF("mf"),
-    F("f"),
-    FF("ff"),
-    Sharp("Sharp"),
-    Flat("Flat"),
-    Natural("Natural"),
+enum class Symbol(@StringRes val label: Int) {
+    Breath(R.string.symbol_breath),
+    Fermata(R.string.symbol_fermata),
+    Glasses(R.string.symbol_glasses),
+    PP(R.string.symbol_pp),
+    P(R.string.symbol_p),
+    MP(R.string.symbol_mp),
+    MF(R.string.symbol_mf),
+    F(R.string.symbol_f),
+    FF(R.string.symbol_ff),
+    Sharp(R.string.symbol_sharp),
+    Flat(R.string.symbol_flat),
+    Natural(R.string.symbol_natural),
     ;
 
     val dynamic get() = this in DYNAMICS
@@ -90,6 +92,6 @@ fun DrawScope.drawSymbol(symbol: Symbol, center: Offset, size: Float, color: Col
         // The system font draws these two smaller than the sharp.
         Symbol.Flat -> text("♭", accidentalPaint, size * 1.4f)
         Symbol.Natural -> text("♮", accidentalPaint, size * 1.3f)
-        else -> text(symbol.label, dynamicsPaint, size * 0.9f) // The dynamics: as printed, bold italic serif.
+        else -> text(symbol.name.lowercase(), dynamicsPaint, size * 0.9f) // The dynamics: as printed, bold italic serif.
     }
 }

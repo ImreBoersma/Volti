@@ -12,7 +12,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import nl.imreboersma.volti.R
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -104,6 +107,8 @@ fun ReaderScreen(
     // The reader holds the keyboard focus, for the pedal.
     val focus = remember { FocusRequester() }
     LaunchedEffect(focus) { focus.requestFocus() }
+    val nextPage = stringResource(R.string.next_page)
+    val previousPage = stringResource(R.string.previous_page)
     CompositionLocalProvider(LocalReaderColors provides colors) {
         Box(
             modifier = modifier
@@ -120,8 +125,8 @@ fun ReaderScreen(
                 // On the node TalkBack focuses (the focusable one): the tap halves aren't reachable with TalkBack.
                 .semantics {
                     customActions = listOf(
-                        CustomAccessibilityAction("Next page") { viewModel.next(); true },
-                        CustomAccessibilityAction("Previous page") { viewModel.previous(); true },
+                        CustomAccessibilityAction(nextPage) { viewModel.next(); true },
+                        CustomAccessibilityAction(previousPage) { viewModel.previous(); true },
                     )
                 }
                 .focusRequester(focus)
@@ -132,10 +137,9 @@ fun ReaderScreen(
                 ReaderState.Loading -> Unit
                 is ReaderState.Failed -> Text(
                     text = when (s.problem) {
-                        ReaderState.Problem.PasswordProtected -> "This PDF is password-protected."
-                        ReaderState.Problem.TooSlow ->
-                            "This file takes too long to open. If other scores stay blank too, close and reopen Volti."
-                        ReaderState.Problem.Unreadable -> "Can't open this file."
+                        ReaderState.Problem.PasswordProtected -> stringResource(R.string.pdf_password_protected)
+                        ReaderState.Problem.TooSlow -> stringResource(R.string.pdf_too_slow)
+                        ReaderState.Problem.Unreadable -> stringResource(R.string.pdf_unreadable)
                     },
                     color = LocalReaderColors.current.message,
                 )
@@ -171,7 +175,7 @@ private fun pageTurnKey(event: KeyEvent, viewModel: ReaderViewModel): Boolean {
  */
 @Composable
 private fun BackButton(onBack: () -> Unit, modifier: Modifier = Modifier) =
-    CornerButton("Back to the library", "Show the back button", onBack, modifier) { ink ->
+    CornerButton(stringResource(R.string.back_to_library), stringResource(R.string.show_back_button), onBack, modifier) { ink ->
         val stroke = 2.5.dp.toPx()
         val arrow = Size(20.dp.toPx(), 20.dp.toPx())
         val left = (size.width - arrow.width) / 2
@@ -266,6 +270,12 @@ private fun PageView(
     val sharp by viewModel.sharp.collectAsStateWithLifecycle()
     val shownSharp = sharp?.takeIf { it.index == page.index && it.part == resting && resting != null }
     val view = LocalView.current
+    val res = LocalResources.current
+    val shownPage = if (page.half) {
+        stringResource(R.string.page_and_top_of, count(res, page.index + 1), count(res, page.index + 2), count(res, page.pageCount))
+    } else {
+        stringResource(R.string.page_of, count(res, page.index + 1), count(res, page.pageCount))
+    }
     // Once no page is drawn any more (an error message, leaving the reader), say so when that frame is on
     // screen, so the last bitmaps can be reused.
     DisposableEffect(view) {
@@ -282,7 +292,7 @@ private fun PageView(
             .onSizeChanged { box = it }
             // Which page is showing, for accessibility services, and for tests.
             .semantics {
-                stateDescription = "Page ${page.index + 1}${if (page.half) " and the top of ${page.index + 2}" else ""} of ${page.pageCount}"
+                stateDescription = shownPage
             }
             // Tells the ViewModel what is really on screen, so it never draws into those bitmaps: drawn when this
             // frame is recorded, presented once the render thread has committed it. Runs when the page changes,
@@ -342,7 +352,7 @@ private fun PageImage(bitmap: Bitmap?, index: Int, region: Region, modifier: Mod
                     .align(if (region == Region.BottomHalf) Alignment.BottomCenter else Alignment.TopCenter),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(text = "Can't show page ${index + 1}.", color = LocalReaderColors.current.message)
+                Text(text = stringResource(R.string.cant_show_page, count(LocalResources.current, index + 1)), color = LocalReaderColors.current.message)
             }
         }
     } else {

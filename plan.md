@@ -550,9 +550,13 @@ Decided 2026-11-27: Dutch comes soon. Moving the text out of Kotlin gets more ex
 
 ### 1. All text in strings.xml
 
-- [ ] Every text the musician reads comes from `strings.xml`: whole sentences with placeholders, plurals for counts, a phrase per device. The English changes only where it didn't follow [words.md](docs/guidelines/words.md) and the "you" rule yet.
+- [x] Every text the musician reads comes from `strings.xml`: whole sentences with placeholders, plurals for counts, a phrase per device. The English changes only where it didn't follow [words.md](docs/guidelines/words.md) and the "you" rule yet.
 
 Done when: no text literal is left in `Text(…)` or a message `when`, and on the tablet every screen reads as before, apart from the planned word changes.
+
+Done 2026-11-27. 215-odd strings in `strings.xml`: whole sentences with numbered placeholders, plurals for counts, numbers through the language's format (5,000 / 5.000). `deviceName()` became `device()` with one phrase per device (Dutch says "deze tablet" but "dit apparaat"). ViewModels and the setlist player carry types (`EnsembleMessage`, `PlayProblem`, `Skip` in the reader's route, `Line`), worded in the composables, so a language switch re-words them. The words.md terms are applied: part (not file or score), Your parts, What you play, Remove, Not now; a message names its menu labels through their own strings. messages.md's examples follow.
+
+Unit tests, lint and the instrumented suite pass on the emulator (270 tests). Not yet: the "Done when" read through on the tablet.
 
 ### 2. Dutch
 

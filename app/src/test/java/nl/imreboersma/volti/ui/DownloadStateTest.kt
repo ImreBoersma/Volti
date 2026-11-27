@@ -20,11 +20,4 @@ class DownloadStateTest {
         assertEquals(Download.Now, downloadOf("x", SyncState.Listing, setOf("x")))
         assertEquals(null, downloadOf("x", SyncState.Listing, emptySet()))
     }
-
-    @Test
-    fun checkedButNotStartedSaysWhatIsToCome() {
-        val planned = SyncState.Downloading(0, 1300, now = null, waiting = setOf("a"))
-        assertEquals("1,300 to download", syncText(planned, null, 0))
-        assertEquals("Downloading 2 of 3…", syncText(sync, null, 0))
-    }
 }

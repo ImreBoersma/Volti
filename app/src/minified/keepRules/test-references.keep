@@ -2861,7 +2861,7 @@
 #noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.Reader {
     #noinspection ShrinkerUnresolvedReference
-    <init>(java.lang.String, java.lang.String, boolean, boolean, java.lang.Long, int, java.lang.String, int, kotlin.jvm.internal.DefaultConstructorMarker);
+    <init>(java.lang.String, java.lang.String, boolean, boolean, java.lang.Long, int, java.util.List, int, kotlin.jvm.internal.DefaultConstructorMarker);
     #noinspection ShrinkerUnresolvedReference
     int getPosition();
 }
@@ -3224,6 +3224,35 @@
     java.lang.String localKey(java.lang.String);
 }
 #noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.drive.DriveProblem$DriveError {
+    #noinspection ShrinkerUnresolvedReference
+    <init>(int);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.drive.DriveProblem$SignedOut {
+    #noinspection ShrinkerUnresolvedReference
+    nl.imreboersma.volti.drive.DriveProblem$SignedOut INSTANCE;
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.drive.DriveProblem$Unreachable {
+    #noinspection ShrinkerUnresolvedReference
+    nl.imreboersma.volti.drive.DriveProblem$Unreachable INSTANCE;
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.drive.DriveProblem
+#noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.drive.ImportProgress {
+    #noinspection ShrinkerUnresolvedReference
+    <init>(nl.imreboersma.volti.drive.ImportStep, int, int);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.drive.ImportStep {
+    #noinspection ShrinkerUnresolvedReference
+    nl.imreboersma.volti.drive.ImportStep Copying;
+    #noinspection ShrinkerUnresolvedReference
+    nl.imreboersma.volti.drive.ImportStep Importing;
+}
+#noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.drive.Received {
     #noinspection ShrinkerUnresolvedReference
     java.lang.String getBatch();
@@ -3233,8 +3262,34 @@
 #noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.drive.Rejection {
     #noinspection ShrinkerUnresolvedReference
+    nl.imreboersma.volti.drive.Rejection NoSpace;
+    #noinspection ShrinkerUnresolvedReference
     nl.imreboersma.volti.drive.Rejection NotAPdf;
 }
+#noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.drive.SyncState$Done {
+    #noinspection ShrinkerUnresolvedReference
+    <init>(boolean, int);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.drive.SyncState$Downloading {
+    #noinspection ShrinkerUnresolvedReference
+    <init>(int, int, java.lang.String, java.util.Set);
+    #noinspection ShrinkerUnresolvedReference
+    <init>(int, int, java.lang.String, java.util.Set, int, kotlin.jvm.internal.DefaultConstructorMarker);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.drive.SyncState$Failed {
+    #noinspection ShrinkerUnresolvedReference
+    <init>(nl.imreboersma.volti.drive.DriveProblem);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.drive.SyncState$Idle {
+    #noinspection ShrinkerUnresolvedReference
+    nl.imreboersma.volti.drive.SyncState$Idle INSTANCE;
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.drive.SyncState
 #noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.drive.Syncer$Companion {
     #noinspection ShrinkerUnresolvedReference
@@ -3296,6 +3351,27 @@
     java.lang.String getFileId();
 }
 #noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.setlist.Skip {
+    #noinspection ShrinkerUnresolvedReference
+    <init>(java.lang.String, nl.imreboersma.volti.setlist.SkipReason, int);
+    #noinspection ShrinkerUnresolvedReference
+    <init>(java.lang.String, nl.imreboersma.volti.setlist.SkipReason, int, int, kotlin.jvm.internal.DefaultConstructorMarker);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.setlist.SkipReason {
+    #noinspection ShrinkerUnresolvedReference
+    nl.imreboersma.volti.setlist.SkipReason DriveError;
+    #noinspection ShrinkerUnresolvedReference
+    nl.imreboersma.volti.setlist.SkipReason TooSlow;
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.ui.Device {
+    #noinspection ShrinkerUnresolvedReference
+    nl.imreboersma.volti.ui.Device Other;
+    #noinspection ShrinkerUnresolvedReference
+    nl.imreboersma.volti.ui.Device Tablet;
+}
+#noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.ui.ReaderState$Failed {
     #noinspection ShrinkerUnresolvedReference
     <init>(nl.imreboersma.volti.ui.ReaderState$Problem);
@@ -3353,6 +3429,25 @@
 -keep class nl.imreboersma.volti.ui.StageModeKt {
     #noinspection ShrinkerUnresolvedReference
     void StageMode(androidx.compose.runtime.Composer, int);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.ui.SyncStatusKt {
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.String count(android.content.res.Resources, int);
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.String fileProblemText(android.content.res.Resources, nl.imreboersma.volti.drive.DriveProblem);
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.String importProgressText(android.content.res.Resources, nl.imreboersma.volti.drive.ImportProgress);
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.String notImportedText(android.content.res.Resources, java.util.List, nl.imreboersma.volti.ui.Device);
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.String skippedText(android.content.res.Resources, nl.imreboersma.volti.setlist.Skip);
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.String syncProblemText(android.content.res.Resources, nl.imreboersma.volti.drive.DriveProblem);
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.String syncText(android.content.res.Resources, nl.imreboersma.volti.drive.SyncState, java.lang.Long, long);
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.String synced(android.content.res.Resources, long, long, boolean);
 }
 #noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.ui.theme.ThemeKt {

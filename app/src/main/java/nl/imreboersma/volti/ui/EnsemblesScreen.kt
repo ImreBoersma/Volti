@@ -58,7 +58,12 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import nl.imreboersma.volti.R
+import nl.imreboersma.volti.data.WALK_LIMIT
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -69,8 +74,6 @@ import nl.imreboersma.volti.data.EnsembleRow
 import nl.imreboersma.volti.db.EnsembleFile
 import nl.imreboersma.volti.drive.SyncState
 import nl.imreboersma.volti.drive.DriveProblem
-import nl.imreboersma.volti.drive.MAX_PDF_BYTES
-import nl.imreboersma.volti.drive.Rejection
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 
 /** A form to add an ensemble from a shared folder's link. */
@@ -93,13 +96,13 @@ fun AddEnsembleScreen(onAdded: (Long) -> Unit, onBack: () -> Unit, viewModel: En
                 .padding(16.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                AppBackButton(onBack, "Back to the library")
-                Text("Add an ensemble", style = MaterialTheme.typography.headlineLarge)
+                AppBackButton(onBack, stringResource(R.string.back_to_library))
+                Text(stringResource(R.string.add_an_ensemble), style = MaterialTheme.typography.headlineLarge)
             }
             OutlinedTextField(
                 value = link,
                 onValueChange = { link = it },
-                label = { Text("Link to the shared Drive folder, if there is one") },
+                label = { Text(stringResource(R.string.add_ensemble_link)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
             )
@@ -107,20 +110,28 @@ fun AddEnsembleScreen(onAdded: (Long) -> Unit, onBack: () -> Unit, viewModel: En
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Ensemble") },
+                    label = { Text(stringResource(R.string.ensemble_label)) },
                     singleLine = true,
                     modifier = Modifier.weight(1f),
                 )
                 OutlinedTextField(
                     value = instrument,
                     onValueChange = { instrument = it },
-                    label = { Text("What I play, e.g. Bb clarinet 2") },
+                    label = { Text(stringResource(R.string.instrument_example)) },
                     singleLine = true,
                     modifier = Modifier.weight(1f),
                 )
             }
-            error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-            Button(onClick = { viewModel.add(link, name, instrument, onAdded) }) { Text("Add") }
+            error?.let { problem ->
+                val text = when (problem) {
+                    AddProblem.NotALink -> R.string.add_not_a_link
+                    AddProblem.NoName -> R.string.add_no_name
+                    AddProblem.NoInstrument -> R.string.add_no_instrument
+                    AddProblem.AlreadyAdded -> R.string.add_already
+                }
+                Text(stringResource(text), color = MaterialTheme.colorScheme.error)
+            }
+            Button(onClick = { viewModel.add(link, name, instrument, onAdded) }) { Text(stringResource(R.string.add)) }
         }
     }
 }
@@ -151,6 +162,9 @@ fun EnsembleScreen(
     val message by viewModel.message.collectAsStateWithLifecycle()
     val pending by viewModel.pending.collectAsStateWithLifecycle()
     val importing by viewModel.importing.collectAsStateWithLifecycle()
+    val reading by viewModel.reading.collectAsStateWithLifecycle()
+    val res = LocalResources.current
+    val device = device()
     val notImported by viewModel.notImported.collectAsStateWithLifecycle()
     val placing by viewModel.placing.collectAsStateWithLifecycle()
     var choosingImport by remember { mutableStateOf(false) }
@@ -204,9 +218,9 @@ fun EnsembleScreen(
                         }
                     },
                     description = when {
-                        query.isNotEmpty() -> "Clear the search"
-                        inFolder -> "Up a folder"
-                        else -> "Back to the library"
+                        query.isNotEmpty() -> stringResource(R.string.clear_the_search)
+                        inFolder -> stringResource(R.string.up_a_folder)
+                        else -> stringResource(R.string.back_to_library)
                     },
                 )
                 Column(modifier = Modifier.weight(1f)) {
@@ -217,14 +231,14 @@ fun EnsembleScreen(
                     )
                 }
                 Box {
-                    OutlinedButton(onClick = { choosingImport = true }, enabled = importing == null) { Text("Import") }
+                    OutlinedButton(onClick = { choosingImport = true }, enabled = importing == null && !reading) { Text(stringResource(R.string.import_button)) }
                     DropdownMenu(expanded = choosingImport, onDismissRequest = { choosingImport = false }) {
-                        DropdownMenuItem(text = { Text("PDFs") }, onClick = {
+                        DropdownMenuItem(text = { Text(stringResource(R.string.import_pdfs_menu)) }, onClick = {
                             choosingImport = false
                             pick.launch(arrayOf("application/pdf"))
                         })
                         // Its subfolders come along as folders.
-                        DropdownMenuItem(text = { Text("A folder") }, onClick = {
+                        DropdownMenuItem(text = { Text(stringResource(R.string.import_folder_menu)) }, onClick = {
                             choosingImport = false
                             pickFolder.launch(null)
                         })
@@ -235,6 +249,7 @@ fun EnsembleScreen(
             if (ensemble?.folderId != null) SyncLine(
                 // Signed out: still say how old the copy here is.
                 text = syncText(
+                    res,
                     if (needsConsent != null) SyncState.Failed(DriveProblem.SignedOut) else sync,
                     ensemble?.lastSynced,
                     System.currentTimeMillis(),
@@ -251,10 +266,10 @@ fun EnsembleScreen(
                     OutlinedTextField(
                         value = query,
                         onValueChange = viewModel::setQuery,
-                        placeholder = { Text("Search this ensemble") },
+                        placeholder = { Text(stringResource(R.string.search_ensemble)) },
                         singleLine = true,
                         trailingIcon = {
-                            if (query.isNotEmpty()) TextButton(onClick = { viewModel.setQuery("") }) { Text("Clear") }
+                            if (query.isNotEmpty()) TextButton(onClick = { viewModel.setQuery("") }) { Text(stringResource(R.string.clear)) }
                         },
                         modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp).onFocusChanged { searching = it.isFocused },
                     )
@@ -267,17 +282,28 @@ fun EnsembleScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.padding(bottom = 8.dp),
                     ) {
-                        val what = if (shared.size == 1) "1 PDF" else "${shared.size} PDFs"
                         val where = if (into.isEmpty()) ensemble?.name.orEmpty() else into.joinToString(" / ")
-                        Text("$what to import into $where", modifier = Modifier.weight(1f, fill = false))
-                        Button(onClick = { viewModel.place(into) }) { Text("Import here") }
-                        TextButton(onClick = viewModel::dontPlace) { Text("Cancel") }
+                        Text(
+                            pluralStringResource(R.plurals.shared_to_import, shared.size, count(res, shared.size), where),
+                            modifier = Modifier.weight(1f, fill = false),
+                        )
+                        Button(onClick = { viewModel.place(into) }) { Text(stringResource(R.string.import_here)) }
+                        TextButton(onClick = viewModel::dontPlace) { Text(stringResource(R.string.cancel)) }
                     }
                 }
-                importing?.let { Text(it, modifier = Modifier.padding(bottom = 8.dp)) }
-                message?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(bottom = 8.dp)) }
+                val progress = importing?.let { importProgressText(res, it) } ?: stringResource(R.string.reading_folder).takeIf { reading }
+                progress?.let { Text(it, modifier = Modifier.padding(bottom = 8.dp)) }
+                message?.let {
+                    val text = when (it) {
+                        is EnsembleMessage.Open -> fileProblemText(res, it.problem)
+                        EnsembleMessage.FolderUnreadable -> stringResource(R.string.file_unreadable_folder)
+                        EnsembleMessage.FolderTooLarge -> stringResource(R.string.folder_too_large, count(res, WALK_LIMIT))
+                        EnsembleMessage.NoPdfs -> stringResource(R.string.folder_no_pdfs)
+                    }
+                    Text(text, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(bottom = 8.dp))
+                }
                 if (notImported.isNotEmpty()) {
-                    Text(notImportedText(notImported, deviceName()), color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(bottom = 8.dp))
+                    Text(notImportedText(res, notImported, device), color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(bottom = 8.dp))
                 }
                 pending?.let { ImportReplaces(it.replacing, onReplace = { viewModel.confirmImport(true) }, onKeep = { viewModel.confirmImport(false) }, onCancel = viewModel::cancelImport) }
                 renaming?.let { fileId ->
@@ -304,8 +330,8 @@ fun EnsembleScreen(
                 val anyMine = files.orEmpty().any { it.mine }
                 if (anyMine && query.isBlank()) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 8.dp)) {
-                        FilterChip(selected = !showAll, onClick = { viewModel.showAll(false) }, label = { Text("My parts") })
-                        FilterChip(selected = showAll, onClick = { viewModel.showAll(true) }, label = { Text("All files") })
+                        FilterChip(selected = !showAll, onClick = { viewModel.showAll(false) }, label = { Text(stringResource(R.string.your_parts)) })
+                        FilterChip(selected = showAll, onClick = { viewModel.showAll(true) }, label = { Text(stringResource(R.string.all_parts)) })
                     }
                 }
                 if (suggestions.isNotEmpty()) {
@@ -316,10 +342,10 @@ fun EnsembleScreen(
                     ) {
                         val count = suggestions.size
                         Text(
-                            (if (count == 1) "1 file looks" else "$count files look") + " like my part (${ensemble?.instrument.orEmpty()}).",
+                            pluralStringResource(R.plurals.suggestions, count, count(res, count), ensemble?.instrument.orEmpty()),
                             modifier = Modifier.weight(1f, fill = false),
                         )
-                        Button(onClick = { reviewing = suggestions.map { it.fileId } }) { Text("Review") }
+                        Button(onClick = { reviewing = suggestions.map { it.fileId } }) { Text(stringResource(R.string.review)) }
                     }
                 }
                 reviewing?.let { ids ->
@@ -361,7 +387,11 @@ fun EnsembleScreen(
                                                     Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
                                                         top?.invoke(this)
                                                         Text(
-                                                            if (ensemble?.folderId == null) "No PDFs yet. Import them from this ${deviceName()}." else "No PDFs here yet.",
+                                                            if (ensemble?.folderId == null) {
+                                                                stringResource(device.pick(R.string.no_pdfs_import_tablet, R.string.no_pdfs_import_phone, R.string.no_pdfs_import_device))
+                                                            } else {
+                                                                stringResource(R.string.no_parts_here)
+                                                            },
                                                             modifier = Modifier.padding(vertical = 24.dp),
                                                         )
                                                     }
@@ -371,7 +401,7 @@ fun EnsembleScreen(
                     is EnsembleView.Found ->
                         if (v.files.isEmpty()) {
                             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                Text("Nothing found for \"$query\".")
+                                Text(stringResource(R.string.nothing_found, query))
                             }
                         } else {
                             FoundList(v.files, file = { rowFor(it, it.folders.takeIf { f -> f.isNotEmpty() }?.joinToString(" / ")) })
@@ -421,8 +451,8 @@ private fun SyncLine(
             modifier = Modifier.weight(1f, fill = false),
         )
         when {
-            consent != null -> Button(onClick = { onConsent(consent) }) { Text("Sign in to Google Drive") }
-            failed -> OutlinedButton(onClick = onRetry) { Text("Try again") }
+            consent != null -> Button(onClick = { onConsent(consent) }) { Text(stringResource(R.string.sign_in_to_drive)) }
+            failed -> OutlinedButton(onClick = onRetry) { Text(stringResource(R.string.try_again)) }
         }
     }
 }
@@ -505,34 +535,27 @@ private fun FileRow(
         when {
             download == Download.Now -> Row(verticalAlignment = Alignment.CenterVertically) {
                 CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                Text("Downloading…", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 8.dp))
+                Text(stringResource(R.string.downloading), color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 8.dp))
             }
             // Quiet: it comes later in this sync. Only for one not here yet: one that is opens already.
             !downloaded && download == Download.Waiting ->
-                Icon(DownloadArrow, contentDescription = "Waiting to download", tint = MaterialTheme.colorScheme.onSurfaceVariant)
-            !downloaded -> Text("Not on this ${deviceName()}", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            file.removed -> Text("Removed from Google Drive", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            file.changed -> Text("Changed", color = MaterialTheme.colorScheme.secondary)
-            new -> Text("New", color = MaterialTheme.colorScheme.secondary)
+                Icon(DownloadArrow, contentDescription = stringResource(R.string.waiting_to_download), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            !downloaded -> Text(stringResource(device().pick(R.string.not_on_this_tablet, R.string.not_on_this_phone, R.string.not_on_this_device)), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            file.removed -> Text(stringResource(R.string.removed_from_drive), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            file.changed -> Text(stringResource(R.string.changed), color = MaterialTheme.colorScheme.secondary)
+            new -> Text(stringResource(R.string.new_label), color = MaterialTheme.colorScheme.secondary)
         }
         FilterChip(
             selected = file.mine,
             onClick = { onMine(!file.mine) },
-            label = { Text("Mine") },
+            label = { Text(stringResource(R.string.your_part)) },
             modifier = Modifier.padding(start = 12.dp),
         )
         // A Drive file comes and goes with the folder; only what I imported is mine to delete.
-        MoreMenu("More for ${file.shownName}", listOfNotNull("Rename" to onRename, ("Delete" to onDelete).takeIf { file.imported }))
-    }
-}
-
-/** Per PDF that an import couldn't take in, why, in my terms. */
-internal fun notImportedText(problems: List<Pair<String, Rejection>>, device: String) = problems.joinToString("\n") { (name, why) ->
-    "$name wasn't imported: " + when (why) {
-        Rejection.TooLarge -> "it's larger than ${MAX_PDF_BYTES / 1024 / 1024} MB."
-        Rejection.NotAPdf, Rejection.WrongChecksum -> "it isn't a PDF."
-        Rejection.NoSpace -> "there isn't enough space on this $device."
-        Rejection.Unreadable -> "it couldn't be read."
+        MoreMenu(
+            stringResource(R.string.more_for, file.shownName),
+            listOfNotNull(stringResource(R.string.rename) to onRename, (stringResource(R.string.delete) to onDelete).takeIf { file.imported }),
+        )
     }
 }
 
@@ -541,13 +564,21 @@ internal fun notImportedText(problems: List<Pair<String, Rejection>>, device: St
 private fun ImportReplaces(names: List<String>, onReplace: () -> Unit, onKeep: () -> Unit, onCancel: () -> Unit) {
     AlertDialog(
         onDismissRequest = onCancel,
-        title = { Text(if (names.size == 1) "${names[0]} is here already" else "${names.size} of these are here already") },
-        text = { Text("Replace: the new one takes its place, and my marks stay on it. Keep both: it comes in next to it, with (2) after its name.") },
-        confirmButton = { TextButton(onClick = onReplace) { Text("Replace") } },
+        title = {
+            Text(
+                if (names.size == 1) {
+                    stringResource(R.string.replaces_one, names[0])
+                } else {
+                    pluralStringResource(R.plurals.replaces_many, names.size, count(LocalResources.current, names.size))
+                },
+            )
+        },
+        text = { Text(stringResource(R.string.replaces_text)) },
+        confirmButton = { TextButton(onClick = onReplace) { Text(stringResource(R.string.replace)) } },
         dismissButton = {
             Row {
-                TextButton(onClick = onCancel) { Text("Cancel") }
-                TextButton(onClick = onKeep) { Text("Keep both") }
+                TextButton(onClick = onCancel) { Text(stringResource(R.string.cancel)) }
+                TextButton(onClick = onKeep) { Text(stringResource(R.string.keep_both)) }
             }
         },
     )
@@ -557,10 +588,10 @@ private fun ImportReplaces(names: List<String>, onReplace: () -> Unit, onKeep: (
 private fun DeleteImported(file: EnsembleFile, onDelete: () -> Unit, onCancel: () -> Unit) {
     AlertDialog(
         onDismissRequest = onCancel,
-        title = { Text("Delete ${file.shownName}?") },
-        text = { Text("It goes from this ensemble and its setlists, with my marks on it.") },
-        confirmButton = { TextButton(onClick = onDelete) { Text("Delete") } },
-        dismissButton = { TextButton(onClick = onCancel) { Text("Cancel") } },
+        title = { Text(stringResource(R.string.delete_title, file.shownName)) },
+        text = { Text(stringResource(R.string.delete_imported_text)) },
+        confirmButton = { TextButton(onClick = onDelete) { Text(stringResource(R.string.delete)) } },
+        dismissButton = { TextButton(onClick = onCancel) { Text(stringResource(R.string.cancel)) } },
     )
 }
 
@@ -571,7 +602,7 @@ private fun ReviewSuggestions(suggestions: List<EnsembleFile>, onDone: (Set<Stri
     val chosen = ticked intersect suggestions.map { it.fileId }.toSet() // A file that went meanwhile can't be chosen.
     AlertDialog(
         onDismissRequest = onCancel,
-        title = { Text("Are these my parts?") },
+        title = { Text(stringResource(R.string.review_title)) },
         text = {
             LazyColumn {
                 items(suggestions, key = { it.fileId }) { file ->
@@ -596,10 +627,10 @@ private fun ReviewSuggestions(suggestions: List<EnsembleFile>, onDone: (Set<Stri
         },
         confirmButton = {
             TextButton(onClick = { onDone(chosen) }) {
-                Text(if (chosen.size == 1) "1 is mine" else "${chosen.size} are mine")
+                Text(pluralStringResource(R.plurals.review_confirm, chosen.size, count(LocalResources.current, chosen.size)))
             }
         },
-        dismissButton = { TextButton(onClick = onCancel) { Text("Not now") } },
+        dismissButton = { TextButton(onClick = onCancel) { Text(stringResource(R.string.not_now)) } },
     )
 }
 

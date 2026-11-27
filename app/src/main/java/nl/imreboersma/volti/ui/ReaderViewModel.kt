@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
 import nl.imreboersma.volti.Reader
+import nl.imreboersma.volti.ReaderTypes
 import nl.imreboersma.volti.data.PageArea
 import nl.imreboersma.volti.data.PasswordProtectedException
 import nl.imreboersma.volti.data.PixelSize
@@ -76,7 +77,7 @@ class ReaderViewModel @JvmOverloads constructor(
     private val openTimeoutMs: Long = 10_000,
     private val loadSettings: suspend () -> ReaderSettings = { ReaderSettingsStore(app).settings.first() },
 ) : AndroidViewModel(app) {
-    private val route = handle.toRoute<Reader>()
+    private val route = handle.toRoute<Reader>(ReaderTypes)
     private val uri = route.uri.toUri()
 
     private val _edge = MutableSharedFlow<Int>(extraBufferCapacity = 1)

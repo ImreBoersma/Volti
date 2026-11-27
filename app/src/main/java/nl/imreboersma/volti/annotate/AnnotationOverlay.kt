@@ -65,7 +65,9 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import nl.imreboersma.volti.R
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.graphics.withMatrix
 import androidx.ink.authoring.InProgressStrokeId
@@ -78,7 +80,7 @@ import nl.imreboersma.volti.ui.CornerButton
 import nl.imreboersma.volti.ui.PageOverlay
 import nl.imreboersma.volti.ui.Region
 import nl.imreboersma.volti.ui.theme.LocalReaderColors
-import nl.imreboersma.volti.ui.deviceName
+import nl.imreboersma.volti.ui.device
 
 private fun PageGeometry.pageToScreen() = Matrix().apply { setValues(pageToScreenValues() + floatArrayOf(0f, 0f, 1f)) }
 
@@ -109,11 +111,12 @@ fun PageAnnotations(page: PageOverlay, viewModel: AnnotationViewModel, zoom: Pag
         )
     }
     val renderer = remember { CanvasStrokeRenderer.create() }
+    val zoomedIn = stringResource(R.string.zoomed_in)
     Box(
         modifier = Modifier
             .fillMaxSize()
             .onSizeChanged { box = it }
-            .semantics { if (zoom.zoomed) stateDescription = "Zoomed in" },
+            .semantics { if (zoom.zoomed) stateDescription = zoomedIn },
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val toScreen = geometry?.pageToScreen() ?: return@Canvas
@@ -305,7 +308,7 @@ fun BoxScope.AnnotationControls(viewModel: AnnotationViewModel, onOpenPrevious: 
     if (!annotating) change?.let { ChangeNotice(it, onOpenPrevious, viewModel::marksChecked, viewModel::later) }
     // On the previous version, nothing to annotate: it is there to look at.
     if (!annotating && change != ScoreChange.ShowingPrevious) {
-        CornerButton("Annotate", "Show the annotate button", viewModel::start, Modifier.align(Alignment.TopEnd)) { ink ->
+        CornerButton(stringResource(R.string.annotate), stringResource(R.string.show_annotate_button), viewModel::start, Modifier.align(Alignment.TopEnd)) { ink ->
             // A pencil, at an angle.
             val s = 2.5.dp.toPx()
             val c = size.width / 2
@@ -367,6 +370,7 @@ fun BoxScope.AnnotationControls(viewModel: AnnotationViewModel, onOpenPrevious: 
             ) {
                 Symbol.entries.forEach { symbol ->
                     val picked = stamp.symbol == symbol
+                    val label = stringResource(symbol.label)
                     Canvas(
                         modifier = Modifier
                             .size(48.dp)
@@ -378,7 +382,7 @@ fun BoxScope.AnnotationControls(viewModel: AnnotationViewModel, onOpenPrevious: 
                                 open = Choosing.Nothing
                             }
                             .semantics {
-                                contentDescription = symbol.label
+                                contentDescription = label
                                 selected = picked
                             },
                     ) { drawSymbol(symbol, center, size.minDimension * 0.55f, Color(color.argb)) }
@@ -393,6 +397,7 @@ fun BoxScope.AnnotationControls(viewModel: AnnotationViewModel, onOpenPrevious: 
             ) {
                 PenColor.entries.forEach { pen ->
                     val picked = color == pen
+                    val label = stringResource(pen.label)
                     Box(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier
@@ -403,7 +408,7 @@ fun BoxScope.AnnotationControls(viewModel: AnnotationViewModel, onOpenPrevious: 
                                 open = Choosing.Nothing
                             }
                             .semantics {
-                                contentDescription = pen.label
+                                contentDescription = label
                                 selected = picked
                             },
                     ) { Swatch(pen, picked) }
@@ -417,17 +422,19 @@ fun BoxScope.AnnotationControls(viewModel: AnnotationViewModel, onOpenPrevious: 
             modifier = Modifier.panel().padding(horizontal = 12.dp, vertical = 4.dp),
         ) {
             // The pen's colour; its six choices open above, as the symbols do: few things at a time on the music.
+            val penColour = stringResource(R.string.pen_colour, stringResource(color.label))
+            val colours = stringResource(if (choosingColor) R.string.colours_shown else R.string.colours_hidden)
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
                     .size(48.dp)
                     .clip(CircleShape)
-                    .clickable(role = Role.Button, onClickLabel = "Choose the pen's colour") {
+                    .clickable(role = Role.Button, onClickLabel = stringResource(R.string.choose_pen_colour)) {
                         open = if (choosingColor) Choosing.Nothing else Choosing.Colour
                     }
                     .semantics {
-                        contentDescription = "Pen colour, ${color.label}"
-                        stateDescription = if (choosingColor) "Colours shown" else "Colours hidden"
+                        contentDescription = penColour
+                        stateDescription = colours
                     },
             ) { Swatch(color, picked = tool !is Tool.Eraser) }
             FilterChip(
@@ -446,7 +453,7 @@ fun BoxScope.AnnotationControls(viewModel: AnnotationViewModel, onOpenPrevious: 
                     }
                 },
                 // Once one is picked, it says which.
-                label = { Text(if (stamp == null || choosing) "Symbols" else stamp.symbol.label) },
+                label = { Text(stringResource(if (stamp == null || choosing) R.string.symbols else stamp.symbol.label)) },
             )
             FilterChip(
                 selected = tool == Tool.Eraser,
@@ -454,14 +461,14 @@ fun BoxScope.AnnotationControls(viewModel: AnnotationViewModel, onOpenPrevious: 
                     viewModel.pick(Tool.Eraser)
                     open = Choosing.Nothing
                 },
-                label = { Text("Eraser") },
+                label = { Text(stringResource(R.string.eraser)) },
             )
-            TextButton(onClick = viewModel::undo, enabled = canUndo) { Text("Undo", color = colors.message) }
-            TextButton(onClick = { atTop = !atTop }) { Text(if (atTop) "Move down" else "Move up", color = colors.message) }
+            TextButton(onClick = viewModel::undo, enabled = canUndo) { Text(stringResource(R.string.undo), color = colors.message) }
+            TextButton(onClick = { atTop = !atTop }) { Text(stringResource(if (atTop) R.string.move_down else R.string.move_up), color = colors.message) }
             TextButton(onClick = {
                 viewModel.done()
                 open = Choosing.Nothing
-            }) { Text("Done", color = colors.message) }
+            }) { Text(stringResource(R.string.done), color = colors.message) }
         }
     }
 }
@@ -500,16 +507,16 @@ private fun BoxScope.ChangeNotice(
     ) {
         when (change) {
             is ScoreChange.Changed -> {
-                Text("This score changed since you made your marks. Check that they still fit.", color = colors.message)
+                Text(stringResource(R.string.part_changed), color = colors.message)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(onClick = { onOpenPrevious(change.previousUri) }) { Text("Previous version", color = colors.message) }
-                    TextButton(onClick = onChecked) { Text("Marks checked", color = colors.message) }
+                    TextButton(onClick = { onOpenPrevious(change.previousUri) }) { Text(stringResource(R.string.previous_version), color = colors.message) }
+                    TextButton(onClick = onChecked) { Text(stringResource(R.string.marks_checked), color = colors.message) }
                     // Not now, mid-rehearsal: hidden for this opening, the previous version kept.
-                    TextButton(onClick = onLater) { Text("Later", color = colors.message) }
+                    TextButton(onClick = onLater) { Text(stringResource(R.string.not_now), color = colors.message) }
                 }
             }
             ScoreChange.ShowingPrevious ->
-                Text("The previous version, to compare your marks with. Back goes to the new one.", color = colors.message)
+                Text(stringResource(R.string.previous_version_text), color = colors.message)
         }
     }
 }
@@ -519,8 +526,8 @@ private fun BoxScope.ChangeNotice(
 private fun MarksNotSaved(problem: MarkProblem, modifier: Modifier) {
     Text(
         when (problem) {
-            MarkProblem.Full -> "Can't save your marks: this ${deviceName()} is full. Free up space, or the marks you make now are gone when the part closes."
-            MarkProblem.Unwritable -> "Can't save your marks. The marks you make now are gone when the part closes."
+            MarkProblem.Full -> stringResource(device().pick(R.string.marks_full_tablet, R.string.marks_full_phone, R.string.marks_full_device))
+            MarkProblem.Unwritable -> stringResource(R.string.marks_unwritable)
         },
         color = LocalReaderColors.current.message,
         modifier = modifier,
