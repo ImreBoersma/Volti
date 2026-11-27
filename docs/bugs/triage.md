@@ -42,11 +42,11 @@ Severity: **data loss** (something I made is gone), **wrong** (the app does or s
 - **Fix direction:** store strokes encoded by the current `ink` version as fixtures, and a test that decodes them. Run it before merging any `ink` bump (Renovate included).
 - **Found in:** [data.md](../guidelines/data.md)
 
-## 5. Text says "I" and "my" where it should say "you"
+## 5. Text doesn't follow the wording rules yet
 
 - **Severity:** wrong
 - **Status:** confirmed by reading the code
-- **Where:** `EnsemblesScreen.kt` (`My parts`, `Mine`, `What I play, e.g. Bb clarinet 2`, "looks like my part", "my marks" twice, "Are these my parts?"), `SettingsScreen.kt` (`What I play`), `SetlistScreens.kt` (`My parts`)
-- **What happens:** the interface talks as the musician in some places and to them elsewhere ("this tablet", "Give the ensemble a name."). Google's guide, and now [android.md](../guidelines/android.md), asks for "you" throughout.
-- **Fix direction:** `Your parts`, `Yours`, `What you play`, "your marks", "Are these your parts?".
-- **Found in:** [android.md](../guidelines/android.md)
+- **Where:** listed under "Not yet following this" in [android.md](../guidelines/android.md) ("I" and "my" instead of "you") and [words.md](../guidelines/words.md) (score and file where it means part, `Let it go`, `Later`, sentences stitched together)
+- **What happens:** the same PDF is a score, a file, a part or a PDF depending on the screen, and the text talks as the musician in some places and to them elsewhere. Stitched sentences can't be translated into Dutch.
+- **Fix direction:** in milestone 10, step 1, while the text moves to `strings.xml`: one string at a time, in the words of [words.md](../guidelines/words.md).
+- **Found in:** [android.md](../guidelines/android.md), [words.md](../guidelines/words.md)

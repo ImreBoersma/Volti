@@ -504,6 +504,28 @@ Done when: on the tablet, during a first sync of a big folder, a file that is he
 
 Done when: on the tablet, a first sync of a big folder shows its sheets coming in one by one, and the library is usable from the moment Drive was checked.
 
+## Milestone 10: Volti in Dutch
+
+Decided 2026-11-27: Dutch comes soon. Moving the text out of Kotlin gets more expensive with every screen.
+
+### 0. Decisions before building
+
+- [x] One word per thing, the musician's word (2026-11-27): ensemble, part, piece, setlist, marks; PDF before a file is in an ensemble, file only for the file itself, score not at all. Delete for what is gone from the device, Remove for what still exists elsewhere. See [words.md](docs/guidelines/words.md).
+- [ ] The language follows the system, with Android's per-app language (Settings › Apps › Volti › Language, `localeConfig`), and no setting in Volti.
+- [ ] The Dutch terms, checked with players from the orchestra: partij, stuk, setlist, aantekeningen.
+
+### 1. All text in strings.xml
+
+- [ ] Every text the musician reads comes from `strings.xml`: whole sentences with placeholders, plurals for counts, a phrase per device. The English changes only where it didn't follow [words.md](docs/guidelines/words.md) and the "you" rule yet.
+
+Done when: no text literal is left in `Text(…)` or a message `when`, and on the tablet every screen reads as before, apart from the planned word changes.
+
+### 2. Dutch
+
+- [ ] A Dutch translation of every string.
+
+Done when: on the tablet set to Dutch, every screen and every message is Dutch, and no button or chip wraps or is cut off at font scale 2.0.
+
 ## Later milestones (not planned yet)
 
 - Learn my parts from my corrections. Every suggestion I accept or turn down, and every file I mark by hand, is stored per file already; a later version can learn from those which names mean my part (a new abbreviation, an orchestra's own naming) instead of relying on the fixed word list.

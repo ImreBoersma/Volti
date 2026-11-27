@@ -30,7 +30,7 @@ The reader is a musician at a stand, often mid-rehearsal, with an instrument in 
 
 **Never:** `Error`, `Failed`, `Invalid`, `Oops`, `Sorry`, `Something went wrong`, `please`, exclamation marks, blame (`You entered…`). An HTTP status only as a last resort, in brackets at the end, when nothing else is known: `Google Drive answered with an error (503). Try again later.`
 
-**Numbers** as digits, thousands with a comma (`5,000`). Spell out singular and plural; no `PDF(s)`.
+**Numbers** as digits, thousands in the language's format (`5,000` in English, `5.000` in Dutch). Spell out singular and plural; no `PDF(s)`.
 
 ## Punctuation
 
@@ -48,7 +48,7 @@ In the reader, use `LocalReaderColors.current.message` so the text follows the p
 
 The layer that knows what went wrong returns a type, the UI turns it into words. `ReaderState.Problem` and its `when` in `ReaderScreen` is the pattern; so are `DriveProblem` and `syncProblemText` / `fileProblemText` in `SyncStatus.kt`, and `Rejection` for imports. This keeps wording in one layer and lets tests assert on the problem, not on a sentence.
 
-Text is English, written in the Kotlin code. There is no `strings.xml` translation yet; when there is, these rules apply per language.
+Text is English, written in the Kotlin code, until milestone 10 moves it to `strings.xml` and adds Dutch. These rules then apply per language; how to write translatable text is in [words.md](words.md).
 
 ## Logs and exceptions
 
