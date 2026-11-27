@@ -16,6 +16,8 @@ Follow these for every change:
 
 Each guideline ends with "Not yet following this". When a change fixes one of those, remove it from the list. When a change knowingly adds one, add it.
 
+[docs/bugs/triage.md](docs/bugs/triage.md) lists known bugs and gaps, worst first, with how to reproduce each. Update it when one is found or fixed.
+
 ## Code
 
 - `nl.imreboersma.volti`: `ui/` screens and ViewModels, `render/` PDF rendering in an isolated process, `drive/` Google Drive sync, `db/` Room, `data/` DataStore and folder access, `annotate/` annotations.

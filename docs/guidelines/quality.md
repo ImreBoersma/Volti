@@ -2,7 +2,7 @@
 
 The technical and privacy parts of Google's [app quality guidelines](https://developer.android.com/quality) and the [core app quality checklist](https://developer.android.com/docs/quality-guidelines/core-app-quality) that apply to Volti. The design and interaction parts are in [android.md](android.md). Checklist IDs are in brackets.
 
-Left out because Volti has none of it: notifications, audio, video, sharing, WebViews, sign-in with passwords, payments, ads, Play Store listing assets.
+Left out because Volti has none of it: notifications, audio, video, sharing from Volti to other apps, WebViews, sign-in with passwords, payments, ads, Play Store listing assets.
 
 ## Lifecycle
 
@@ -40,10 +40,28 @@ Left out because Volti has none of it: notifications, audio, video, sharing, Web
 
 **No code loaded from outside the APK, no custom cryptography.** (`App_Bundles`, `Cryptographic_Algorithms`)
 
+### Input from other apps and Drive
+
+PDFs are untrusted, and so is everything that comes with them: whatever another app sends through Open with and Share, a picked folder's contents, and every Drive response.
+
+**Copy first, then read the copy.** A shared or picked PDF is copied into `files/drive-incoming` under a random name before anything opens it, and the copy is what gets parsed. The other app's grant can end, and its file can change. (`PdfStore.receive`)
+
+**One gate for every PDF that comes in.** Downloads, shares and folder imports all pass `copyChecked`: at most `MAX_PDF_BYTES` (200 MB), `%PDF-` in the first 1024 bytes, the md5 Drive gave when there is one, and `KEEP_FREE_BYTES` (500 MB) left on the tablet. The name and MIME type the sender claims count for nothing. A new way in uses the same gate rather than a check of its own.
+
+**Limits on how much, not only how big.** One share takes at most `MAX_SHARED` (50) files, and a Drive walk stops at `DRIVE_WALK_LIMIT` (5000) and says so. A new list from outside gets a limit too.
+
+**A name is text to show, never a path.** Display names, Drive file and folder names stay in the database. Files on the tablet are named by md5 or UUID. Nothing from outside is joined into a `File` path, a Drive query or a URL without being checked (ids: `parseFolderLink`, `walkDriveFolder`) or encoded (`URLEncoder`).
+
+**A name can be anything.** Long, empty, with line breaks or right-to-left characters. In a list row it gets one or two lines and an ellipsis. It doesn't go into a log (see [messages.md](messages.md)).
+
+**Another app can fail in any way.** A provider's `query` and `openInputStream` may return null, throw, or stall. Catch per file: that file isn't imported, the rest are, and I'm told which (`Rejection`). Never a crash. A Drive response that doesn't parse is a `DriveProblem`, not a crash.
+
+**An intent filter is a door.** A new action, MIME type or exported component needs a decision in `plan.md`. Intents from outside only bring files in. They never delete, change settings or start a sync.
+
 ### Backup: a deliberate exception
 
 Google asks apps to keep data across backups and device transfers (`App_Data_Backup`). Volti doesn't: `data_extraction_rules.xml` excludes everything from cloud backup and device-to-device transfer. Scores can be downloaded again, or imported again. Annotations exist nowhere else, and milestone 4 decided (2026-11-26) not to back them up for now: a lost or reset device loses them. A backup can come later (a file in my own Google Drive, or an export).
 
 ## Not yet following this
 
-Nothing known.
+- Names from outside have no line limit in list rows and dialogues (`HomeScreen.kt`, `EnsemblesScreen.kt`, `ImportScreen.kt`, `FileMenu.kt`, `SettingsScreen.kt`); only the setlist screens cap them. See [bugs/triage.md](../bugs/triage.md).
