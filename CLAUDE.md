@@ -11,9 +11,14 @@ Follow these for every change:
 - [docs/guidelines/messages.md](docs/guidelines/messages.md): error and warning messages, and logging.
 - [docs/guidelines/android.md](docs/guidelines/android.md): window sizes, system bars, Back, keyboard and pedal input, accessibility, settings.
 - [docs/guidelines/quality.md](docs/guidelines/quality.md): lifecycle, performance, dependencies, permissions, privacy and backup.
+- [docs/guidelines/data.md](docs/guidelines/data.md): what is kept where, marks, schema changes and migrations, the PDF store.
+- [docs/guidelines/words.md](docs/guidelines/words.md): which word means what, buttons, empty lists, translatable text.
+- [docs/guidelines/testing.md](docs/guidelines/testing.md): what gets a test and where, UI tests, the tablet check, measuring speed.
 - [docs/guidelines/ux-laws.md](docs/guidelines/ux-laws.md): the Laws of UX that apply to a reader on a music stand, as rules.
 
 Each guideline ends with "Not yet following this". When a change fixes one of those, remove it from the list. When a change knowingly adds one, add it.
+
+[docs/bugs/triage.md](docs/bugs/triage.md) lists known bugs and gaps, worst first, with how to reproduce each. Update it when one is found or fixed.
 
 ## Code
 

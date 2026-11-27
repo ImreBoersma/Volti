@@ -512,6 +512,28 @@ Done 2026-11-27. A sync now asks Drive about every ensemble first and downloads 
 
 The instrumented suite passes on the tablet. Not yet: the "Done when" with a big Drive folder.
 
+## Milestone 10: Volti in Dutch
+
+Decided 2026-11-27: Dutch comes soon. Moving the text out of Kotlin gets more expensive with every screen.
+
+### 0. Decisions before building
+
+- [x] One word per thing, the musician's word (2026-11-27): ensemble, part, piece, setlist, marks; PDF before a file is in an ensemble, file only for the file itself, score not at all. Delete for what is gone from the device, Remove for what still exists elsewhere. See [words.md](docs/guidelines/words.md).
+- [x] The language is Android's per-app language (2026-11-27): the system's language unless I pick another for Volti in Settings › Apps › Volti › Language (`localeConfig`). Volti's own Settings has a Language choice too, which sets that same per-app language (`LocaleManager.setApplicationLocales`), so the two never disagree.
+- [x] The Dutch terms (2026-11-27): partij, stuk, setlist, aantekeningen.
+
+### 1. All text in strings.xml
+
+- [ ] Every text the musician reads comes from `strings.xml`: whole sentences with placeholders, plurals for counts, a phrase per device. The English changes only where it didn't follow [words.md](docs/guidelines/words.md) and the "you" rule yet.
+
+Done when: no text literal is left in `Text(…)` or a message `when`, and on the tablet every screen reads as before, apart from the planned word changes.
+
+### 2. Dutch
+
+- [ ] A Dutch translation of every string, and a Language choice in Settings (System, English, Nederlands).
+
+Done when: on the tablet set to Dutch, every screen and every message is Dutch, and no button or chip wraps or is cut off at font scale 2.0. Picking English in Volti's Settings shows English at once, and Android's per-app language for Volti then says English too.
+
 ## Later milestones (not planned yet)
 
 - Learn my parts from my corrections. Every suggestion I accept or turn down, and every file I mark by hand, is stored per file already; a later version can learn from those which names mean my part (a new abbreviation, an orchestra's own naming) instead of relying on the fixed word list.
@@ -533,7 +555,7 @@ The instrumented suite passes on the tablet. Not yet: the "Done when" with a big
 Per step:
 
 1. Claude writes the code and checks the step's "Done when" on the tablet.
-2. Claude writes tests for the step's logic and runs them on the tablet. Unit tests for pure logic, instrumented tests for anything touching Android (DataStore, ContentResolver, `PdfRenderer`). No tests that drive the system folder picker.
+2. Claude writes tests for the step's logic and runs them on the tablet. Unit tests for pure logic, instrumented tests for anything touching Android (DataStore, ContentResolver, `PdfRenderer`). No tests that drive the system folder picker. A bug fix comes with a test that failed before it. See [testing.md](docs/guidelines/testing.md).
 3. A separate agent reviews the change and names the three most serious issues, without rewrites. It also checks that the tests cover the step's "Done when".
 4. Claude fixes every issue the review finds, without asking first (since 2026-11-25), and reports what was fixed and how.
 5. Commit and push to `main`.

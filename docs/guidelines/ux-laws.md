@@ -38,7 +38,7 @@ The setting decides most of them: a musician at a stand, reading music, hands on
 
 **Jakob's law.** Volti works like the apps musicians already know: tap the right side for the next page as in e-readers and other score readers, standard Android Back, Material components with their usual behaviour.
 
-**Mental model.** Use the musician's model, not the system's. An ensemble is "the band's shared folder", a file is "a part", "My parts" are the ones I play. Storage, sync and identifiers never show (see [messages.md](messages.md)).
+**Mental model.** Use the musician's model, not the system's. An ensemble is "the band's shared folder", a file is "a part", "Your parts" are the ones you play. Storage, sync and identifiers never show (see [messages.md](messages.md)).
 
 **Paradox of the active user.** Nobody reads a manual or an introduction. No onboarding screens; every control says what it does in its label, and a setting that needs more says so in one line of supporting text.
 
