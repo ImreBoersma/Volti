@@ -24,7 +24,7 @@ The setting decides most of them: a musician at a stand, reading music, hands on
 
 ## Choices and memory
 
-**Hick's law, choice overload.** Few options at a time. Three pen colours, not a colour picker; the symbols only show while choosing one. Settings only for what can't be decided for the musician.
+**Hick's law, choice overload.** Few options at a time. A few named pen colours, shown only while choosing one, not a colour picker; the symbols likewise. Settings only for what can't be decided for the musician.
 
 **Miller's law, working memory, cognitive load.** Never make the musician remember something from another screen. Show the state where it matters: which ensemble, which part is mine, how fresh the sync is. One main task per screen.
 

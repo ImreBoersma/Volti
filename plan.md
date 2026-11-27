@@ -448,6 +448,28 @@ Done 2026-11-27. Each file's row has a ⋮ with Rename (and Delete for an import
 
 Checked on the emulator (renamed, shown and sorted); the instrumented suite passes on the tablet. Not yet by hand on the tablet.
 
+## Milestone 8: annotating, closer
+
+### 0. Decisions before building
+
+- [x] Zoom while annotating only (2026-11-27): with the toolbar out, two fingers pinch to zoom and drag to move; the pen (or one finger on the phone) still draws. Done goes back to the whole page. While reading, the page stays whole and a tap still turns it.
+- [x] More named colours (2026-11-27): the toolbar shows the pen's colour; tapping it opens a row of six named colours (black, red, blue, green, orange, purple), shown only while choosing, as the symbols are. Each has a name for TalkBack. No free colour picker (ux-laws.md, Hick's law).
+- [x] The last colour is the default (2026-11-27): the pen starts with the colour I used last, across scores and restarts. No setting (android.md: the pens' choices live in the reader).
+
+Structure: zoom is the annotation layer's, in `annotate/`; the reader still only says where the page is. Marks stay in page coordinates, so zoom never moves them.
+
+### 1. Zoom in to annotate
+
+- [ ] While annotating, two fingers zoom in on the page (to about four times) and move it; drawing and erasing land where the pen is on the zoomed page. Done, or Back, returns to the whole page.
+
+Done when: on the tablet, a fingering drawn above one note at four times shows in place at the whole page.
+
+### 2. Colours
+
+- [ ] The pen's colour in the toolbar opens six named colours; the one I pick stays the pen's colour, also for the next score and after a restart.
+
+Done when: on the tablet, green picked in one score is the pen's colour in the next one, and after Volti was closed.
+
 ## Later milestones (not planned yet)
 
 - Learn my parts from my corrections. Every suggestion I accept or turn down, and every file I mark by hand, is stored per file already; a later version can learn from those which names mean my part (a new abbreviation, an orchestra's own naming) instead of relying on the fixed word list.
