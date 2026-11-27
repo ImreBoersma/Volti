@@ -60,7 +60,7 @@ class AppBackButtonTest {
 
     @Test
     fun backFromAddingAnEnsembleGoesHome() {
-        compose.runOnUiThread { nav.navigate(AddEnsemble) }
+        compose.runOnUiThread { nav.navigate(AddEnsemble()) }
         compose.waitForIdle()
         compose.onNodeWithContentDescription("Back to the library").performClick()
         compose.waitForIdle()
@@ -69,7 +69,7 @@ class AppBackButtonTest {
 
     @Test
     fun aDoubleTapGoesBackOnce() {
-        compose.runOnUiThread { nav.navigate(AddEnsemble) }
+        compose.runOnUiThread { nav.navigate(AddEnsemble()) }
         compose.waitForIdle()
         val button = compose.onNodeWithContentDescription("Back to the library")
         compose.mainClock.autoAdvance = false // Hold the crossfade, so the button is still there for the second tap.

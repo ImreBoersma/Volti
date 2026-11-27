@@ -16,12 +16,34 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:launchMode="singleTask"
             android:theme="@style/Theme.Volti"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!--
+                A PDF from another app (Gmail, WhatsApp, Files): Open with and Share. It is imported into an
+                ensemble I pick, under the same limits as a download. No permission needed: the other app grants
+                read access to just that file. singleTask: one Volti, in its own task, also when shared from inside
+                another app; a share while Volti is open arrives through onNewIntent.
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+
+                <data android:scheme="content" android:mimeType="application/pdf" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+
+                <data android:mimeType="application/pdf" />
             </intent-filter>
         </activity>
 

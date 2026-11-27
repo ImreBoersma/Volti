@@ -8,9 +8,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -32,10 +30,9 @@ import nl.imreboersma.volti.drive.parseFolderLink
 import nl.imreboersma.volti.drive.SyncState
 import nl.imreboersma.volti.drive.Syncer
 import nl.imreboersma.volti.drive.Rejection
+import nl.imreboersma.volti.drive.Incoming
 import kotlinx.coroutines.flow.map
 import android.net.Uri
-import android.provider.OpenableColumns
-import java.io.IOException
 import nl.imreboersma.volti.db.EnsembleFile
 
 class EnsemblesViewModel(app: Application) : AndroidViewModel(app) {
@@ -87,6 +84,7 @@ sealed interface EnsembleView {
 private const val PATH = "path"
 private const val QUERY = "query"
 private const val ALL = "all"
+private const val TO_PLACE = "toPlace"
 
 /**
  * One ensemble: its files as on the tablet, browsed by folder or searched, and what is new since I last looked.
@@ -221,8 +219,25 @@ class EnsembleViewModel(app: Application, private val handle: SavedStateHandle) 
         }
     }
 
-    /** PDFs picked to import into [folders], waiting for me to say whether [replacing] are new versions. */
-    class PendingImport(val uris: List<Uri>, val names: List<String>, val folders: List<String>, val replacing: List<String>)
+    /**
+     * PDFs another app shared, already copied in ([Incoming], encoded), to import into the folder I choose here.
+     * Kept until the import starts or I let them go, also across process death.
+     */
+    val toPlace: StateFlow<List<String>> = handle.getStateFlow(TO_PLACE, handle.toRoute<EnsembleFiles>().importing)
+
+    /** The shared PDFs into [folders]. */
+    fun place(folders: List<String>) {
+        val incoming = toPlace.value.map(Incoming::decode)
+        if (incoming.isNotEmpty()) viewModelScope.launch { ask(incoming, folders, shared = true) }
+    }
+
+    fun dontPlace() {
+        syncer.discard(toPlace.value.map(Incoming::decode))
+        handle[TO_PLACE] = ArrayList<String>()
+    }
+
+    /** Copied-in PDFs for [folders], waiting for me to say whether [replacing] are new versions. [shared]: from [toPlace]. */
+    class PendingImport(val incoming: List<Incoming>, val folders: List<String>, val replacing: List<String>, val shared: Boolean)
 
     private val _pending = MutableStateFlow<PendingImport?>(null)
     val pending: StateFlow<PendingImport?> = _pending.asStateFlow()
@@ -230,60 +245,58 @@ class EnsembleViewModel(app: Application, private val handle: SavedStateHandle) 
     private val _importing = MutableStateFlow(false)
     val importing: StateFlow<Boolean> = _importing.asStateFlow()
 
-    /** PDFs picked to import into [folders]; when some have the name of an imported file there, I'm asked first. */
-    fun import(uris: List<Uri>, folders: List<String>) {
-        if (uris.isEmpty() || _importing.value) return
-        _message.value = null
-        _notImported.value = emptyList()
-        viewModelScope.launch {
-            val names = withContext(Dispatchers.IO) { uris.map(::nameOf) }
-            val replacing = syncer.alreadyImported(id, folders, names)
-            val picked = PendingImport(uris, names, folders, replacing)
-            if (replacing.isEmpty()) copy(picked, replace = false) else _pending.value = picked
-        }
-    }
-
-    /** [replace]: the ones with a name already here are new versions; else they come in next to them. */
-    fun confirmImport(replace: Boolean) {
-        val picked = _pending.value ?: return
-        _pending.value = null
-        viewModelScope.launch { copy(picked, replace) }
-    }
-
-    fun cancelImport() {
-        _pending.value = null
-    }
-
     private val _notImported = MutableStateFlow<List<Pair<String, Rejection>>>(emptyList())
 
     /** What the last import couldn't take in, and why. */
     val notImported: StateFlow<List<Pair<String, Rejection>>> = _notImported.asStateFlow()
 
-    private suspend fun copy(picked: PendingImport, replace: Boolean) {
-        _importing.value = true
+    /** PDFs picked to import into [folders]: copied in at once, while Volti may read them. */
+    fun import(uris: List<Uri>, folders: List<String>) {
+        if (uris.isEmpty()) return
+        _message.value = null
         _notImported.value = emptyList()
-        val resolver = getApplication<Application>().contentResolver
-        val sources = picked.names.zip(picked.uris) { name, uri ->
-            name to { resolver.openInputStream(uri) ?: throw IOException("Can't read a picked PDF") }
-        }
-        // The import goes on when I leave the screen; only what it says about it is lost then.
-        _notImported.value = try {
-            syncer.import(id, picked.folders, sources, replace).await()
-        } finally {
-            _importing.value = false
+        viewModelScope.launch {
+            _importing.value = true
+            val received = try {
+                syncer.receive(uris).await()
+            } finally {
+                _importing.value = false
+            }
+            _notImported.value = received.problems
+            if (received.incoming.isNotEmpty()) ask(received.incoming, folders, shared = false)
         }
     }
 
-    /** The name the other app gives it; the end of its address if it gives none, or can't say. */
-    private fun nameOf(uri: Uri): String {
-        val resolver = getApplication<Application>().contentResolver
-        // Any app's provider answers this, and may throw instead.
-        val name = runCatching {
-            resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use {
-                if (it.moveToFirst()) it.getString(0) else null
-            }
-        }.getOrNull()
-        return name ?: uri.lastPathSegment ?: "Imported.pdf"
+    /** When some have the name of an imported file in [folders], I'm asked first; else they go in. */
+    private suspend fun ask(incoming: List<Incoming>, folders: List<String>, shared: Boolean) {
+        val replacing = syncer.alreadyImported(id, folders, incoming.map { it.name })
+        if (replacing.isEmpty()) take(incoming, folders, replace = false, shared) else _pending.value = PendingImport(incoming, folders, replacing, shared)
+    }
+
+    /** [replace]: the ones with a name already here are new versions; else they come in next to them. */
+    fun confirmImport(replace: Boolean) {
+        val pending = _pending.value ?: return
+        _pending.value = null
+        viewModelScope.launch { take(pending.incoming, pending.folders, replace, pending.shared) }
+    }
+
+    fun cancelImport() {
+        val pending = _pending.value ?: return
+        _pending.value = null
+        // A share stays offered, to put elsewhere; picked files were mine to pick again.
+        if (!pending.shared) syncer.discard(pending.incoming)
+    }
+
+    private suspend fun take(incoming: List<Incoming>, folders: List<String>, replace: Boolean, shared: Boolean) {
+        if (shared) handle[TO_PLACE] = ArrayList<String>()
+        _importing.value = true
+        // The import goes on when I leave the screen; only what it says about it is lost then.
+        val problems = try {
+            syncer.import(id, folders, incoming, replace).await()
+        } finally {
+            _importing.value = false
+        }
+        _notImported.value += problems
     }
 
     /** An imported file goes, from its setlists too, with its marks. */

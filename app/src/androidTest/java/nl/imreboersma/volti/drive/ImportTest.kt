@@ -1,6 +1,8 @@
 package nl.imreboersma.volti.drive
 
+import android.content.Intent
 import android.graphics.Color
+import android.net.Uri
 import android.graphics.Paint
 import android.graphics.pdf.PdfDocument
 import androidx.activity.ComponentActivity
@@ -18,12 +20,16 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import nl.imreboersma.volti.EnsembleFiles
 import nl.imreboersma.volti.VoltiApp
+import nl.imreboersma.volti.fromAnotherApp
+import nl.imreboersma.volti.sharedPdfs
+import kotlinx.coroutines.flow.flowOf
 import nl.imreboersma.volti.annotate.AnnotationSymbol
 import nl.imreboersma.volti.db.Ensemble
 import nl.imreboersma.volti.db.VoltiDatabase
 import nl.imreboersma.volti.setlist.Setlist
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -52,9 +58,15 @@ class ImportTest {
 
     private fun ensemble() = runBlocking { db.ensembles().add(Ensemble(name = "Import test", instrument = "Horn")) }
 
-    private fun import(ensemble: Long, name: String, bytes: ByteArray, replace: Boolean = false) = runBlocking {
-        syncer.import(ensemble, emptyList(), listOf(name to { bytes.inputStream() }), replace).await()
+    /** Copied in as from another app, then taken in: what wasn't, with why. */
+    private fun import(ensemble: Long, files: List<Pair<String, ByteArray>>, replace: Boolean = false) = runBlocking {
+        val uris = files.map { (name, bytes) -> Uri.fromFile(java.io.File(context.cacheDir, name).apply { writeBytes(bytes) }) }
+        val received = syncer.receive(uris).await()
+        received.problems + syncer.import(ensemble, emptyList(), received.incoming, replace).await()
     }
+
+    private fun import(ensemble: Long, name: String, bytes: ByteArray, replace: Boolean = false) =
+        import(ensemble, listOf(name to bytes), replace)
 
     private fun files(ensemble: Long) = runBlocking { db.files().all(ensemble) }
 
@@ -82,6 +94,46 @@ class ImportTest {
     }
 
     @Test
+    fun aSharedPdfGoesIntoTheEnsembleAndFolderIPick() {
+        val ensemble = ensemble()
+        import(ensemble, "Already.pdf", pdf(pages = 1)) // So the ensemble has a folder to go into: none, the top.
+        val shared = Uri.parse("content://nl.imreboersma.volti.test.sharing/Shared%20part.pdf") // As Gmail would.
+        lateinit var nav: NavHostController
+        compose.setContent {
+            nav = rememberNavController()
+            VoltiApp(nav, shared = flowOf(listOf(shared)))
+        }
+        compose.waitUntil(10_000) { compose.onAllNodesWithText("Into which ensemble?").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Import test").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithText("Import here").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("1 PDF to import into Import test").assertExists()
+        compose.onNodeWithText("Import here").performClick()
+        compose.waitUntil(10_000) { files(ensemble).size == 2 }
+        assertEquals(listOf("Already.pdf", "Shared part.pdf"), files(ensemble).map { it.name }.sorted())
+        compose.waitUntil(5_000) { compose.onAllNodesWithText("Import here").fetchSemanticsNodes().isEmpty() }
+        compose.runOnUiThread { nav.popBackStack() } // Back goes to the library, not to the question.
+        compose.waitUntil(5_000) { compose.onAllNodesWithText("Add an ensemble").fetchSemanticsNodes().isNotEmpty() }
+    }
+
+    @Test
+    fun onlyAnotherAppsFilesAreTakenFromAShare() {
+        assertTrue(fromAnotherApp(context, Uri.parse("content://nl.imreboersma.volti.test.sharing/a.pdf")))
+        // A path, or Volti's own provider: files Volti could read but the sender couldn't.
+        assertFalse(fromAnotherApp(context, Uri.fromFile(java.io.File(context.filesDir, "drive/x.pdf"))))
+        assertFalse(fromAnotherApp(context, Uri.parse("content://${context.packageName}.androidx-startup/x.pdf")))
+    }
+
+    @Test
+    fun anOpenWithOrAShareHandsOverItsPdfs() {
+        val a = Uri.parse("content://x/a.pdf")
+        val b = Uri.parse("content://x/b.pdf")
+        assertEquals(listOf(a), sharedPdfs(Intent(Intent.ACTION_VIEW, a)))
+        assertEquals(listOf(a), sharedPdfs(Intent(Intent.ACTION_SEND).putExtra(Intent.EXTRA_STREAM, a)))
+        assertEquals(listOf(a, b), sharedPdfs(Intent(Intent.ACTION_SEND_MULTIPLE).putParcelableArrayListExtra(Intent.EXTRA_STREAM, arrayListOf(a, b))))
+        assertEquals(emptyList<Uri>(), sharedPdfs(Intent(Intent.ACTION_MAIN)))
+    }
+
+    @Test
     fun theSameNameReplacedIsANewVersionUnderMyMarks() {
         val ensemble = ensemble()
         import(ensemble, "Part.pdf", pdf(pages = 1))
@@ -100,13 +152,7 @@ class ImportTest {
     @Test
     fun whatIsNoPdfIsSaidAndTheRestComesIn() {
         val ensemble = ensemble()
-        val problems = runBlocking {
-            syncer.import(
-                ensemble, emptyList(),
-                listOf("Notes.txt" to { "not a score".byteInputStream() }, "Good.pdf" to { pdf(pages = 1).inputStream() }),
-                replace = false,
-            ).await()
-        }
+        val problems = import(ensemble, listOf("Notes.txt" to "not a score".toByteArray(), "Good.pdf" to pdf(pages = 1)))
         assertEquals(listOf("Notes.txt" to Rejection.NotAPdf), problems)
         assertEquals(listOf("Good.pdf"), files(ensemble).map { it.name })
     }

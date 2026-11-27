@@ -154,9 +154,12 @@ class PdfStore(private val dir: File, private val freeBytes: () -> Long) {
         }
     }
 
-    /** Copies an ended process left behind. Only while no import runs. */
-    fun clearIncoming() {
-        incoming.listFiles()?.forEach { it.delete() }
+    /** A [receive]d copy, by its file name. */
+    fun incoming(name: String) = File(incoming, File(name).name)
+
+    /** Copies from before [olderThan]: never imported, never let go. */
+    fun clearIncoming(olderThan: Long) {
+        incoming.listFiles()?.forEach { if (it.lastModified() < olderThan) it.delete() }
     }
 
     /** Deletes every version not in [inUse], and downloads that never finished. */

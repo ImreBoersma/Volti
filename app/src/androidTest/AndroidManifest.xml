@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!-- Another app sharing a PDF: the test APK is a package of its own, as Gmail or Files would be. -->
+        <provider
+            android:name="nl.imreboersma.volti.drive.SharingAppProvider"
+            android:authorities="nl.imreboersma.volti.test.sharing"
+            android:exported="true" />
+    </application>
+</manifest>

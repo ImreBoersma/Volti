@@ -409,9 +409,13 @@ Checked on the emulator: an ensemble without a link, a PDF from Downloads import
 
 ### 2. Share and Open with
 
-- [ ] Volti in the share sheet and Open with for PDFs; I pick the ensemble (and folder) it goes into.
+- [x] Volti in the share sheet and Open with for PDFs; I pick the ensemble (and folder) it goes into.
 
 Done when: a PDF from a Gmail attachment, opened with Volti, lands in the ensemble I picked.
+
+Done 2026-11-27. Volti is in the share sheet and in Open with for PDFs, one or several. A share is copied in at once, while Volti may still read it (the other app's leave ends with the screen it gave it to), so leaving, the Replace question or the process ending can't lose it; a copy never imported is cleaned up after a day. Then: which ensemble (or a new one), and in it "1 PDF to import into …: Import here" in whatever folder I go to. Back from there goes where I was. One Volti (singleTask): a share while it is open arrives in it, not as a second Volti in the other app's task; a start from Recents doesn't replay an old share. Only files another app offers are taken (no paths, none of Volti's own), at most 50 a share, and what couldn't be copied is said, with why. The file picker copies in the same way.
+
+Checked on the emulator: shared from Files, also while Volti was open in an ensemble, into an ensemble without a Drive folder, with Keep both. Not yet from Gmail on the tablet.
 
 ### 3. A whole folder, and the folder library goes
 

@@ -2,9 +2,12 @@ package nl.imreboersma.volti.drive
 
 import android.annotation.SuppressLint
 import android.app.PendingIntent
+import android.content.ContentResolver
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.storage.StorageManager
+import android.provider.OpenableColumns
 import android.util.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -28,7 +31,6 @@ import nl.imreboersma.volti.db.EnsembleFile
 import nl.imreboersma.volti.db.VoltiDatabase
 import java.io.File
 import java.io.IOException
-import java.io.InputStream
 import java.util.UUID
 
 sealed interface SyncState {
@@ -39,6 +41,35 @@ sealed interface SyncState {
     /** [stopped]: the folder was too big to list completely. [failed]: downloads that will be tried next time. */
     data class Done(val stopped: Boolean, val failed: Int) : SyncState
     data class Failed(val message: String) : SyncState
+}
+
+/** How long a copy from another app waits to be imported before it is cleaned up. */
+private const val INCOMING_KEPT_MS = 24 * 60 * 60 * 1000L
+
+/**
+ * A PDF copied in from another app, waiting to be imported: its [name] there, its [copy] next to the store (a file
+ * name), its [md5]. Carried in a route as one string, so it outlives the process.
+ */
+data class Incoming(val name: String, val copy: String, val md5: String) {
+    fun encode() = "$md5|$copy|$name"
+
+    companion object {
+        fun decode(text: String) = text.split('|', limit = 3).let { (md5, copy, name) -> Incoming(name, copy, md5) }
+    }
+}
+
+/** What [Syncer.receive] copied in, and what it couldn't, with why. */
+class Received(val incoming: List<Incoming>, val problems: List<Pair<String, Rejection>>)
+
+/** The name another app gives a file; the end of its address if it gives none, or can't say. */
+fun displayName(resolver: ContentResolver, uri: Uri): String {
+    // Any app's provider answers this, and may throw instead.
+    val name = runCatching {
+        resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use {
+            if (it.moveToFirst()) it.getString(0) else null
+        }
+    }.getOrNull()
+    return name ?: uri.lastPathSegment ?: "Imported.pdf"
 }
 
 /** An automatic sync skips an ensemble synced this recently: going back and forth doesn't ask Drive each time. */
@@ -80,6 +111,11 @@ class Syncer private constructor(context: Context) {
     val consent: StateFlow<PendingIntent?> = _consent.asStateFlow()
 
     fun fileFor(md5: String): File = store.fileFor(md5)
+
+    init {
+        // Copies of shares that were never imported or let go (the process ended at the question): after a day.
+        scope.launch(Dispatchers.IO) { store.clearIncoming(olderThan = System.currentTimeMillis() - INCOMING_KEPT_MS) }
+    }
 
     /**
      * Syncs [ids] in turn for [owner], in place of whatever sync was running. Unless [force]d, skips the recently
@@ -159,57 +195,71 @@ class Syncer private constructor(context: Context) {
         "Couldn't reach Google Drive."
     }
 
-    /** One import at a time; the first also clears what an ended process left half copied. */
-    private val importLock = Mutex()
-    private var incomingCleared = false
+    /**
+     * Copies [uris] from other apps in now, next to the store, while Volti may still read them: another app's leave
+     * to read a file ends with the screen it was given to. Here, not in a screen's scope, so leaving the screen
+     * doesn't stop it; with no lock, so a slow app holds up only its own files. Completes with the copies, which
+     * [import] takes in, and what couldn't be copied.
+     */
+    fun receive(uris: List<Uri>): Deferred<Received> = scope.async {
+        val resolver = app.contentResolver
+        val copies = mutableListOf<Incoming>()
+        val problems = mutableListOf<Pair<String, Rejection>>()
+        for (uri in uris) {
+            val name = withContext(Dispatchers.IO) { displayName(resolver, uri) }
+            try {
+                val (copy, md5) = withContext(Dispatchers.IO) {
+                    (resolver.openInputStream(uri) ?: throw IOException("Can't read a shared PDF")).use(store::receive)
+                }
+                copies += Incoming(name, copy.name, md5)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: DownloadRejected) {
+                Log.w("Volti", "Can't import a PDF", e) // Not the name: it may be private.
+                problems += name to e.reason
+            } catch (e: Exception) {
+                // Another app's provider can fail in any way: that file isn't imported, the rest are.
+                Log.w("Volti", "Can't import a PDF", e)
+                problems += name to Rejection.Unreadable
+            }
+        }
+        Received(copies, problems)
+    }
 
     /**
-     * Copies the PDFs [sources] (name and how to read it) into ensemble [ensembleId], in the folder [folders]. Here,
-     * not in the screen's scope: leaving the screen doesn't stop it. Each one is in as soon as it is copied; the
-     * store's lock is held only to take it in, not while another app is read. With [replace], one that has the name
-     * of an imported file in that folder is a new version of it, as when a Drive file changes: its marks stay, and I'm
-     * told the score changed under them. Without, it gets a name of its own. Completes with what wasn't imported.
+     * Takes the [receive]d copies [incoming] into ensemble [ensembleId], in the folder [folders], one at a time under
+     * the store's lock. With [replace], one that has the name of an imported file in that folder is a new version of
+     * it, as when a Drive file changes: its marks stay, and I'm told the score changed under them. Without, it gets a
+     * name of its own. Completes with what couldn't be taken in (a copy cleaned up meanwhile).
      */
-    fun import(
-        ensembleId: Long,
-        folders: List<String>,
-        sources: List<Pair<String, () -> InputStream>>,
-        replace: Boolean,
-    ): Deferred<List<Pair<String, Rejection>>> = scope.async {
-        importLock.withLock {
-            if (!incomingCleared) {
-                withContext(Dispatchers.IO) { store.clearIncoming() }
-                incomingCleared = true
-            }
+    fun import(ensembleId: Long, folders: List<String>, incoming: List<Incoming>, replace: Boolean): Deferred<List<Pair<String, Rejection>>> =
+        scope.async {
             val problems = mutableListOf<Pair<String, Rejection>>()
-            for ((name, open) in sources) {
+            for (file in incoming) {
                 try {
-                    val (copy, md5) = withContext(Dispatchers.IO) { open().use(store::receive) }
                     storeLock.withLock {
-                        withContext(Dispatchers.IO) { store.keep(copy, md5) }
+                        withContext(Dispatchers.IO) { store.keep(store.incoming(file.copy), file.md5) }
                         val here = db.files().all(ensembleId).filter { it.folders == folders }
-                        val replaced = if (replace) here.firstOrNull { it.imported && it.name == name } else null
-                        val size = store.fileFor(md5).length()
+                        val replaced = if (replace) here.firstOrNull { it.imported && it.name == file.name } else null
+                        val size = store.fileFor(file.md5).length()
                         db.files().save(listOf(
-                            replaced?.copy(md5 = md5, localMd5 = md5, size = size) ?: EnsembleFile(
-                                ensembleId, UUID.randomUUID().toString(), null, freeName(name, here.mapTo(HashSet()) { it.name }),
-                                folders, md5, size, localMd5 = md5, addedAt = System.currentTimeMillis(), imported = true,
+                            replaced?.copy(md5 = file.md5, localMd5 = file.md5, size = size) ?: EnsembleFile(
+                                ensembleId, UUID.randomUUID().toString(), null, freeName(file.name, here.mapTo(HashSet()) { it.name }),
+                                folders, file.md5, size, localMd5 = file.md5, addedAt = System.currentTimeMillis(), imported = true,
                             ),
                         ))
                     }
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: DownloadRejected) {
-                    Log.w("Volti", "Can't import a PDF", e) // Not the name: it may be private.
-                    problems += name to e.reason
-                } catch (e: Exception) {
-                    // Another app's provider can fail in any way: that file isn't imported, the rest are.
+                } catch (e: IOException) {
                     Log.w("Volti", "Can't import a PDF", e)
-                    problems += name to Rejection.Unreadable
+                    problems += file.name to Rejection.Unreadable
                 }
             }
             problems
         }
+
+    /** Copies I decided not to import. */
+    fun discard(incoming: List<Incoming>) {
+        scope.launch(Dispatchers.IO) { incoming.forEach { store.incoming(it.copy).delete() } }
     }
 
     /** An imported file goes: its row, its place in setlists and its marks. The PDF goes at the next clean-up. */

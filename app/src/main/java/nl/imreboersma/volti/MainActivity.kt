@@ -1,5 +1,9 @@
 package nl.imreboersma.volti
 
+import android.content.ContentResolver
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.view.KeyEvent
 import androidx.activity.ComponentActivity
@@ -10,6 +14,14 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.receiveAsFlow
+import nl.imreboersma.volti.drive.Incoming
+import nl.imreboersma.volti.drive.Rejection
+import nl.imreboersma.volti.drive.Syncer
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.Lifecycle
@@ -39,6 +51,7 @@ import nl.imreboersma.volti.setlist.SetlistScreen
 import nl.imreboersma.volti.setlist.SetlistsScreen
 import nl.imreboersma.volti.ui.AddEnsembleScreen
 import nl.imreboersma.volti.ui.HomeScreen
+import nl.imreboersma.volti.ui.ImportIntoScreen
 import nl.imreboersma.volti.ui.SettingsScreen
 import nl.imreboersma.volti.ui.LibraryScreen
 import nl.imreboersma.volti.ui.ReaderScreen
@@ -56,14 +69,22 @@ object Home
 object LocalLibrary
 
 @Serializable
-object AddEnsemble
+data class AddEnsemble(val importing: List<String> = emptyList())
+
+/**
+ * PDFs another app shared with Volti, copied in already ([incoming], each an encoded `Incoming`), waiting for me to
+ * pick the ensemble they go into. [notReceived]: those that couldn't be copied, each `reason|name`. [dropped]: past
+ * the most one share brings in.
+ */
+@Serializable
+data class ImportInto(val incoming: List<String>, val notReceived: List<String> = emptyList(), val dropped: Int = 0)
 
 @Serializable
 object Settings
 
 /** One ensemble's files; [id] is its row in the database. */
 @Serializable
-data class EnsembleFiles(val id: Long)
+data class EnsembleFiles(val id: Long, val importing: List<String> = emptyList())
 
 /** An ensemble's setlists. */
 @Serializable
@@ -98,11 +119,29 @@ class MainActivity : ComponentActivity() {
         // the cream. Icons still follow light or dark.
         enableEdgeToEdge(navigationBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT))
         window.isNavigationBarContrastEnforced = false
+        // Shared with Volti: only on the first start, a recreated activity has them in its back stack already, and
+        // a start from Recents replays an old share whose files can't be read any more.
+        if (savedInstanceState == null) share(intent)
         setContent {
             VoltiTheme {
-                VoltiApp()
+                VoltiApp(shared = shared.receiveAsFlow())
             }
         }
+    }
+
+    private val shared = Channel<List<Uri>>(Channel.UNLIMITED)
+
+    /** Shared while Volti is open: one Volti, so it comes here. */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        share(intent)
+    }
+
+    private fun share(intent: Intent) {
+        if (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0) return
+        val uris = sharedPdfs(intent).filter { fromAnotherApp(this, it) }
+        if (uris.isNotEmpty()) shared.trySend(uris)
     }
 
     /** Esc does what Back does, on every screen: a keyboard user has no Back key. Only an Esc nothing else took. */
@@ -113,8 +152,40 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+/**
+ * Only files another app offers through its provider: never a path, and never one of Volti's own files, which Volti
+ * could read but the other app couldn't.
+ */
+fun fromAnotherApp(context: Context, uri: Uri): Boolean = uri.scheme == ContentResolver.SCHEME_CONTENT &&
+    context.packageManager.resolveContentProvider(uri.authority.orEmpty(), 0)?.packageName != context.packageName
+
+/** The PDFs an Open with or a Share hands Volti; none for an ordinary start. */
+fun sharedPdfs(intent: Intent): List<Uri> = when (intent.action) {
+    Intent.ACTION_VIEW -> listOfNotNull(intent.data)
+    Intent.ACTION_SEND -> listOfNotNull(intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java))
+    Intent.ACTION_SEND_MULTIPLE -> intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, Uri::class.java).orEmpty()
+    else -> emptyList()
+}
+
+/** The most PDFs one share brings in: a route carries them, and its saved state has a size limit. */
+const val MAX_SHARED = 50
+
+/** [shared]: PDFs shared with Volti, to import: copied in at once, then I'm asked which ensemble they go into. */
 @Composable
-fun VoltiApp(navController: NavHostController = rememberNavController()) {
+fun VoltiApp(navController: NavHostController = rememberNavController(), shared: Flow<List<Uri>> = emptyFlow()) {
+    val context = LocalContext.current
+    LaunchedEffect(shared) {
+        shared.collect { uris ->
+            val received = Syncer.get(context).receive(uris.take(MAX_SHARED)).await()
+            navController.navigate(
+                ImportInto(
+                    received.incoming.map { it.encode() },
+                    received.problems.map { (name, why) -> "${why.name}|$name" },
+                    dropped = (uris.size - MAX_SHARED).coerceAtLeast(0),
+                ),
+            )
+        }
+    }
     // Stage mode follows the current destination, not the reader screen's own lifetime: the outgoing
     // screen lives on through the 700 ms crossfade, and its clean-up would switch off the next reader.
     val entry by navController.currentBackStackEntryAsState()
@@ -137,7 +208,7 @@ fun VoltiApp(navController: NavHostController = rememberNavController()) {
             }
             HomeScreen(
                 onOpenEnsemble = { id -> go(EnsembleFiles(id)) },
-                onAddEnsemble = { go(AddEnsemble) },
+                onAddEnsemble = { go(AddEnsemble()) },
                 onOpenLocal = { go(LocalLibrary) },
                 onOpenSettings = { go(Settings) },
             )
@@ -161,8 +232,29 @@ fun VoltiApp(navController: NavHostController = rememberNavController()) {
                 onAdded = { id ->
                     if (entry.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
                         // In place of the form: back from the new ensemble goes to the library, not to the form.
-                        navController.navigate(EnsembleFiles(id)) { popUpTo<AddEnsemble> { inclusive = true } }
+                        val importing = entry.toRoute<AddEnsemble>().importing
+                        navController.navigate(EnsembleFiles(id, importing)) { popUpTo<AddEnsemble> { inclusive = true } }
                     }
+                },
+            )
+        }
+        composable<ImportInto> { entry ->
+            val route = entry.toRoute<ImportInto>()
+            // In place of this question: back from the ensemble goes to the library.
+            fun go(next: Any) {
+                if (entry.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                    navController.navigate(next) { popUpTo<ImportInto> { inclusive = true } }
+                }
+            }
+            ImportIntoScreen(
+                count = route.incoming.size,
+                notReceived = route.notReceived.map { it.split('|', limit = 2).let { (why, name) -> name to Rejection.valueOf(why) } },
+                dropped = route.dropped,
+                onChoose = { id -> go(EnsembleFiles(id, route.incoming)) },
+                onNewEnsemble = { go(AddEnsemble(route.incoming)) },
+                onCancel = dropUnlessResumed {
+                    Syncer.get(context).discard(route.incoming.map(Incoming::decode))
+                    navController.popBackStack()
                 },
             )
         }

@@ -1781,6 +1781,8 @@
     #noinspection ShrinkerUnresolvedReference
     boolean addAll(java.util.Collection, java.lang.Iterable);
     #noinspection ShrinkerUnresolvedReference
+    java.util.ArrayList arrayListOf(java.lang.Object[]);
+    #noinspection ShrinkerUnresolvedReference
     kotlin.sequences.Sequence asSequence(java.lang.Iterable);
     #noinspection ShrinkerUnresolvedReference
     java.util.List build(java.util.List);
@@ -2547,6 +2549,8 @@
     java.lang.Object first(kotlinx.coroutines.flow.Flow, kotlin.coroutines.Continuation);
     #noinspection ShrinkerUnresolvedReference
     java.lang.Object first(kotlinx.coroutines.flow.Flow, kotlin.jvm.functions.Function2, kotlin.coroutines.Continuation);
+    #noinspection ShrinkerUnresolvedReference
+    kotlinx.coroutines.flow.Flow flowOf(java.lang.Object);
 }
 #noinspection ShrinkerUnresolvedReference
 -keep class kotlinx.coroutines.flow.StateFlow {
@@ -2797,12 +2801,12 @@
 #noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.AddEnsemble {
     #noinspection ShrinkerUnresolvedReference
-    nl.imreboersma.volti.AddEnsemble INSTANCE;
+    <init>(java.util.List, int, kotlin.jvm.internal.DefaultConstructorMarker);
 }
 #noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.EnsembleFiles {
     #noinspection ShrinkerUnresolvedReference
-    <init>(long);
+    <init>(long, java.util.List, int, kotlin.jvm.internal.DefaultConstructorMarker);
 }
 #noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.Home
@@ -2816,7 +2820,11 @@
 #noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.MainActivityKt {
     #noinspection ShrinkerUnresolvedReference
-    void VoltiApp(androidx.navigation.NavHostController, androidx.compose.runtime.Composer, int, int);
+    void VoltiApp(androidx.navigation.NavHostController, kotlinx.coroutines.flow.Flow, androidx.compose.runtime.Composer, int, int);
+    #noinspection ShrinkerUnresolvedReference
+    boolean fromAnotherApp(android.content.Context, android.net.Uri);
+    #noinspection ShrinkerUnresolvedReference
+    java.util.List sharedPdfs(android.content.Intent);
 }
 #noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.Reader {
@@ -3139,6 +3147,13 @@
     java.lang.String fileKey(java.lang.String);
 }
 #noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.drive.Received {
+    #noinspection ShrinkerUnresolvedReference
+    java.util.List getIncoming();
+    #noinspection ShrinkerUnresolvedReference
+    java.util.List getProblems();
+}
+#noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.drive.Rejection {
     #noinspection ShrinkerUnresolvedReference
     nl.imreboersma.volti.drive.Rejection NotAPdf;
@@ -3158,6 +3173,8 @@
     java.io.File fileFor(java.lang.String);
     #noinspection ShrinkerUnresolvedReference
     kotlinx.coroutines.Deferred import(long, java.util.List, java.util.List, boolean);
+    #noinspection ShrinkerUnresolvedReference
+    kotlinx.coroutines.Deferred receive(java.util.List);
 }
 #noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.render.IsolatedRendererKt {

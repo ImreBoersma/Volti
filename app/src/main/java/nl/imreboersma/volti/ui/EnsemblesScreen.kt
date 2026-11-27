@@ -134,6 +134,7 @@ fun EnsembleScreen(
     val pending by viewModel.pending.collectAsStateWithLifecycle()
     val importing by viewModel.importing.collectAsStateWithLifecycle()
     val notImported by viewModel.notImported.collectAsStateWithLifecycle()
+    val toPlace by viewModel.toPlace.collectAsStateWithLifecycle()
     var deleting by remember { mutableStateOf<EnsembleFile?>(null) }
     // Into the folder I'm in; from my parts or a search, into the ensemble's top.
     val into = if (view is EnsembleView.Folder) path else emptyList()
@@ -220,6 +221,20 @@ fun EnsembleScreen(
                     },
                     modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                 )
+            }
+            if (toPlace.isNotEmpty()) {
+                // Shared from another app: I go to the folder it belongs in, then say so.
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.padding(bottom = 8.dp),
+                ) {
+                    val what = if (toPlace.size == 1) "1 PDF" else "${toPlace.size} PDFs"
+                    val where = if (into.isEmpty()) ensemble?.name.orEmpty() else into.joinToString(" / ")
+                    Text("$what to import into $where", modifier = Modifier.weight(1f, fill = false))
+                    Button(onClick = { viewModel.place(into) }) { Text("Import here") }
+                    TextButton(onClick = viewModel::dontPlace) { Text("Cancel") }
+                }
             }
             if (importing) Text("Importing…", modifier = Modifier.padding(bottom = 8.dp))
             message?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(bottom = 8.dp)) }
@@ -421,7 +436,7 @@ private fun FileRow(
 }
 
 /** Per PDF that an import couldn't take in, why, in my terms. */
-private fun notImportedText(problems: List<Pair<String, Rejection>>, device: String) = problems.joinToString("\n") { (name, why) ->
+internal fun notImportedText(problems: List<Pair<String, Rejection>>, device: String) = problems.joinToString("\n") { (name, why) ->
     "$name wasn't imported: " + when (why) {
         Rejection.TooLarge -> "it's larger than ${MAX_PDF_BYTES / 1024 / 1024} MB."
         Rejection.NotAPdf, Rejection.WrongChecksum -> "it isn't a PDF."
