@@ -384,6 +384,18 @@ Done 2026-11-26. Play in a setlist opens the first piece that can be opened. Pas
 
 Checked on the Fairphone 6: a two-piece setlist played forward into the second piece, back into the first at its last page, and back once more to "Start of the setlist". Not yet on the tablet.
 
+### 3. Setlists in the ensemble
+
+Decided 2026-11-27: an ensemble's setlists show in its screen, above its scores, instead of behind a Setlists button; beside them on a wide window (the tablet in landscape: setlists narrow on the left), as the top of the scores' list on a narrow one. The newest three, then "All 7 setlists" to unfold the rest, and "New setlist" at the end. A row opens its setlist; Play stays inside it. Hidden while searching; with My parts or All files they stay.
+
+- [x] The setlists section in the ensemble's screen, as decided; the separate setlists screen goes.
+
+Done when: on the tablet, an ensemble shows its setlists beside its scores in landscape and above them in portrait, and a new setlist starts from there.
+
+Done 2026-11-27. At the expanded window width class (840 dp and wider) the setlists get a 320 dp pane left of the scores (android.md now names this one exception to "one pane"); narrower, they are the first item of the scores' list and scroll away with it, also gone while the search field has the keyboard. "All" stays unfolded through a search. The separate setlists screen and its route are gone; Back from a setlist goes to the ensemble.
+
+The setlist tests pass on the tablet. Not yet: the "Done when" by eye in both orientations.
+
 ## Milestone 6: one library
 
 Decided 2026-11-26: a PDF is a score in Volti however it got there, from Drive or imported, with the same annotations, parts, setlists and (milestone 7) names. Display names wait for this, so they are built once.

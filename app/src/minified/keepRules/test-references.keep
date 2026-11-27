@@ -2850,6 +2850,8 @@
 -keep class nl.imreboersma.volti.SetlistPieces {
     #noinspection ShrinkerUnresolvedReference
     <init>(long);
+    #noinspection ShrinkerUnresolvedReference
+    long getSetlistId();
 }
 #noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.Settings
@@ -3206,6 +3208,10 @@
 -keep class nl.imreboersma.volti.setlist.Setlist {
     #noinspection ShrinkerUnresolvedReference
     <init>(long, long, java.lang.String, long, int, kotlin.jvm.internal.DefaultConstructorMarker);
+    #noinspection ShrinkerUnresolvedReference
+    long getId();
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.String getName();
 }
 #noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.setlist.SetlistDao {

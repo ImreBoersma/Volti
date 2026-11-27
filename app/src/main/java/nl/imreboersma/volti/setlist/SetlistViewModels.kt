@@ -16,21 +16,24 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import nl.imreboersma.volti.Reader
-import nl.imreboersma.volti.Setlists
+import nl.imreboersma.volti.EnsembleFiles
 import nl.imreboersma.volti.SetlistPieces
 import nl.imreboersma.volti.data.sortedByPlace
-import nl.imreboersma.volti.db.Ensemble
 import nl.imreboersma.volti.db.EnsembleFile
 import nl.imreboersma.volti.db.VoltiDatabase
 import nl.imreboersma.volti.drive.Syncer
 
-/** An ensemble's setlists, and making a new one. */
-class SetlistsViewModel(app: Application, handle: SavedStateHandle) : AndroidViewModel(app) {
-    private val ensembleId = handle.toRoute<Setlists>().ensembleId
-    private val db = VoltiDatabase.get(app)
+/** An ensemble's setlists, and making a new one: in the ensemble's screen, so its route says which ensemble. */
+class SetlistsViewModel(app: Application, private val handle: SavedStateHandle) : AndroidViewModel(app) {
+    private val ensembleId = handle.toRoute<EnsembleFiles>().id
 
-    val ensemble: StateFlow<Ensemble?> =
-        db.ensembles().observe(ensembleId).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    /** All setlists unfolded, not only the newest: kept while a search hides them, and across process death. */
+    val showAll: StateFlow<Boolean> = handle.getStateFlow(SHOW_ALL, false)
+
+    fun showAll(all: Boolean) {
+        handle[SHOW_ALL] = all
+    }
+    private val db = VoltiDatabase.get(app)
 
     val setlists: StateFlow<List<Setlist>?> =
         db.setlists().forEnsemble(ensembleId).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
@@ -122,3 +125,5 @@ class SetlistViewModel(app: Application, handle: SavedStateHandle) : AndroidView
         }
     }
 }
+
+private const val SHOW_ALL = "showAllSetlists"

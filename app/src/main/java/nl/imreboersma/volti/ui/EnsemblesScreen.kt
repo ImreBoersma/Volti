@@ -8,6 +8,10 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -49,6 +53,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -120,12 +127,13 @@ fun AddEnsembleScreen(onAdded: (Long) -> Unit, onBack: () -> Unit, viewModel: En
 
 /**
  * One ensemble, browsed like the library: its Drive folders as folders, search across all of it. The files are the
- * ones on the tablet; the sync with Drive runs above them while this screen shows.
+ * ones on the tablet; the sync with Drive runs above them while this screen shows. [setlists] gets room above the
+ * scores, or beside them on a wide screen; not while searching.
  */
 @Composable
 fun EnsembleScreen(
     onOpenScore: (uri: String, scoreKey: String) -> Unit,
-    onOpenSetlists: (ensembleId: Long) -> Unit,
+    setlists: @Composable ColumnScope.() -> Unit = {},
     onBack: () -> Unit,
     viewModel: EnsembleViewModel = viewModel(),
 ) {
@@ -146,6 +154,7 @@ fun EnsembleScreen(
     val notImported by viewModel.notImported.collectAsStateWithLifecycle()
     val placing by viewModel.placing.collectAsStateWithLifecycle()
     var choosingImport by remember { mutableStateOf(false) }
+        var searching by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf<EnsembleFile?>(null) }
     var renaming by rememberSaveable { mutableStateOf<String?>(null) } // The file id.
     // Into the folder I'm in; from my parts or a search, into the ensemble's top.
@@ -221,9 +230,6 @@ fun EnsembleScreen(
                         })
                     }
                 }
-                ensemble?.let {
-                    OutlinedButton(onClick = { onOpenSetlists(it.id) }, modifier = Modifier.padding(start = 8.dp)) { Text("Setlists") }
-                }
             }
             // Only imports: nothing to sync.
             if (ensemble?.folderId != null) SyncLine(
@@ -238,135 +244,161 @@ fun EnsembleScreen(
                 onConsent = { consent.launch(IntentSenderRequest.Builder(it).build()) },
                 onRetry = { viewModel.sync(force = true) },
             )
-            if (!files.isNullOrEmpty()) {
-                OutlinedTextField(
-                    value = query,
-                    onValueChange = viewModel::setQuery,
-                    placeholder = { Text("Search this ensemble") },
-                    singleLine = true,
-                    trailingIcon = {
-                        if (query.isNotEmpty()) TextButton(onClick = { viewModel.setQuery("") }) { Text("Clear") }
-                    },
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                )
-            }
-            val shared = placing?.incoming.orEmpty()
-            if (shared.isNotEmpty()) {
-                // Shared from another app: I go to the folder it belongs in, then say so.
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.padding(bottom = 8.dp),
-                ) {
-                    val what = if (shared.size == 1) "1 PDF" else "${shared.size} PDFs"
-                    val where = if (into.isEmpty()) ensemble?.name.orEmpty() else into.joinToString(" / ")
-                    Text("$what to import into $where", modifier = Modifier.weight(1f, fill = false))
-                    Button(onClick = { viewModel.place(into) }) { Text("Import here") }
-                    TextButton(onClick = viewModel::dontPlace) { Text("Cancel") }
-                }
-            }
-            importing?.let { Text(it, modifier = Modifier.padding(bottom = 8.dp)) }
-            message?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(bottom = 8.dp)) }
-            if (notImported.isNotEmpty()) {
-                Text(notImportedText(notImported, deviceName()), color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(bottom = 8.dp))
-            }
-            pending?.let { ImportReplaces(it.replacing, onReplace = { viewModel.confirmImport(true) }, onKeep = { viewModel.confirmImport(false) }, onCancel = viewModel::cancelImport) }
-            renaming?.let { fileId ->
-                // The file as it is now: a sync meanwhile may have renamed it in Drive. Only once the list is in: back
-                // after the process ended, it is still loading, and the dialog (with what I typed) must wait for it.
-                files?.let { list ->
-                    val file = list.firstOrNull { it.fileId == fileId }
-                    if (file == null) {
-                        LaunchedEffect(fileId) { renaming = null } // Gone meanwhile.
-                    } else {
-                        RenameFile(file, onSave = { name ->
-                            viewModel.rename(file, name)
-                            renaming = null
-                        }, onCancel = { renaming = null })
-                    }
-                }
-            }
-            deleting?.let { file ->
-                DeleteImported(file, onDelete = {
-                    viewModel.delete(file)
-                    deleting = null
-                }, onCancel = { deleting = null })
-            }
-            val anyMine = files.orEmpty().any { it.mine }
-            if (anyMine && query.isBlank()) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 8.dp)) {
-                    FilterChip(selected = !showAll, onClick = { viewModel.showAll(false) }, label = { Text("My parts") })
-                    FilterChip(selected = showAll, onClick = { viewModel.showAll(true) }, label = { Text("All files") })
-                }
-            }
-            if (suggestions.isNotEmpty()) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    modifier = Modifier.padding(bottom = 8.dp),
-                ) {
-                    val count = suggestions.size
-                    Text(
-                        (if (count == 1) "1 file looks" else "$count files look") + " like my part (${ensemble?.instrument.orEmpty()}).",
-                        modifier = Modifier.weight(1f, fill = false),
-                    )
-                    Button(onClick = { reviewing = suggestions.map { it.fileId } }) { Text("Review") }
-                }
-            }
-            reviewing?.let { ids ->
-                val byId = files.orEmpty().associateBy { it.fileId }
-                val shown = ids.mapNotNull { byId[it] }
-                if (shown.isEmpty()) {
-                    reviewing = null // Gone meanwhile: nothing left to decide.
-                } else {
-                    ReviewSuggestions(
-                        shown,
-                        onDone = { chosen ->
-                            viewModel.decide(shown, chosen)
-                            reviewing = null
+            // Everything about the scores: the search, the chips and the list. With the setlists beside or above it.
+            // [top]: what goes first in the list and scrolls away with it (the setlists, on a narrow window).
+                        val scores: @Composable ColumnScope.(top: (@Composable ColumnScope.() -> Unit)?) -> Unit = { top ->
+                if (!files.isNullOrEmpty()) {
+                    OutlinedTextField(
+                        value = query,
+                        onValueChange = viewModel::setQuery,
+                        placeholder = { Text("Search this ensemble") },
+                        singleLine = true,
+                        trailingIcon = {
+                            if (query.isNotEmpty()) TextButton(onClick = { viewModel.setQuery("") }) { Text("Clear") }
                         },
-                        onCancel = { reviewing = null },
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp).onFocusChanged { searching = it.isFocused },
                     )
                 }
-            }
-            val open = { file: EnsembleFile -> viewModel.open(file, onOpenScore) }
-            val isNew = { file: EnsembleFile -> file.addedAt != null && file.addedAt > since }
-            val rowFor = @Composable { file: EnsembleFile, folders: String? ->
-                FileRow(
-                    file, isNew(file), folders, download = downloadOf(file.fileId, sync, downloading), onOpen = open,
-                    onMine = { viewModel.setMine(file, it) }, onRename = { renaming = file.fileId }, onDelete = { deleting = file },
-                )
-            }
-            // Pulled: sync now, also if it just did.
-            PullToRefreshBox(
-                // Only while Google Drive is asked what changed: the downloads after that show on the sheets.
-                isRefreshing = sync is SyncState.Listing,
-                onRefresh = { viewModel.sync(force = true) },
-                modifier = Modifier.fillMaxSize(),
-            ) {
-            when (val v = view) {
-                null -> Unit
-                is EnsembleView.Folder ->
-                    if (v.rows.isEmpty()) {
-                        // Before the first sync has brought anything in, or a folder without PDFs.
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text(if (ensemble?.folderId == null) "No PDFs yet. Import them from this ${deviceName()}." else "No PDFs here yet.")
-                        }
-                    } else {
-                        RowList(v.rows, onOpenFolder = viewModel::open, file = { rowFor(it, null) })
+                val shared = placing?.incoming.orEmpty()
+                if (shared.isNotEmpty()) {
+                    // Shared from another app: I go to the folder it belongs in, then say so.
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.padding(bottom = 8.dp),
+                    ) {
+                        val what = if (shared.size == 1) "1 PDF" else "${shared.size} PDFs"
+                        val where = if (into.isEmpty()) ensemble?.name.orEmpty() else into.joinToString(" / ")
+                        Text("$what to import into $where", modifier = Modifier.weight(1f, fill = false))
+                        Button(onClick = { viewModel.place(into) }) { Text("Import here") }
+                        TextButton(onClick = viewModel::dontPlace) { Text("Cancel") }
                     }
-                is EnsembleView.Found ->
-                    if (v.files.isEmpty()) {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("Nothing found for \"$query\".")
+                }
+                importing?.let { Text(it, modifier = Modifier.padding(bottom = 8.dp)) }
+                message?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(bottom = 8.dp)) }
+                if (notImported.isNotEmpty()) {
+                    Text(notImportedText(notImported, deviceName()), color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(bottom = 8.dp))
+                }
+                pending?.let { ImportReplaces(it.replacing, onReplace = { viewModel.confirmImport(true) }, onKeep = { viewModel.confirmImport(false) }, onCancel = viewModel::cancelImport) }
+                renaming?.let { fileId ->
+                    // The file as it is now: a sync meanwhile may have renamed it in Drive. Only once the list is in: back
+                    // after the process ended, it is still loading, and the dialog (with what I typed) must wait for it.
+                    files?.let { list ->
+                        val file = list.firstOrNull { it.fileId == fileId }
+                        if (file == null) {
+                            LaunchedEffect(fileId) { renaming = null } // Gone meanwhile.
+                        } else {
+                            RenameFile(file, onSave = { name ->
+                                viewModel.rename(file, name)
+                                renaming = null
+                            }, onCancel = { renaming = null })
                         }
-                    } else {
-                        FoundList(v.files, file = { rowFor(it, it.folders.takeIf { f -> f.isNotEmpty() }?.joinToString(" / ")) })
                     }
-                is EnsembleView.Mine ->
-                    FoundList(v.files, file = { rowFor(it, it.folders.takeIf { f -> f.isNotEmpty() }?.joinToString(" / ")) })
+                }
+                deleting?.let { file ->
+                    DeleteImported(file, onDelete = {
+                        viewModel.delete(file)
+                        deleting = null
+                    }, onCancel = { deleting = null })
+                }
+                val anyMine = files.orEmpty().any { it.mine }
+                if (anyMine && query.isBlank()) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 8.dp)) {
+                        FilterChip(selected = !showAll, onClick = { viewModel.showAll(false) }, label = { Text("My parts") })
+                        FilterChip(selected = showAll, onClick = { viewModel.showAll(true) }, label = { Text("All files") })
+                    }
+                }
+                if (suggestions.isNotEmpty()) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        modifier = Modifier.padding(bottom = 8.dp),
+                    ) {
+                        val count = suggestions.size
+                        Text(
+                            (if (count == 1) "1 file looks" else "$count files look") + " like my part (${ensemble?.instrument.orEmpty()}).",
+                            modifier = Modifier.weight(1f, fill = false),
+                        )
+                        Button(onClick = { reviewing = suggestions.map { it.fileId } }) { Text("Review") }
+                    }
+                }
+                reviewing?.let { ids ->
+                    val byId = files.orEmpty().associateBy { it.fileId }
+                    val shown = ids.mapNotNull { byId[it] }
+                    if (shown.isEmpty()) {
+                        reviewing = null // Gone meanwhile: nothing left to decide.
+                    } else {
+                        ReviewSuggestions(
+                            shown,
+                            onDone = { chosen ->
+                                viewModel.decide(shown, chosen)
+                                reviewing = null
+                            },
+                            onCancel = { reviewing = null },
+                        )
+                    }
+                }
+                val open = { file: EnsembleFile -> viewModel.open(file, onOpenScore) }
+                val isNew = { file: EnsembleFile -> file.addedAt != null && file.addedAt > since }
+                val rowFor = @Composable { file: EnsembleFile, folders: String? ->
+                    FileRow(
+                        file, isNew(file), folders, download = downloadOf(file.fileId, sync, downloading), onOpen = open,
+                        onMine = { viewModel.setMine(file, it) }, onRename = { renaming = file.fileId }, onDelete = { deleting = file },
+                    )
+                }
+                // Pulled: sync now, also if it just did.
+                PullToRefreshBox(
+                    // Only while Google Drive is asked what changed: the downloads after that show on the sheets.
+                    isRefreshing = sync is SyncState.Listing,
+                    onRefresh = { viewModel.sync(force = true) },
+                    modifier = Modifier.fillMaxSize(),
+                ) {
+                when (val v = view) {
+                    null -> Unit
+                    is EnsembleView.Folder ->
+                        if (v.rows.isEmpty()) {
+                            // Before the first sync has brought anything in, or a folder without PDFs.
+                                                    Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                                                        top?.invoke(this)
+                                                        Text(
+                                                            if (ensemble?.folderId == null) "No PDFs yet. Import them from this ${deviceName()}." else "No PDFs here yet.",
+                                                            modifier = Modifier.padding(vertical = 24.dp),
+                                                        )
+                                                    }
+                                                } else {
+                                                    RowList(v.rows, onOpenFolder = viewModel::open, top = top, file = { rowFor(it, null) })
+                                                }
+                    is EnsembleView.Found ->
+                        if (v.files.isEmpty()) {
+                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Text("Nothing found for \"$query\".")
+                            }
+                        } else {
+                            FoundList(v.files, file = { rowFor(it, it.folders.takeIf { f -> f.isNotEmpty() }?.joinToString(" / ")) })
+                        }
+                    is EnsembleView.Mine ->
+                                        FoundList(v.files, top = top, file = { rowFor(it, it.folders.takeIf { f -> f.isNotEmpty() }?.joinToString(" / ")) })
+                }
+                }
             }
-            }
+            // An expanded window (the tablet in landscape) by its width class, never by the device: the setlists in a
+                        // narrow pane beside the scores. Else they are the top of the scores' list, and scroll away with it.
+                        val window = LocalWindowInfo.current.containerSize
+                        val expanded = with(LocalDensity.current) { window.width.toDp() } >= EXPANDED_WIDTH
+                        if (expanded) {
+                            Row(modifier = Modifier.fillMaxSize()) {
+                                // Not while searching: a search shows only what it found.
+                                if (query.isBlank()) {
+                                    Column(modifier = Modifier.width(SETLISTS_WIDTH).padding(end = 24.dp).verticalScroll(rememberScrollState())) {
+                                        setlists()
+                                    }
+                                }
+                                Column(modifier = Modifier.weight(1f)) { scores(null) }
+                            }
+                        } else {
+                            // Not while searching, nor while the search field has the keyboard: room for what is being found.
+                            Column(modifier = Modifier.fillMaxSize()) { scores(setlists.takeIf { query.isBlank() && !searching }) }
+                        }
         }
     }
 }
@@ -397,8 +429,14 @@ private fun SyncLine(
 
 /** A folder's rows, styled as the library's: folders in bold with a trailing slash, the way a path reads. */
 @Composable
-private fun RowList(rows: List<EnsembleRow>, onOpenFolder: (String) -> Unit, file: @Composable (EnsembleFile) -> Unit) {
+private fun RowList(
+    rows: List<EnsembleRow>,
+    onOpenFolder: (String) -> Unit,
+    top: (@Composable ColumnScope.() -> Unit)?,
+    file: @Composable (EnsembleFile) -> Unit,
+) {
     LazyColumn(modifier = Modifier.fillMaxSize()) {
+        top?.let { item(key = "top") { Column(content = it) } }
         items(rows, key = { row ->
             when (row) {
                 is EnsembleRow.Folder -> "folder:" + row.name
@@ -423,8 +461,9 @@ private fun RowList(rows: List<EnsembleRow>, onOpenFolder: (String) -> Unit, fil
 }
 
 @Composable
-private fun FoundList(files: List<EnsembleFile>, file: @Composable (EnsembleFile) -> Unit) {
+private fun FoundList(files: List<EnsembleFile>, top: (@Composable ColumnScope.() -> Unit)? = null, file: @Composable (EnsembleFile) -> Unit) {
     LazyColumn(modifier = Modifier.fillMaxSize()) {
+        top?.let { item(key = "top") { Column(content = it) } }
         items(files, key = { it.fileId }) { f ->
             file(f)
             HorizontalDivider()
@@ -592,3 +631,8 @@ private val DownloadArrow: ImageVector = ImageVector.Builder("Download", 20.dp, 
         close()
     }
     .build()
+
+/** The expanded window width class starts here: the setlists get a pane of their own (the tablet in landscape). */
+private val EXPANDED_WIDTH = 840.dp
+
+private val SETLISTS_WIDTH = 320.dp

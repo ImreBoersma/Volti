@@ -52,7 +52,7 @@ import nl.imreboersma.volti.annotate.zoomToAnnotate
 import nl.imreboersma.volti.setlist.SetlistLine
 import nl.imreboersma.volti.setlist.SetlistPlayerViewModel
 import nl.imreboersma.volti.setlist.SetlistScreen
-import nl.imreboersma.volti.setlist.SetlistsScreen
+import nl.imreboersma.volti.setlist.SetlistsSection
 import nl.imreboersma.volti.ui.AddEnsembleScreen
 import nl.imreboersma.volti.ui.HomeScreen
 import nl.imreboersma.volti.ui.ImportIntoScreen
@@ -87,10 +87,6 @@ object Settings
  */
 @Serializable
 data class EnsembleFiles(val id: Long, val importing: String? = null)
-
-/** An ensemble's setlists. */
-@Serializable
-data class Setlists(val ensembleId: Long)
 
 /** One setlist's pieces. */
 @Serializable
@@ -263,16 +259,11 @@ fun VoltiApp(navController: NavHostController = rememberNavController(), shared:
                         navController.navigate(Reader(uri, scoreKey))
                     }
                 },
-                onOpenSetlists = { id ->
-                    if (entry.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) navController.navigate(Setlists(id))
-                },
-                onBack = dropUnlessResumed { navController.popBackStack() },
-            )
-        }
-        composable<Setlists> { entry ->
-            SetlistsScreen(
-                onOpen = { id ->
-                    if (entry.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) navController.navigate(SetlistPieces(id))
+                // Its setlists above (or beside) its scores, from setlist/: the ensemble screen only gives them room.
+                setlists = {
+                    SetlistsSection(onOpen = { id ->
+                        if (entry.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) navController.navigate(SetlistPieces(id))
+                    })
                 },
                 onBack = dropUnlessResumed { navController.popBackStack() },
             )

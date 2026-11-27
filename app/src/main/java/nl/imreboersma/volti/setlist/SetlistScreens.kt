@@ -6,6 +6,7 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -44,6 +45,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -69,49 +71,53 @@ import nl.imreboersma.volti.ui.theme.MaxContentWidth
 import java.text.DateFormat
 import java.util.Date
 
-/** An ensemble's setlists, the newest first, and a way to make one. */
-@Composable
-fun SetlistsScreen(onOpen: (Long) -> Unit, onBack: () -> Unit, viewModel: SetlistsViewModel = viewModel()) {
-    val ensemble by viewModel.ensemble.collectAsStateWithLifecycle()
-    val setlists by viewModel.setlists.collectAsStateWithLifecycle()
-    var naming by rememberSaveable { mutableStateOf(false) }
+/** How many setlists show before "All 7 setlists": the newest, so the scores stay in view. */
+private const val SHOWN_SETLISTS = 3
 
-    Scaffold(modifier = Modifier.fillMaxSize()) { padding ->
-        Column(modifier = Modifier.widthIn(max = MaxContentWidth).fillMaxSize().padding(padding).padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                AppBackButton(onBack, "Back to the ensemble")
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Setlists", style = MaterialTheme.typography.headlineLarge)
-                    Text(ensemble?.name.orEmpty(), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                Button(onClick = { naming = true }) { Text("New setlist") }
-            }
-            if (setlists?.isEmpty() == true) {
-                Text(
-                    "No setlists yet. Make one for a concert or a rehearsal, and put its pieces in the order you play them.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 24.dp),
-                )
-            }
-            LazyColumn(modifier = Modifier.padding(top = 16.dp)) {
-                items(setlists.orEmpty(), key = { it.id }) { setlist ->
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onOpen(setlist.id) }
-                            .padding(vertical = 12.dp),
-                    ) {
-                        Text(setlist.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-                        Text(
-                            "Made " + DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(setlist.createdAt)),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    HorizontalDivider()
-                }
-            }
+/**
+ * An ensemble's setlists, the newest first, in its screen above (or beside) its scores, and a way to make one. The
+ * three newest show; the rest unfold. A row opens its setlist.
+ */
+@Composable
+fun ColumnScope.SetlistsSection(onOpen: (Long) -> Unit, viewModel: SetlistsViewModel = viewModel()) {
+    val setlists by viewModel.setlists.collectAsStateWithLifecycle()
+    val all by viewModel.showAll.collectAsStateWithLifecycle()
+    var naming by rememberSaveable { mutableStateOf(false) }
+    val list = setlists ?: return
+    // A heading: TalkBack can jump from the setlists to the scores.
+    Text(
+        "Setlists",
+        style = MaterialTheme.typography.titleMedium,
+        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp).semantics { heading() },
+    )
+    if (list.isEmpty()) {
+        Text(
+            "No setlists yet. Make one for a concert or a rehearsal, and put its pieces in the order you play them.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+    (if (all) list else list.take(SHOWN_SETLISTS)).forEach { setlist ->
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClickLabel = "Open ${setlist.name}") { onOpen(setlist.id) }
+                .padding(vertical = 10.dp),
+        ) {
+            Text(setlist.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+            Text(
+                "Made " + DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(setlist.createdAt)),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
+        HorizontalDivider()
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 8.dp)) {
+        if (list.size > SHOWN_SETLISTS) {
+            TextButton(onClick = { viewModel.showAll(!all) }) { Text(if (all) "Fewer" else "All ${list.size} setlists") }
+        }
+        OutlinedButton(onClick = { naming = true }) { Text("New setlist") }
     }
     if (naming) {
         NameDialog(
@@ -163,7 +169,7 @@ fun SetlistScreen(
     Scaffold(modifier = Modifier.fillMaxSize()) { padding ->
         Column(modifier = Modifier.widthIn(max = MaxContentWidth).fillMaxSize().padding(padding).padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                AppBackButton(onBack, "Back to the setlists")
+                AppBackButton(onBack, "Back to the ensemble")
                 Text(
                     setlist?.name.orEmpty(),
                     style = MaterialTheme.typography.headlineLarge,
