@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Volti</string>
+    <string name="app_name" translatable="false">Volti</string>
 
     <!-- Shared: buttons, labels and states used on several screens. -->
     <string name="back_to_library">Back to the library</string>
@@ -217,6 +217,12 @@
     <string name="import_it">Import it</string>
 
     <!-- Settings. -->
+    <string name="language">Language</string>
+    <!-- The language choice that follows the system's language. -->
+    <string name="language_system">System</string>
+    <!-- Language names, in their own language. -->
+    <string name="language_english" translatable="false">English</string>
+    <string name="language_dutch" translatable="false">Nederlands</string>
     <string name="reading">Reading</string>
     <string name="crop_margins">Crop margins</string>
     <string name="crop_margins_detail">Leave out the white around the music, the same for every page of a part, so the notes are bigger.</string>
@@ -318,6 +324,6 @@
     <string name="end_of_setlist">End of the setlist</string>
     <string name="start_of_setlist">Start of the setlist</string>
     <!-- Where I am in the setlist: piece 2 of 9, and its name. -->
-    <string name="setlist_here">%1$s / %2$s · %3$s</string>
-    <string name="setlist_here_unnamed">%1$s / %2$s</string>
+    <string name="setlist_here" translatable="false">%1$s / %2$s · %3$s</string>
+    <string name="setlist_here_unnamed" translatable="false">%1$s / %2$s</string>
 </resources>

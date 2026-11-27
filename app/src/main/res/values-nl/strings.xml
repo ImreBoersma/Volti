@@ -1,0 +1,296 @@
+<resources>
+    <!-- Dutch. "Je" for the musician, as orchestra members talk to each other. Terms as in docs/guidelines/words.md. -->
+
+    <!-- Shared. -->
+    <string name="back_to_library">Terug naar de bibliotheek</string>
+    <string name="cancel">Annuleren</string>
+    <string name="not_now">Niet nu</string>
+    <string name="save">Opslaan</string>
+    <string name="rename">Hernoemen</string>
+    <!-- Delete (gone from this device) and Remove (it still exists elsewhere) stay two verbs: wissen, verwijderen. -->
+    <string name="delete">Wissen</string>
+    <string name="remove">Verwijderen</string>
+    <string name="settings">Instellingen</string>
+    <string name="ensembles">Ensembles</string>
+    <string name="ensemble_label">Ensemble</string>
+    <string name="add_an_ensemble">Ensemble toevoegen</string>
+    <string name="sign_in_to_drive">Inloggen bij Google Drive</string>
+    <string name="try_again">Opnieuw proberen</string>
+    <string name="downloading">Downloaden…</string>
+    <string name="removed_from_drive">Verwijderd uit Google Drive</string>
+    <string name="your_parts">Jouw partijen</string>
+    <string name="all_parts">Alle partijen</string>
+    <string name="move_up">Omhoog</string>
+    <string name="move_down">Omlaag</string>
+    <string name="more_for">Meer voor %1$s</string>
+    <string name="delete_title">%1$s wissen?</string>
+
+    <string name="not_on_this_tablet">Niet op deze tablet</string>
+    <string name="not_on_this_phone">Niet op deze telefoon</string>
+    <string name="not_on_this_device">Niet op dit apparaat</string>
+
+    <!-- Sync status line. -->
+    <string name="sync_checking">Google Drive controleren…</string>
+    <plurals name="sync_to_download">
+        <item quantity="one">%1$s te downloaden</item>
+        <item quantity="other">%1$s te downloaden</item>
+    </plurals>
+    <string name="sync_downloading">%1$s van %2$s downloaden…</string>
+    <string name="sync_up_to_date">Bijgewerkt</string>
+    <plurals name="sync_up_to_date_failed">
+        <item quantity="one">Bijgewerkt. %1$s partij kon niet worden gedownload; dat wordt de volgende keer opnieuw geprobeerd</item>
+        <item quantity="other">Bijgewerkt. %1$s partijen konden niet worden gedownload; dat wordt de volgende keer opnieuw geprobeerd</item>
+    </plurals>
+    <string name="sync_up_to_date_stopped">Bijgewerkt. Gestopt bij %1$s items: de diepste bestanden zijn weggelaten</string>
+    <plurals name="sync_up_to_date_failed_stopped">
+        <item quantity="one">Bijgewerkt. %1$s partij kon niet worden gedownload; dat wordt de volgende keer opnieuw geprobeerd. Gestopt bij %2$s items: de diepste bestanden zijn weggelaten</item>
+        <item quantity="other">Bijgewerkt. %1$s partijen konden niet worden gedownload; dat wordt de volgende keer opnieuw geprobeerd. Gestopt bij %2$s items: de diepste bestanden zijn weggelaten</item>
+    </plurals>
+    <string name="sync_not_yet">Nog niet gesynchroniseerd</string>
+    <string name="sync_nothing_yet_sentence">Nog niets gesynchroniseerd.</string>
+    <string name="synced_just_now">Zojuist gesynchroniseerd</string>
+    <plurals name="synced_minutes_ago">
+        <item quantity="one">%1$s min geleden gesynchroniseerd</item>
+        <item quantity="other">%1$s min geleden gesynchroniseerd</item>
+    </plurals>
+    <plurals name="synced_hours_ago">
+        <item quantity="one">%1$s uur geleden gesynchroniseerd</item>
+        <item quantity="other">%1$s uur geleden gesynchroniseerd</item>
+    </plurals>
+    <plurals name="synced_days_ago">
+        <item quantity="one">%1$s dag geleden gesynchroniseerd</item>
+        <item quantity="other">%1$s dagen geleden gesynchroniseerd</item>
+    </plurals>
+    <string name="synced_just_now_sentence">Zojuist gesynchroniseerd.</string>
+    <plurals name="synced_minutes_ago_sentence">
+        <item quantity="one">%1$s min geleden gesynchroniseerd.</item>
+        <item quantity="other">%1$s min geleden gesynchroniseerd.</item>
+    </plurals>
+    <plurals name="synced_hours_ago_sentence">
+        <item quantity="one">%1$s uur geleden gesynchroniseerd.</item>
+        <item quantity="other">%1$s uur geleden gesynchroniseerd.</item>
+    </plurals>
+    <plurals name="synced_days_ago_sentence">
+        <item quantity="one">%1$s dag geleden gesynchroniseerd.</item>
+        <item quantity="other">%1$s dagen geleden gesynchroniseerd.</item>
+    </plurals>
+
+    <!-- What went wrong with Google Drive. -->
+    <string name="drive_unreachable">Kon Google Drive niet bereiken.</string>
+    <string name="drive_signed_out">Uitgelogd bij Google Drive.</string>
+    <string name="drive_not_shared">Dit Google-account kan die map niet zien. Is hij met je gedeeld?</string>
+    <string name="drive_not_a_folder">De link is naar een bestand, niet naar een map.</string>
+    <string name="drive_error">Google Drive gaf een foutmelding (%1$d). Probeer het later opnieuw.</string>
+    <string name="file_unreachable">Kon Google Drive niet bereiken om deze partij te downloaden.</string>
+    <string name="file_gone">Deze partij staat niet meer in Google Drive.</string>
+    <string name="file_import_gone">Deze geïmporteerde partij is weg. Importeer de partij opnieuw.</string>
+
+    <!-- Why a setlist piece was skipped: "het" is the piece (het stuk). -->
+    <string name="skipped_unreachable">Het kon niet worden gedownload: geen verbinding met Google Drive.</string>
+    <string name="skipped_signed_out">Het kon niet worden gedownload: uitgelogd bij Google Drive.</string>
+    <string name="skipped_gone">Het staat niet meer in Google Drive.</string>
+    <string name="skipped_import_gone">De geïmporteerde pdf is weg.</string>
+    <string name="skipped_drive_error">Google Drive gaf een foutmelding (%1$d).</string>
+    <string name="skipped_not_downloaded">Het kon niet worden gedownload.</string>
+    <string name="skipped_too_long">Het downloaden duurde te lang.</string>
+    <string name="skipped_not_opened">Het kon niet worden geopend.</string>
+    <string name="skipped_named">%1$s overgeslagen.</string>
+    <string name="skipped_unnamed">Een stuk overgeslagen.</string>
+
+    <!-- Imports. -->
+    <string name="import_copying">%1$s van %2$s kopiëren…</string>
+    <string name="import_importing">%1$s van %2$s importeren…</string>
+    <string name="copying">Kopiëren…</string>
+    <string name="importing">Importeren…</string>
+    <string name="reading_folder">Map lezen…</string>
+    <string name="not_imported_too_large">%1$s is niet geïmporteerd: het is groter dan %2$s MB.</string>
+    <string name="not_imported_not_a_pdf">%1$s is niet geïmporteerd: het is geen pdf.</string>
+    <string name="not_imported_no_space_tablet">%1$s is niet geïmporteerd: er is niet genoeg ruimte op deze tablet.</string>
+    <string name="not_imported_no_space_phone">%1$s is niet geïmporteerd: er is niet genoeg ruimte op deze telefoon.</string>
+    <string name="not_imported_no_space_device">%1$s is niet geïmporteerd: er is niet genoeg ruimte op dit apparaat.</string>
+    <string name="not_imported_unreadable">%1$s is niet geïmporteerd: het kon niet worden gelezen.</string>
+
+    <!-- Importing PDFs shared from another app. -->
+    <string name="dont_import">Niet importeren</string>
+    <string name="nothing_to_import">Niets te importeren</string>
+    <plurals name="import_pdfs">
+        <item quantity="one">Een pdf importeren</item>
+        <item quantity="other">%1$s pdf\'s importeren</item>
+    </plurals>
+    <plurals name="share_dropped">
+        <item quantity="one">Alleen de eerste %1$s pdf\'s van een deling worden geïmporteerd; %2$s andere niet.</item>
+        <item quantity="other">Alleen de eerste %1$s pdf\'s van een deling worden geïmporteerd; %2$s andere niet.</item>
+    </plurals>
+    <string name="into_which_ensemble">In welk ensemble?</string>
+    <string name="import_into">Importeren in %1$s</string>
+    <string name="new_ensemble">Nieuw ensemble</string>
+
+    <!-- Adding an ensemble. -->
+    <string name="add_ensemble_link">Link naar de gedeelde Drive-map, als die er is</string>
+    <string name="instrument_example">Wat je speelt, bijv. Bes-klarinet 2</string>
+    <string name="add">Toevoegen</string>
+    <string name="add_not_a_link">Dat is geen link naar een Drive-map.</string>
+    <string name="add_no_name">Geef het ensemble een naam.</string>
+    <string name="add_no_instrument">Vul in wat je speelt.</string>
+    <string name="add_already">Die map is al een ensemble.</string>
+
+    <!-- An ensemble's screen. -->
+    <string name="clear_the_search">Zoekopdracht wissen</string>
+    <string name="up_a_folder">Map omhoog</string>
+    <string name="import_button">Importeren</string>
+    <string name="import_pdfs_menu">Pdf\'s</string>
+    <string name="import_folder_menu">Een map</string>
+    <string name="search_ensemble">Zoeken in dit ensemble</string>
+    <string name="clear">Wissen</string>
+    <plurals name="shared_to_import">
+        <item quantity="one">%1$s pdf om te importeren in %2$s</item>
+        <item quantity="other">%1$s pdf\'s om te importeren in %2$s</item>
+    </plurals>
+    <string name="import_here">Hier importeren</string>
+    <plurals name="suggestions">
+        <item quantity="one">%1$s partij is waarschijnlijk van jou (%2$s).</item>
+        <item quantity="other">%1$s partijen zijn waarschijnlijk van jou (%2$s).</item>
+    </plurals>
+    <string name="review">Bekijken</string>
+    <string name="no_pdfs_import_tablet">Nog geen pdf\'s. Importeer ze van deze tablet.</string>
+    <string name="no_pdfs_import_phone">Nog geen pdf\'s. Importeer ze van deze telefoon.</string>
+    <string name="no_pdfs_import_device">Nog geen pdf\'s. Importeer ze van dit apparaat.</string>
+    <string name="no_parts_here">Hier nog geen partijen.</string>
+    <string name="nothing_found">Niets gevonden voor \"%1$s\".</string>
+    <string name="waiting_to_download">Wacht op download</string>
+    <string name="changed">Gewijzigd</string>
+    <string name="new_label">Nieuw</string>
+    <string name="your_part">Jouw partij</string>
+    <string name="file_unreadable_folder">Kan die map niet lezen.</string>
+    <string name="folder_too_large">Die map bevat meer dan %1$s bestanden en mappen: de pdf\'s daarna zijn niet geïmporteerd. Importeer de submappen één voor één.</string>
+    <string name="folder_no_pdfs">Er staan geen pdf\'s in die map.</string>
+    <string name="replaces_one">%1$s staat er al</string>
+    <plurals name="replaces_many">
+        <item quantity="one">%1$s hiervan staat er al</item>
+        <item quantity="other">%1$s hiervan staan er al</item>
+    </plurals>
+    <string name="replaces_text">Vervangen: de nieuwe komt in de plaats van de oude, en je aantekeningen blijven erop. Allebei houden: de nieuwe komt ernaast, met (2) achter de naam.</string>
+    <string name="replace">Vervangen</string>
+    <string name="keep_both">Allebei houden</string>
+    <string name="delete_imported_text">De partij verdwijnt uit dit ensemble en de setlists, met je aantekeningen erop.</string>
+    <string name="review_title">Zijn dit jouw partijen?</string>
+    <plurals name="review_confirm">
+        <item quantity="one">%1$s is van jou</item>
+        <item quantity="other">%1$s zijn van jou</item>
+    </plurals>
+
+    <!-- Renaming a part. -->
+    <string name="rename_part_label">Naam, bijv. Bizet - Farandole - Hoorn in F 1</string>
+    <string name="file_name">Bestand: %1$s</string>
+    <string name="use_file_name">Bestandsnaam gebruiken</string>
+
+    <!-- The library. -->
+    <string name="library">Bibliotheek</string>
+    <string name="imported_parts_only">Alleen geïmporteerde partijen</string>
+    <plurals name="new_parts">
+        <item quantity="one">%1$s nieuw</item>
+        <item quantity="other">%1$s nieuw</item>
+    </plurals>
+    <string name="on_this_tablet">Op deze tablet</string>
+    <string name="on_this_phone">Op deze telefoon</string>
+    <string name="on_this_device">Op dit apparaat</string>
+    <string name="folder">Map</string>
+    <string name="old_folder_text">Volti leest een map niet meer ter plekke: de pdf\'s gaan naar een ensemble, met de aantekeningen die erop gemaakt zijn. Submappen komen mee als mappen.</string>
+    <string name="old_folder_too_large">Deze map bevat meer dan %1$s bestanden en mappen. Importeer hem in delen: in een ensemble via %2$s en dan %3$s, één submap tegelijk.</string>
+    <string name="old_folder_no_pdfs">Er staan geen pdf\'s in deze map.</string>
+    <string name="old_folder_unreadable">Kan deze map niet meer lezen.</string>
+    <string name="import_it">Importeren</string>
+
+    <!-- Settings. -->
+    <string name="language">Taal</string>
+    <string name="language_system">Systeem</string>
+    <string name="reading">Lezen</string>
+    <string name="crop_margins">Marges bijsnijden</string>
+    <string name="crop_margins_detail">Laat het wit rond de muziek weg, gelijk voor elke pagina van een partij, zodat de noten groter worden.</string>
+    <string name="half_page_turns">Halve pagina\'s omslaan</string>
+    <string name="half_page_turns_detail">Sla eerst de bovenste helft van de pagina om, zodat het eind van de ene pagina en het begin van de volgende samen te zien zijn.</string>
+    <string name="no_ensembles">Nog geen. Voeg er een toe vanuit de bibliotheek.</string>
+    <string name="what_you_play">Wat je speelt</string>
+    <string name="remove_title">%1$s verwijderen?</string>
+    <string name="remove_ensemble_text_tablet">De partijen, en welke daarvan van jou zijn, worden van deze tablet gewist. De map in Google Drive blijft zoals hij is.</string>
+    <string name="remove_ensemble_text_phone">De partijen, en welke daarvan van jou zijn, worden van deze telefoon gewist. De map in Google Drive blijft zoals hij is.</string>
+    <string name="remove_ensemble_text_device">De partijen, en welke daarvan van jou zijn, worden van dit apparaat gewist. De map in Google Drive blijft zoals hij is.</string>
+
+    <!-- The reader. -->
+    <string name="next_page">Volgende pagina</string>
+    <string name="previous_page">Vorige pagina</string>
+    <string name="pdf_password_protected">Deze pdf is beveiligd met een wachtwoord.</string>
+    <string name="pdf_too_slow">Deze partij opent te traag. Blijven andere partijen ook leeg, sluit Volti dan en open het opnieuw.</string>
+    <string name="pdf_unreadable">Kan deze partij niet openen.</string>
+    <string name="show_back_button">Terugknop tonen</string>
+    <string name="page_of">Pagina %1$s van %2$s</string>
+    <string name="page_and_top_of">Pagina %1$s en de bovenkant van %2$s, van %3$s</string>
+    <string name="cant_show_page">Kan pagina %1$s niet tonen.</string>
+
+    <!-- Marks. -->
+    <string name="zoomed_in">Ingezoomd</string>
+    <string name="annotate">Aantekenen</string>
+    <string name="show_annotate_button">Aantekenknop tonen</string>
+    <string name="choose_pen_colour">Kleur van de pen kiezen</string>
+    <string name="pen_colour">Penkleur, %1$s</string>
+    <string name="colours_shown">Kleuren zichtbaar</string>
+    <string name="colours_hidden">Kleuren verborgen</string>
+    <string name="symbols">Symbolen</string>
+    <string name="eraser">Gum</string>
+    <string name="undo">Ongedaan maken</string>
+    <string name="done">Klaar</string>
+    <string name="part_changed">Deze partij is veranderd sinds je je aantekeningen maakte. Kijk of ze nog kloppen.</string>
+    <string name="previous_version">Vorige versie</string>
+    <string name="marks_checked">Gecontroleerd</string>
+    <string name="previous_version_text">De vorige versie, om je aantekeningen mee te vergelijken. Terug gaat naar de nieuwe.</string>
+    <string name="marks_full_tablet">Kan je aantekeningen niet opslaan: deze tablet is vol. Maak ruimte vrij, anders zijn de aantekeningen die je nu maakt weg als de partij sluit.</string>
+    <string name="marks_full_phone">Kan je aantekeningen niet opslaan: deze telefoon is vol. Maak ruimte vrij, anders zijn de aantekeningen die je nu maakt weg als de partij sluit.</string>
+    <string name="marks_full_device">Kan je aantekeningen niet opslaan: dit apparaat is vol. Maak ruimte vrij, anders zijn de aantekeningen die je nu maakt weg als de partij sluit.</string>
+    <string name="marks_unwritable">Kan je aantekeningen niet opslaan. De aantekeningen die je nu maakt zijn weg als de partij sluit.</string>
+    <string name="colour_black">Zwart</string>
+    <string name="colour_red">Rood</string>
+    <string name="colour_blue">Blauw</string>
+    <string name="colour_green">Groen</string>
+    <string name="colour_orange">Oranje</string>
+    <string name="colour_purple">Paars</string>
+    <string name="symbol_breath">Ademteken</string>
+    <string name="symbol_fermata">Fermate</string>
+    <string name="symbol_glasses">Let op de dirigent</string>
+    <string name="symbol_sharp">Kruis</string>
+    <string name="symbol_flat">Mol</string>
+    <string name="symbol_natural">Herstellingsteken</string>
+
+    <!-- Setlists. -->
+    <string name="setlists">Setlists</string>
+    <string name="no_setlists">Nog geen setlists. Maak er een voor een concert of repetitie, en zet de stukken in de volgorde waarin je ze speelt.</string>
+    <string name="open_setlist">%1$s openen</string>
+    <string name="setlist_made">Gemaakt op %1$s</string>
+    <string name="fewer">Minder</string>
+    <plurals name="all_setlists">
+        <item quantity="one">Alle %1$s setlists</item>
+        <item quantity="other">Alle %1$s setlists</item>
+    </plurals>
+    <string name="new_setlist">Nieuwe setlist</string>
+    <string name="make_it">Maken</string>
+    <string name="back_to_ensemble">Terug naar het ensemble</string>
+    <string name="play">Spelen</string>
+    <string name="add_pieces">Stukken toevoegen</string>
+    <string name="no_pieces">Nog geen stukken. Voeg ze toe uit je partijen.</string>
+    <string name="rename_setlist">Setlist hernoemen</string>
+    <string name="delete_setlist_text">Alleen de setlist verdwijnt; de stukken blijven in het ensemble.</string>
+    <string name="no_longer_in_drive">Niet meer in Google Drive</string>
+    <string name="more_for_piece">Meer voor dit stuk</string>
+    <string name="remove_from_setlist">Uit de setlist verwijderen</string>
+    <string name="drag_to_move">Slepen om te verplaatsen</string>
+    <string name="nothing_left_to_add">Niets meer om toe te voegen.</string>
+    <plurals name="add_count">
+        <item quantity="one">%1$s toevoegen</item>
+        <item quantity="other">%1$s toevoegen</item>
+    </plurals>
+    <string name="setlist_name_label">Naam, bijv. Concert 14 december</string>
+    <string name="setlist_no_pieces">Deze setlist heeft geen stukken.</string>
+    <string name="opening_next_piece">Volgende stuk openen…</string>
+    <string name="opening_previous_piece">Vorige stuk openen…</string>
+    <string name="end_of_setlist">Einde van de setlist</string>
+    <string name="start_of_setlist">Begin van de setlist</string>
+</resources>

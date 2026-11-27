@@ -560,9 +560,13 @@ Unit tests, lint and the instrumented suite pass on the emulator (270 tests). No
 
 ### 2. Dutch
 
-- [ ] A Dutch translation of every string, and a Language choice in Settings (System, English, Nederlands).
+- [x] A Dutch translation of every string, and a Language choice in Settings (System, English, Nederlands).
 
 Done when: on the tablet set to Dutch, every screen and every message is Dutch, and no button or chip wraps or is cut off at font scale 2.0. Picking English in Volti's Settings shows English at once, and Android's per-app language for Volti then says English too.
+
+Done 2026-11-27. `values-nl/strings.xml` translates every string, with "je" and the words.md terms (partij, stuk, setlist, aantekeningen; deze tablet, deze telefoon, dit apparaat). Volti's Settings has Language (System, English, Nederlands), which sets Android's per-app language (`LocaleManager`, `locales_config.xml`), so it and Android's own setting never disagree. The instrumented tests run in English whatever the device language (`VoltiTestRunner`); `LanguageTest` picks Nederlands and sees Dutch.
+
+The instrumented suite passes on the emulator (272 tests). Not yet: reading every screen in Dutch on the tablet, at font scale 2.0. Choices to review there: Delete = Wissen, Remove = Verwijderen; Rename = Hernoemen; "1 partij is waarschijnlijk van jou"; Up to date = Bijgewerkt; Play = Spelen; Undo = Ongedaan maken (long); the symbol names (Ademteken, Herstellingsteken, Let op de dirigent, Gum, Kruis, Mol).
 
 ## Later milestones (not planned yet)
 

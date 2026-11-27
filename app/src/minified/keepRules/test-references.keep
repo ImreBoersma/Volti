@@ -3365,11 +3365,21 @@
     nl.imreboersma.volti.setlist.SkipReason TooSlow;
 }
 #noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.ui.AppLanguage {
+    #noinspection ShrinkerUnresolvedReference
+    int getLabel();
+}
+#noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.ui.Device {
     #noinspection ShrinkerUnresolvedReference
     nl.imreboersma.volti.ui.Device Other;
     #noinspection ShrinkerUnresolvedReference
     nl.imreboersma.volti.ui.Device Tablet;
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.ui.LanguageKt {
+    #noinspection ShrinkerUnresolvedReference
+    nl.imreboersma.volti.ui.AppLanguage appLanguage(android.content.Context);
 }
 #noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.ui.ReaderState$Failed {

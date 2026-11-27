@@ -34,7 +34,13 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import nl.imreboersma.volti.R
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material3.RadioButton
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
@@ -101,6 +107,7 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = viewModel(
                 Text(stringResource(R.string.settings), style = MaterialTheme.typography.headlineLarge)
             }
             LazyColumn(modifier = Modifier.fillMaxSize()) {
+                item { LanguageRow() }
                 item { Section(stringResource(R.string.reading)) }
                 item {
                     SwitchRow(
@@ -203,6 +210,49 @@ private fun EnsembleSettings(ensemble: Ensemble, onSave: (Ensemble, String, Stri
                 }) { Text(stringResource(R.string.remove)) }
             },
             dismissButton = { TextButton(onClick = { confirming = false }) { Text(stringResource(R.string.cancel)) } },
+        )
+    }
+}
+
+/**
+ * Volti's language: the system's, English or Dutch. The row says which; a dialogue picks another, and the screens
+ * show it at once.
+ */
+@Composable
+private fun LanguageRow() {
+    val context = LocalContext.current
+    // Read once per activity: picking another language recreates it.
+    val current = remember { appLanguage(context) }
+    var choosing by rememberSaveable { mutableStateOf(false) }
+    Column(modifier = Modifier.fillMaxWidth().clickable { choosing = true }.padding(vertical = 12.dp)) {
+        Text(stringResource(R.string.language), style = MaterialTheme.typography.bodyLarge)
+        Text(stringResource(current.label), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+    if (choosing) {
+        AlertDialog(
+            onDismissRequest = { choosing = false },
+            title = { Text(stringResource(R.string.language)) },
+            text = {
+                Column(modifier = Modifier.selectableGroup()) {
+                    AppLanguage.entries.forEach { language ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .selectable(selected = language == current, role = Role.RadioButton) {
+                                    choosing = false
+                                    if (language != current) setAppLanguage(context, language)
+                                }
+                                .padding(vertical = 12.dp),
+                        ) {
+                            RadioButton(selected = language == current, onClick = null)
+                            Text(stringResource(language.label), modifier = Modifier.padding(start = 16.dp))
+                        }
+                    }
+                }
+            },
+            // Picking one is the choice: the only button is the way out.
+            confirmButton = { TextButton(onClick = { choosing = false }) { Text(stringResource(R.string.cancel)) } },
         )
     }
 }

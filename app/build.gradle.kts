@@ -28,7 +28,8 @@ android {
         versionCode = 1
         versionName = "1.0"
 
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        // Ours: the tests read English whatever the device language.
+        testInstrumentationRunner = "nl.imreboersma.volti.VoltiTestRunner"
     }
 
     buildTypes {
