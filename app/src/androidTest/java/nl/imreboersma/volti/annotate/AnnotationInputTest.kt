@@ -38,6 +38,7 @@ import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import java.io.File
 import java.security.MessageDigest
+import nl.imreboersma.volti.ui.theme.VoltiTheme
 
 /** A pen writing with a hand resting on the glass, as on a stand: the pen draws, the hand turns nothing. */
 @RunWith(AndroidJUnit4::class)
@@ -66,7 +67,7 @@ class AnnotationInputTest {
         scoreKey = "local:" + MessageDigest.getInstance("MD5").digest(file.readBytes()).joinToString("") { "%02x".format(it) }
         compose.setContent {
             nav = rememberNavController()
-            VoltiApp(nav)
+            VoltiTheme { VoltiApp(nav) } // As MainActivity shows it.
         }
         compose.runOnUiThread { nav.navigate(Reader(Uri.fromFile(file).toString())) }
         compose.waitUntil(10_000) { showing("Page 1 of 2") }

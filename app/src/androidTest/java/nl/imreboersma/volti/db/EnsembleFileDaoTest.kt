@@ -69,6 +69,26 @@ class EnsembleFileDaoTest {
     }
 
     @Test
+    fun myNameFollowsTheFileIntoAnotherEnsembleAndBackAfterRemoval() = runBlocking {
+        val first = ensemble()
+        files.replace(first) { listOf(file(first, "x")) }
+        files.rename("x", "Bizet - Farandole - F Horn 1")
+        // The same Drive file, synced into a second ensemble (a subfolder added on its own): it has my name there too.
+        val second = db.ensembles().add(Ensemble(name = "Concert", instrument = "Horn", folderId = "folderBBBBBB"))
+        files.replace(second) { listOf(file(second, "x")) }
+        assertEquals("Bizet - Farandole - F Horn 1", files.all(second).single().displayName)
+        // The first ensemble removed and added again: its first sync brings the name back.
+        db.ensembles().remove(db.ensembles().get(first)!!)
+        val again = ensemble()
+        files.replace(again) { listOf(file(again, "x")) }
+        assertEquals("Bizet - Farandole - F Horn 1", files.all(again).single().displayName)
+        // Back to the file name: everywhere.
+        files.rename("x", null)
+        files.replace(again) { it }
+        assertEquals(listOf(null, null), (files.all(second) + files.all(again)).map { it.displayName })
+    }
+
+    @Test
     fun removingAnEnsembleRemovesItsFiles() = runBlocking {
         val id = ensemble()
         files.save(listOf(file(id, "a", local = v1)))
@@ -168,7 +188,7 @@ class EnsembleFileDaoTest {
         migrations.createDatabase(name, 1).use {
             it.execSQL("INSERT INTO ensemble (name, instrument, folderId) VALUES ('Harmonie', 'Horn', 'folderAAAAAA')")
         }
-        migrations.runMigrationsAndValidate(name, 9, true).close()
+        migrations.runMigrationsAndValidate(name, 10, true).close()
         val migrated = Room.databaseBuilder(context, VoltiDatabase::class.java, name).build()
         try {
             val all = runBlocking { migrated.ensembles().all().first() }
@@ -186,7 +206,7 @@ class EnsembleFileDaoTest {
             it.execSQL("INSERT INTO annotation_symbol (id, scoreKey, page, symbol, x, y, color) VALUES ('s', 'drive:abc', 0, 'Fermata', 1, 1, 0)")
             it.execSQL("INSERT INTO annotation_symbol (id, scoreKey, page, symbol, x, y, color) VALUES ('l', 'local:123', 0, 'Fermata', 1, 1, 0)")
         }
-        migrations.runMigrationsAndValidate(name, 9, true).use {
+        migrations.runMigrationsAndValidate(name, 10, true).use {
             it.query("SELECT id, scoreKey FROM annotation_symbol ORDER BY id").use { c ->
                 val keys = buildMap { while (c.moveToNext()) put(c.getString(0), c.getString(1)) }
                 assertEquals(mapOf("l" to "local:123", "s" to fileKey("abc")), keys)

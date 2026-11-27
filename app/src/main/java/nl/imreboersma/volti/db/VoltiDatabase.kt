@@ -91,12 +91,27 @@ data class EnsembleFile(
     val previousMd5: String? = null,
     /** Imported from the device or another app, not from Drive: [fileId] is Volti's own, and a sync leaves it alone. */
     @ColumnInfo(defaultValue = "0") val imported: Boolean = false,
+    /**
+     * My own name for it ("Bizet - Farandole - F Horn 1"); null: its file name. The file in Drive keeps its name. A
+     * copy of the [FileName] for this file, which outlives this row.
+     */
+    val displayName: String? = null,
 ) {
+    /** The name it shows by: mine, else the file's. */
+    val shownName get() = displayName ?: name
+
     val changed get() = seenMd5 != null && localMd5 != null && seenMd5 != localMd5
 
     /** What its annotations belong to: the file, so they stay with it through new versions. */
     val scoreKey get() = fileKey(fileId)
 }
+
+/**
+ * My name for a file, by its [fileKey] as its marks are: it outlives the ensemble's rows, so the same Drive file in
+ * another ensemble, or in this one added again, has it too.
+ */
+@Entity(tableName = "file_name")
+data class FileName(@PrimaryKey val fileKey: String, val name: String)
 
 /** The annotation key of an ensemble's file [fileId]. */
 fun fileKey(fileId: String) = "file:$fileId"
@@ -209,6 +224,29 @@ interface EnsembleFileDao {
     @Query("DELETE FROM ensemble_file WHERE ensembleId = :ensembleId AND fileId = :fileId")
     suspend fun remove(ensembleId: Long, fileId: String)
 
+    @Query("UPDATE ensemble_file SET displayName = :name WHERE fileId = :fileId")
+    suspend fun showName(fileId: String, name: String?)
+
+    @Upsert
+    suspend fun keepName(name: FileName)
+
+    @Query("DELETE FROM file_name WHERE fileKey = :fileKey")
+    suspend fun forgetName(fileKey: String)
+
+    /** Every row of ensemble [ensembleId] with my name for its file: rows a sync just made too. */
+    @Query(
+        "UPDATE ensemble_file SET displayName = (SELECT name FROM file_name WHERE fileKey = 'file:' || ensemble_file.fileId) " +
+            "WHERE ensembleId = :ensembleId",
+    )
+    suspend fun applyNames(ensembleId: Long)
+
+    /** My name for file [fileId], in every ensemble it is in, as its marks are; null goes back to its file name. */
+    @Transaction
+    suspend fun rename(fileId: String, name: String?) {
+        if (name == null) forgetName(fileKey(fileId)) else keepName(FileName(fileKey(fileId), name))
+        showName(fileId, name)
+    }
+
     /** Every version some row still needs on the tablet. */
     @Query(
         "SELECT localMd5 FROM ensemble_file WHERE localMd5 IS NOT NULL UNION SELECT seenMd5 FROM ensemble_file WHERE seenMd5 IS NOT NULL " +
@@ -222,12 +260,16 @@ interface EnsembleFileDao {
         val updated = update(all(ensembleId))
         clear(ensembleId)
         save(updated)
+        applyNames(ensembleId)
     }
 }
 
 @Database(
-    entities = [Ensemble::class, EnsembleFile::class, AnnotationStroke::class, AnnotationSymbol::class, Setlist::class, SetlistEntry::class],
-    version = 9,
+    entities = [
+        Ensemble::class, EnsembleFile::class, FileName::class, AnnotationStroke::class, AnnotationSymbol::class,
+        Setlist::class, SetlistEntry::class,
+    ],
+    version = 10,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
@@ -237,6 +279,7 @@ interface EnsembleFileDao {
         AutoMigration(from = 6, to = 7),
         AutoMigration(from = 7, to = 8),
         AutoMigration(from = 8, to = 9, spec = DriveKeysToFileKeys::class),
+        AutoMigration(from = 9, to = 10),
     ],
 )
 @TypeConverters(Converters::class)
@@ -254,6 +297,7 @@ abstract class VoltiDatabase : RoomDatabase() {
         files().remove(file.ensembleId, file.fileId)
         setlists().removeEverywhere(file.ensembleId, file.fileId)
         annotations().removeScore(file.scoreKey)
+        files().forgetName(file.scoreKey)
     }
 
     companion object {

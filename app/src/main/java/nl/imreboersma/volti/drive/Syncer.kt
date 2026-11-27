@@ -355,10 +355,13 @@ class Syncer private constructor(context: Context) {
         }
     }
 
-    /** The names of [received] that an import into [into] of ensemble [ensembleId] would replace. */
+    /**
+     * The files that an import of [received] into [into] of ensemble [ensembleId] would replace, by the name they show
+     * here (mine, if I gave one): that is how I know them in the list.
+     */
     suspend fun alreadyImported(ensembleId: Long, into: List<String>, received: Received): List<String> {
-        val here = db.files().all(ensembleId).filter { it.imported }.mapTo(HashSet()) { it.folders to it.name }
-        return received.incoming.filter { (into + it.folders) to it.name in here }.map { it.name }
+        val here = db.files().all(ensembleId).filter { it.imported }.associateBy { it.folders to it.name }
+        return received.incoming.mapNotNull { here[(into + it.folders) to it.name]?.shownName }
     }
 
     /** Marked mine: download it now, not at the next sync. Here, so leaving the screen doesn't stop it. */

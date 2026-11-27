@@ -68,7 +68,7 @@ suspend fun findPiece(app: Application, setlistId: Long, from: Int, step: Int): 
             val why = skipped.joinToString("\n").ifEmpty { null }
             return Reached(Reader(uri, fileKey(piece.fileId), fromEnd = step < 0, setlistId = setlistId, position = position, skipped = why), why)
         }
-        skipped += "${piece.file?.name?.removeSuffix(".pdf") ?: "A piece"} skipped. ${problem ?: "It couldn't be opened."}"
+        skipped += "${piece.file?.shownName?.removeSuffix(".pdf") ?: "A piece"} skipped. ${problem ?: "It couldn't be opened."}"
         position += step
     }
     return Reached(null, skipped.joinToString("\n").ifEmpty { null })
@@ -100,7 +100,7 @@ class SetlistPlayerViewModel(app: Application, handle: SavedStateHandle) : Andro
         if (setlistId != null) {
             viewModelScope.launch {
                 val pieces = VoltiDatabase.get(app).setlists().pieces(setlistId).first()
-                val name = pieces.getOrNull(route.position)?.file?.name?.removeSuffix(".pdf")
+                val name = pieces.getOrNull(route.position)?.file?.shownName?.removeSuffix(".pdf")
                 val here = "${route.position + 1} / ${pieces.size}" + (name?.let { " · $it" } ?: "")
                 _line.value = Line(listOfNotNull(route.skipped, here).joinToString("\n"), fades = route.skipped == null)
             }

@@ -440,9 +440,13 @@ The Drive name stays as it is: Volti never writes to the folder. Search finds a 
 
 ### 1. My names for my files
 
-- [ ] Rename a file in an ensemble or a setlist, pre-filled with the cleaned file name; clearing the name goes back to it. Shown in the ensemble, its search, setlists, the reader's setlist line and skip messages. Kept through syncs, a new version and a rename in Drive.
+- [x] Rename a file in an ensemble or a setlist, pre-filled with the cleaned file name; clearing the name goes back to it. Shown in the ensemble, its search, setlists, the reader's setlist line and skip messages. Kept through syncs, a new version and a rename in Drive.
 
 Done when: on the tablet, a part renamed in its ensemble shows under that name in a setlist and while playing it, also after a sync.
+
+Done 2026-11-27. Each file's row has a ⋮ with Rename (and Delete for an import; Remove from the setlist in a setlist). The dialog starts from my name or the cleaned file name (`Farandole-Hoorn_in_F.pdf`: `Farandole - Hoorn in F`; a range like `1-2` keeps its dash) and shows the file's own name below; Enter saves. Saving that start unchanged, or nothing, keeps following the file's name; "Use the file name" goes back to it. My name shows wherever the file does, sorts by it, and search finds a file by either name. Names are kept by file, as marks are (their own table, database version 10): the same Drive file in another ensemble, or in one added again, has my name too.
+
+Checked on the emulator (renamed, shown and sorted); the instrumented suite passes on the tablet. Not yet by hand on the tablet.
 
 ## Later milestones (not planned yet)
 

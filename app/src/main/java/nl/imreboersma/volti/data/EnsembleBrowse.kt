@@ -19,7 +19,7 @@ fun ensembleRows(files: List<EnsembleFile>, path: List<String>): List<EnsembleRo
     val folders = below.filter { it.folders.size > path.size }.map { it.folders[path.size] }.distinct()
     val pdfs = below.filter { it.folders.size == path.size }
     return folders.sortedWith(order).map { EnsembleRow.Folder(it) } +
-        pdfs.sortedWith(compareBy(order) { it.name }).map { EnsembleRow.Pdf(it) }
+        pdfs.sortedWith(compareBy(order) { it.shownName }).map { EnsembleRow.Pdf(it) }
 }
 
 /**
@@ -33,16 +33,28 @@ fun existingPath(files: List<EnsembleFile>, path: List<String>): List<String> {
 }
 
 /**
- * The PDFs in the whole ensemble that match [query], as the library searches: every word in the name or in a folder
- * on the way, case and accents aside. By folder, then name.
+ * The PDFs in the whole ensemble that match [query], as the library searches: every word in my name for it, its file
+ * name or a folder on the way, case and accents aside. By folder, then name.
  */
 fun searchEnsemble(files: List<EnsembleFile>, query: String): List<EnsembleFile> {
     val words = searchWords(query)
-    return sortedByPlace(files.filter { matchesWords(words, (it.folders + it.name).map(::searchable)) })
+    return sortedByPlace(files.filter { matchesWords(words, (it.folders + it.name + listOfNotNull(it.displayName)).map(::searchable)) })
 }
 
 /** By folder, then name, in natural order: how a list across folders reads. */
 fun sortedByPlace(files: List<EnsembleFile>): List<EnsembleFile> {
     val order = NaturalOrder()
-    return files.sortedWith(compareBy<EnsembleFile, String>(order) { it.folders.joinToString("\u0000") }.thenBy(order) { it.name })
+    return files.sortedWith(compareBy<EnsembleFile, String>(order) { it.folders.joinToString("\u0000") }.thenBy(order) { it.shownName })
+}
+
+/**
+ * A file name as a name to start from: `Farandole-Hoorn_in_F.pdf` becomes `Farandole - Hoorn in F`. Without ".pdf",
+ * underscores as spaces, and a dash between words as " - " unless the name has a spaced dash already
+ * (`Saint-Saëns - Danse macabre` keeps its hyphen) or it is between digits (`Trompet 1-2`).
+ */
+fun cleanName(fileName: String): String {
+    val name = fileName.replace(Regex("""\.pdf$""", RegexOption.IGNORE_CASE), "").replace('_', ' ')
+    // A dash between digits is a range or a date ("1-2", "2024-12"): it stays.
+    val dashed = if (" - " in name) name else name.replace(Regex("""(?<!\d)\s*-\s*|\s*-\s*(?!\d)"""), " - ")
+    return dashed.replace(Regex("""\s+"""), " ").trim()
 }

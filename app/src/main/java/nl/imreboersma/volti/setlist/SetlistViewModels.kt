@@ -96,6 +96,11 @@ class SetlistViewModel(app: Application, handle: SavedStateHandle) : AndroidView
         }
     }
 
+    /** My name for the piece's file, wherever it shows; null: its file name again. */
+    fun renameFile(fileId: String, name: String?) {
+        viewModelScope.launch { files.rename(fileId, name) }
+    }
+
     fun rename(name: String) {
         if (name.isBlank()) return
         viewModelScope.launch { dao.rename(setlistId, name.trim()) }

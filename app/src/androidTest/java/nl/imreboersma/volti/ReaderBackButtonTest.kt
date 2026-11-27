@@ -32,6 +32,7 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import java.io.File
+import nl.imreboersma.volti.ui.theme.VoltiTheme
 
 @RunWith(AndroidJUnit4::class)
 class ReaderBackButtonTest {
@@ -53,7 +54,7 @@ class ReaderBackButtonTest {
         runBlocking { settings.setHalfPageTurns(false) }
         compose.setContent {
             nav = rememberNavController()
-            VoltiApp(nav)
+            VoltiTheme { VoltiApp(nav) } // As MainActivity shows it.
         }
         compose.waitForIdle()
     }

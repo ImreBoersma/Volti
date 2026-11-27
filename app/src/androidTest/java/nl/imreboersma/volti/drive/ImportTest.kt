@@ -36,6 +36,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.ByteArrayOutputStream
+import nl.imreboersma.volti.ui.theme.VoltiTheme
 
 /** A PDF from the device is a score like a Drive file: listed, opened, a new version, deleted with what hangs off it. */
 @RunWith(AndroidJUnit4::class)
@@ -83,7 +84,7 @@ class ImportTest {
         lateinit var nav: NavHostController
         compose.setContent {
             nav = rememberNavController()
-            VoltiApp(nav)
+            VoltiTheme { VoltiApp(nav) } // As MainActivity shows it.
         }
         compose.runOnUiThread { nav.navigate(EnsembleFiles(ensemble)) }
         compose.waitUntil(10_000) { compose.onAllNodesWithText("Quartet.pdf").fetchSemanticsNodes().isNotEmpty() }
@@ -102,7 +103,7 @@ class ImportTest {
         lateinit var nav: NavHostController
         compose.setContent {
             nav = rememberNavController()
-            VoltiApp(nav, shared = flowOf(listOf(shared)))
+            VoltiTheme { VoltiApp(nav, shared = flowOf(listOf(shared))) } // As MainActivity shows it.
         }
         compose.waitUntil(10_000) { compose.onAllNodesWithText("Into which ensemble?").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithText("Import test").performClick()

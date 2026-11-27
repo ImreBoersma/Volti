@@ -35,6 +35,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -140,6 +141,7 @@ fun EnsembleScreen(
     val placing by viewModel.placing.collectAsStateWithLifecycle()
     var choosingImport by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf<EnsembleFile?>(null) }
+    var renaming by rememberSaveable { mutableStateOf<String?>(null) } // The file id.
     // Into the folder I'm in; from my parts or a search, into the ensemble's top.
     val into = if (view is EnsembleView.Folder) path else emptyList()
     val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
@@ -263,6 +265,21 @@ fun EnsembleScreen(
                 Text(notImportedText(notImported, deviceName()), color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(bottom = 8.dp))
             }
             pending?.let { ImportReplaces(it.replacing, onReplace = { viewModel.confirmImport(true) }, onKeep = { viewModel.confirmImport(false) }, onCancel = viewModel::cancelImport) }
+            renaming?.let { fileId ->
+                // The file as it is now: a sync meanwhile may have renamed it in Drive. Only once the list is in: back
+                // after the process ended, it is still loading, and the dialog (with what I typed) must wait for it.
+                files?.let { list ->
+                    val file = list.firstOrNull { it.fileId == fileId }
+                    if (file == null) {
+                        LaunchedEffect(fileId) { renaming = null } // Gone meanwhile.
+                    } else {
+                        RenameFile(file, onSave = { name ->
+                            viewModel.rename(file, name)
+                            renaming = null
+                        }, onCancel = { renaming = null })
+                    }
+                }
+            }
             deleting?.let { file ->
                 DeleteImported(file, onDelete = {
                     viewModel.delete(file)
@@ -311,7 +328,7 @@ fun EnsembleScreen(
             val rowFor = @Composable { file: EnsembleFile, folders: String? ->
                 FileRow(
                     file, isNew(file), folders, fetching = file.fileId == fetching, onOpen = open,
-                    onMine = { viewModel.setMine(file, it) }, onDelete = { deleting = file },
+                    onMine = { viewModel.setMine(file, it) }, onRename = { renaming = file.fileId }, onDelete = { deleting = file },
                 )
             }
             // Pulled: sync now, also if it just did.
@@ -420,6 +437,7 @@ private fun FileRow(
     fetching: Boolean,
     onOpen: (EnsembleFile) -> Unit,
     onMine: (Boolean) -> Unit,
+    onRename: () -> Unit,
     onDelete: () -> Unit,
 ) {
     val downloaded = file.localMd5 != null
@@ -432,7 +450,7 @@ private fun FileRow(
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                file.name,
+                file.shownName,
                 style = MaterialTheme.typography.bodyLarge,
                 color = if (downloaded) Color.Unspecified else MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -452,7 +470,7 @@ private fun FileRow(
             modifier = Modifier.padding(start = 12.dp),
         )
         // A Drive file comes and goes with the folder; only what I imported is mine to delete.
-        if (file.imported) TextButton(onClick = onDelete, modifier = Modifier.padding(start = 4.dp)) { Text("Delete") }
+        MoreMenu("More for ${file.shownName}", listOfNotNull("Rename" to onRename, ("Delete" to onDelete).takeIf { file.imported }))
     }
 }
 
@@ -487,7 +505,7 @@ private fun ImportReplaces(names: List<String>, onReplace: () -> Unit, onKeep: (
 private fun DeleteImported(file: EnsembleFile, onDelete: () -> Unit, onCancel: () -> Unit) {
     AlertDialog(
         onDismissRequest = onCancel,
-        title = { Text("Delete ${file.name}?") },
+        title = { Text("Delete ${file.shownName}?") },
         text = { Text("It goes from this ensemble and its setlists, with my marks on it.") },
         confirmButton = { TextButton(onClick = onDelete) { Text("Delete") } },
         dismissButton = { TextButton(onClick = onCancel) { Text("Cancel") } },
@@ -517,7 +535,7 @@ private fun ReviewSuggestions(suggestions: List<EnsembleFile>, onDone: (Set<Stri
                     ) {
                         Checkbox(checked = on, onCheckedChange = null)
                         Column(modifier = Modifier.padding(start = 8.dp)) {
-                            Text(file.name)
+                            Text(file.shownName)
                             if (file.folders.isNotEmpty()) Text(file.folders.joinToString(" / "), style = MaterialTheme.typography.bodySmall)
                         }
                     }

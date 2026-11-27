@@ -105,6 +105,14 @@ class LocalCopyTest {
     }
 
     @Test
+    fun myNameStaysThroughARenameAndANewVersionInDrive() {
+        val mine = row("a", v1).copy(displayName = "Bizet - Farandole - F Horn 1")
+        val rows = reconcile(1, listOf(mine), listOf(found("a", v2, "Farandole (new).pdf")))
+        assertEquals("Bizet - Farandole - F Horn 1", rows.single().displayName)
+        assertEquals("Farandole (new).pdf", rows.single().name)
+    }
+
+    @Test
     fun renamesAndMovesFollowDrive() {
         val rows = reconcile(1, listOf(row("a", v1)), listOf(found("a", v1, "Hoorn 1.pdf", listOf("Hoorn"))))
         assertEquals("Hoorn 1.pdf", rows.single().name)

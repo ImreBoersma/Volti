@@ -64,7 +64,8 @@ interface SetlistDao {
             "f.ensembleId AS file_ensembleId, f.fileId AS file_fileId, f.resourceKey AS file_resourceKey, f.name AS file_name, " +
             "f.folders AS file_folders, f.md5 AS file_md5, f.size AS file_size, f.localMd5 AS file_localMd5, " +
             "f.seenMd5 AS file_seenMd5, f.removed AS file_removed, f.addedAt AS file_addedAt, f.mine AS file_mine, " +
-            "f.decided AS file_decided, f.previousMd5 AS file_previousMd5, f.imported AS file_imported " +
+            "f.decided AS file_decided, f.previousMd5 AS file_previousMd5, f.imported AS file_imported, " +
+            "f.displayName AS file_displayName " +
             "FROM setlist_entry e JOIN setlist s ON s.id = e.setlistId " +
             "LEFT JOIN ensemble_file f ON f.ensembleId = s.ensembleId AND f.fileId = e.fileId " +
             "WHERE e.setlistId = :setlistId ORDER BY e.position",

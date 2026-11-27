@@ -3063,13 +3063,15 @@
 #noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.db.EnsembleFile {
     #noinspection ShrinkerUnresolvedReference
-    <init>(long, java.lang.String, java.lang.String, java.lang.String, java.util.List, java.lang.String, long, java.lang.String, java.lang.String, boolean, java.lang.Long, boolean, boolean, java.lang.String, boolean, int, kotlin.jvm.internal.DefaultConstructorMarker);
+    <init>(long, java.lang.String, java.lang.String, java.lang.String, java.util.List, java.lang.String, long, java.lang.String, java.lang.String, boolean, java.lang.Long, boolean, boolean, java.lang.String, boolean, java.lang.String, int, kotlin.jvm.internal.DefaultConstructorMarker);
     #noinspection ShrinkerUnresolvedReference
-    nl.imreboersma.volti.db.EnsembleFile copy$default(nl.imreboersma.volti.db.EnsembleFile, long, java.lang.String, java.lang.String, java.lang.String, java.util.List, java.lang.String, long, java.lang.String, java.lang.String, boolean, java.lang.Long, boolean, boolean, java.lang.String, boolean, int, java.lang.Object);
+    nl.imreboersma.volti.db.EnsembleFile copy$default(nl.imreboersma.volti.db.EnsembleFile, long, java.lang.String, java.lang.String, java.lang.String, java.util.List, java.lang.String, long, java.lang.String, java.lang.String, boolean, java.lang.Long, boolean, boolean, java.lang.String, boolean, java.lang.String, int, java.lang.Object);
     #noinspection ShrinkerUnresolvedReference
     boolean getChanged();
     #noinspection ShrinkerUnresolvedReference
     boolean getDecided();
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.String getDisplayName();
     #noinspection ShrinkerUnresolvedReference
     java.lang.String getFileId();
     #noinspection ShrinkerUnresolvedReference
@@ -3101,6 +3103,8 @@
     java.lang.Object opened(long, java.lang.String, java.lang.String, kotlin.coroutines.Continuation);
     #noinspection ShrinkerUnresolvedReference
     java.lang.Object previousOf(java.lang.String, kotlin.coroutines.Continuation);
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.Object rename(java.lang.String, java.lang.String, kotlin.coroutines.Continuation);
     #noinspection ShrinkerUnresolvedReference
     java.lang.Object replace(long, kotlin.jvm.functions.Function1, kotlin.coroutines.Continuation);
     #noinspection ShrinkerUnresolvedReference
@@ -3274,4 +3278,9 @@
 -keep class nl.imreboersma.volti.ui.StageModeKt {
     #noinspection ShrinkerUnresolvedReference
     void StageMode(androidx.compose.runtime.Composer, int);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class nl.imreboersma.volti.ui.theme.ThemeKt {
+    #noinspection ShrinkerUnresolvedReference
+    void VoltiTheme(boolean, kotlin.jvm.functions.Function2, androidx.compose.runtime.Composer, int, int);
 }

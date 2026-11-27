@@ -36,6 +36,7 @@ import org.junit.runner.RunWith
 import java.io.ByteArrayOutputStream
 import java.security.MessageDigest
 import java.util.UUID
+import nl.imreboersma.volti.ui.theme.VoltiTheme
 
 /** A setlist played like one book: past a piece's last page into the next, back into the previous one's last page. */
 @RunWith(AndroidJUnit4::class)
@@ -84,13 +85,13 @@ class SetlistPlayTest {
             db.files().save(listOf(piece(ensemble, "first", pages = 2), piece(ensemble, "second", pages = 3)))
             db.setlists().add(Setlist(ensembleId = ensemble, name = "Concert", createdAt = 1)).also {
                 db.setlists().setPieces(it, listOf("first", "second"))
-            }
+            }.also { db.files().rename("second", "Bizet - Farandole") } // The reader's line says my name.
         }
         // Whole-page turns, whatever is set on the device.
         runBlocking { nl.imreboersma.volti.data.ReaderSettingsStore(context).setHalfPageTurns(false) }
         compose.setContent {
             nav = rememberNavController()
-            VoltiApp(nav)
+            VoltiTheme { VoltiApp(nav) } // As MainActivity shows it.
         }
         compose.runOnUiThread { nav.navigate(SetlistPieces(setlist)) }
         compose.waitUntil(10_000) { compose.onAllNodesWithText("Play").fetchSemanticsNodes().isNotEmpty() }
@@ -103,6 +104,7 @@ class SetlistPlayTest {
         turn(forward = true) // Past the first piece's last page: the second piece, from its start.
         waitFor("Page 1 of 3")
         assertEquals(1, reader()?.position)
+        compose.waitUntil(10_000) { saying("2 / 2 · Bizet - Farandole") }
         turn(forward = false) // Back before its first page: the first piece, at its last page.
         waitFor("Page 2 of 2")
         assertEquals(0, reader()?.position)
@@ -125,7 +127,7 @@ class SetlistPlayTest {
         runBlocking { nl.imreboersma.volti.data.ReaderSettingsStore(context).setHalfPageTurns(false) }
         compose.setContent {
             nav = rememberNavController()
-            VoltiApp(nav)
+            VoltiTheme { VoltiApp(nav) } // As MainActivity shows it.
         }
         compose.runOnUiThread { nav.navigate(SetlistPieces(setlist)) }
         compose.waitUntil(10_000) { compose.onAllNodesWithText("Play").fetchSemanticsNodes().isNotEmpty() }

@@ -26,6 +26,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.util.UUID
+import nl.imreboersma.volti.ui.theme.VoltiTheme
 
 @RunWith(AndroidJUnit4::class)
 class SetlistTest {
@@ -94,7 +95,7 @@ class SetlistTest {
         }
         compose.setContent {
             nav = rememberNavController()
-            VoltiApp(nav)
+            VoltiTheme { VoltiApp(nav) } // As MainActivity shows it.
         }
         compose.runOnUiThread { nav.navigate(SetlistPieces(setlist)) }
         compose.waitUntil(10_000) { compose.onAllNodesWithText("one.pdf").fetchSemanticsNodes().isNotEmpty() }
@@ -128,7 +129,7 @@ class SetlistTest {
         }
         compose.setContent {
             nav = rememberNavController()
-            VoltiApp(nav)
+            VoltiTheme { VoltiApp(nav) } // As MainActivity shows it.
         }
         compose.runOnUiThread { nav.navigate(SetlistPieces(setlist)) }
         compose.waitUntil(10_000) { compose.onAllNodesWithText("one.pdf").fetchSemanticsNodes().isNotEmpty() }

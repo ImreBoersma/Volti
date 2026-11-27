@@ -15,6 +15,7 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import nl.imreboersma.volti.ui.theme.VoltiTheme
 
 @RunWith(AndroidJUnit4::class)
 class AppBackButtonTest {
@@ -27,7 +28,7 @@ class AppBackButtonTest {
     fun setUp() {
         compose.setContent {
             nav = rememberNavController()
-            VoltiApp(nav)
+            VoltiTheme { VoltiApp(nav) } // As MainActivity shows it.
         }
         compose.waitForIdle()
     }

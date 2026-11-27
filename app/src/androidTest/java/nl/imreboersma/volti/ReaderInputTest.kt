@@ -37,6 +37,7 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import java.io.File
+import nl.imreboersma.volti.ui.theme.VoltiTheme
 
 /** Turning pages without touching the screen: a pedal (a keyboard), TalkBack. And Back while annotating. */
 @RunWith(AndroidJUnit4::class)
@@ -67,7 +68,7 @@ class ReaderInputTest {
         doc.close()
         compose.setContent {
             nav = rememberNavController()
-            VoltiApp(nav)
+            VoltiTheme { VoltiApp(nav) } // As MainActivity shows it.
         }
         compose.runOnUiThread { nav.navigate(Reader(Uri.fromFile(file).toString())) }
         waitForPage("Page 1 of 3")

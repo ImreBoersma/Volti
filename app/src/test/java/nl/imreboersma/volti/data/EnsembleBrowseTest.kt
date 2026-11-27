@@ -63,4 +63,38 @@ class EnsembleBrowseTest {
         assertEquals(listOf("Hymne.pdf"), searchEnsemble(files, "hymne").map { it.name })
         assertEquals(emptyList<String>(), searchEnsemble(files, "   ").map { it.name })
     }
+
+    @Test
+    fun myNameIsFoundSortedByAndShownTheFileNameToo() {
+        val renamed = pdf("Farandole-Hoorn_in_F.pdf").copy(displayName = "Bizet - Farandole - F Horn 1")
+        val other = pdf("Arlésienne.pdf")
+        assertEquals(listOf(renamed), searchEnsemble(listOf(renamed, other), "bizet")) // By my name,
+        assertEquals(listOf(renamed), searchEnsemble(listOf(renamed, other), "farandole hoorn")) // and by its file name.
+        // Sorted by the name it shows: "Arlésienne.pdf" before "Bizet - …", though "Farandole-…" would come after.
+        assertEquals(listOf(other, renamed), sortedByPlace(listOf(renamed, other)))
+        assertEquals("Bizet - Farandole - F Horn 1", renamed.shownName)
+        assertEquals("Arlésienne.pdf", other.shownName)
+    }
+
+    @Test
+    fun aFileNameIsCleanedToStartANameFrom() {
+        assertEquals("Farandole - Hoorn in F", cleanName("Farandole-Hoorn_in_F.pdf"))
+        assertEquals("Er is nog zomer - Hoorn in F", cleanName("Er is nog zomer-Hoorn_in_F.pdf"))
+        assertEquals("Saint-Saëns - Danse macabre", cleanName("Saint-Saëns - Danse macabre.PDF")) // A spaced dash: hyphens stay.
+        assertEquals("Hymne", cleanName("  Hymne__.pdf"))
+        assertEquals("Trompet 1-2", cleanName("Trompet_1-2.pdf")) // A range keeps its dash,
+        assertEquals("Kerst 2024-12 - Hoorn", cleanName("Kerst_2024-12-Hoorn.Pdf")) // so does a date; any case of .pdf goes.
+    }
+
+    @Test
+    fun savingTheStartUnchangedKeepsFollowingTheFileName() {
+        val file = pdf("Farandole-Hoorn_in_F.pdf")
+        assertEquals(null, nl.imreboersma.volti.ui.chosenName(file, "Farandole - Hoorn in F")) // The cleaned start,
+        assertEquals(null, nl.imreboersma.volti.ui.chosenName(file, "Farandole-Hoorn_in_F.pdf")) // the file name,
+        assertEquals(null, nl.imreboersma.volti.ui.chosenName(file, "   ")) // or nothing: no name of my own.
+        assertEquals("Bizet - Farandole", nl.imreboersma.volti.ui.chosenName(file, " Bizet - Farandole "))
+        // Once I have a name, saving the cleaned one is a choice of mine.
+        val named = file.copy(displayName = "Bizet - Farandole")
+        assertEquals("Farandole - Hoorn in F", nl.imreboersma.volti.ui.chosenName(named, "Farandole - Hoorn in F"))
+    }
 }

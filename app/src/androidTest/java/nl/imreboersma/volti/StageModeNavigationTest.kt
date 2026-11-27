@@ -16,6 +16,7 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import java.io.File
+import nl.imreboersma.volti.ui.theme.VoltiTheme
 
 /** Stage mode in the real app: on in the reader, off in the library, whatever the navigation timing. */
 @RunWith(AndroidJUnit4::class)
@@ -45,7 +46,7 @@ class StageModeNavigationTest {
         scoreB = pdf("b.pdf")
         compose.setContent {
             nav = rememberNavController()
-            VoltiApp(nav)
+            VoltiTheme { VoltiApp(nav) } // As MainActivity shows it.
         }
         compose.waitForIdle()
     }

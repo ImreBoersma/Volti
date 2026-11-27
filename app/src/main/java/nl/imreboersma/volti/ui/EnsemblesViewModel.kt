@@ -338,6 +338,11 @@ class EnsembleViewModel(app: Application, private val handle: SavedStateHandle) 
         _notImported.value += problems
     }
 
+    /** My name for [file]; null: its file name again. */
+    fun rename(file: EnsembleFile, name: String?) {
+        viewModelScope.launch { db.files().rename(file.fileId, name) }
+    }
+
     /** An imported file goes, from its setlists too, with its marks. */
     fun delete(file: EnsembleFile) {
         viewModelScope.launch { syncer.delete(file) }

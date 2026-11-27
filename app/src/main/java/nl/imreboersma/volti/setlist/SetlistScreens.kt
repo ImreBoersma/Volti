@@ -31,6 +31,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -60,6 +63,8 @@ import nl.imreboersma.volti.Reader
 import nl.imreboersma.volti.db.EnsembleFile
 import nl.imreboersma.volti.ui.AppBackButton
 import nl.imreboersma.volti.ui.deviceName
+import nl.imreboersma.volti.ui.MoreMenu
+import nl.imreboersma.volti.ui.RenameFile
 import nl.imreboersma.volti.ui.theme.MaxContentWidth
 import java.text.DateFormat
 import java.util.Date
@@ -143,6 +148,7 @@ fun SetlistScreen(
     var adding by rememberSaveable { mutableStateOf(false) }
     var renaming by rememberSaveable { mutableStateOf(false) }
     var deleting by rememberSaveable { mutableStateOf(false) }
+    var renamingFile by rememberSaveable { mutableStateOf<String?>(null) }
 
     // The order on screen: one state for the screen's life, so a drag always works on the current list. It follows
     // the stored order, except during a drag: an update then (a sync) mustn't move the piece under the finger.
@@ -184,6 +190,7 @@ fun SetlistScreen(
                             number = index + 1,
                             piece = piece,
                             onRemove = { viewModel.remove(piece.fileId) },
+                            onRename = { renamingFile = piece.fileId },
                             onMove = { to ->
                                 order = order.moved(index, to)
                                 save()
@@ -230,6 +237,20 @@ fun SetlistScreen(
             }
         }
     }
+    renamingFile?.let { fileId ->
+        // Only once the pieces are in: back after the process ended, they are still loading.
+        pieces?.let { list ->
+            val file = list.firstOrNull { it.fileId == fileId }?.file
+            if (file == null) {
+                LaunchedEffect(fileId) { renamingFile = null } // Gone meanwhile.
+            } else {
+                RenameFile(file, onSave = { name ->
+                    viewModel.renameFile(fileId, name)
+                    renamingFile = null
+                }, onCancel = { renamingFile = null })
+            }
+        }
+    }
     if (adding) {
         AddPieces(candidates, onAdd = { ids ->
             adding = false
@@ -265,6 +286,7 @@ private fun PieceRow(
     index: Int,
     last: Int,
     onRemove: () -> Unit,
+    onRename: () -> Unit,
     onMove: (Int) -> Unit,
     handle: @Composable () -> Unit,
     modifier: Modifier = Modifier,
@@ -286,7 +308,7 @@ private fun PieceRow(
         handle()
         Text("$number", style = MaterialTheme.typography.titleMedium, modifier = Modifier.width(32.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(file?.name ?: "No longer in Google Drive", maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(file?.shownName ?: "No longer in Google Drive", maxLines = 1, overflow = TextOverflow.Ellipsis)
             val note = when {
                 file == null -> null
                 file.removed -> "Removed from Google Drive"
@@ -295,7 +317,11 @@ private fun PieceRow(
             }
             note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
-        TextButton(onClick = onRemove) { Text("Remove") }
+        MoreMenu(
+            "More for ${file?.shownName ?: "this piece"}",
+            // A piece whose file is gone has no name left to give.
+            listOfNotNull(("Rename" to onRename).takeIf { file != null }, "Remove from the setlist" to onRemove),
+        )
     }
 }
 
@@ -344,7 +370,7 @@ private fun AddPieces(candidates: List<EnsembleFile>, onAdd: (List<String>) -> U
                         ) {
                             Checkbox(checked = on, onCheckedChange = null)
                             Column(modifier = Modifier.padding(start = 8.dp)) {
-                                Text(file.name)
+                                Text(file.shownName)
                                 if (file.folders.isNotEmpty()) {
                                     Text(file.folders.joinToString(" / "), style = MaterialTheme.typography.bodySmall)
                                 }
@@ -375,6 +401,9 @@ private fun NameDialog(title: String, initial: String, confirm: String, onDone: 
                 onValueChange = { name = it },
                 label = { Text("Name, e.g. Concert 14 December") },
                 singleLine = true,
+                // Enter does what the button does (android.md).
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { if (name.isNotBlank()) onDone(name) }),
             )
         },
         confirmButton = { TextButton(onClick = { onDone(name) }, enabled = name.isNotBlank()) { Text(confirm) } },
