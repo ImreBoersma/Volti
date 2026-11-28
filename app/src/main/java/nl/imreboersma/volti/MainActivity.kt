@@ -60,6 +60,7 @@ import nl.imreboersma.volti.setlist.SetlistScreen
 import nl.imreboersma.volti.setlist.SetlistsSection
 import nl.imreboersma.volti.ui.AddEnsembleScreen
 import nl.imreboersma.volti.ui.HomeScreen
+import nl.imreboersma.volti.ui.PartsScreen
 import nl.imreboersma.volti.ui.ImportIntoScreen
 import nl.imreboersma.volti.ui.SettingsScreen
 import nl.imreboersma.volti.ui.ReaderScreen
@@ -85,6 +86,10 @@ data class ImportInto(val batch: String, val dropped: Int = 0)
 
 @Serializable
 object Settings
+
+/** My parts from every ensemble. [search]: opened to search through every part, with the keyboard up. */
+@Serializable
+data class Parts(val search: Boolean = false)
 
 /**
  * One ensemble's files; [id] is its row in the database. [importing]: a batch of copied-in PDFs to import here, into
@@ -225,6 +230,16 @@ fun VoltiApp(navController: NavHostController = rememberNavController(), shared:
                 // is only starting again.
                 onImportOldFolder = { batch -> navController.navigate(ImportInto(batch)) },
                 onOpenSettings = { go(Settings) },
+                onOpenParts = { search -> go(Parts(search)) },
+            )
+        }
+        composable<Parts> { entry ->
+            PartsScreen(
+                search = entry.toRoute<Parts>().search,
+                onOpenScore = { uri, scoreKey ->
+                    if (entry.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) navController.navigate(Reader(uri, scoreKey))
+                },
+                onBack = dropUnlessResumed { navController.popBackStack() },
             )
         }
         composable<Settings> {

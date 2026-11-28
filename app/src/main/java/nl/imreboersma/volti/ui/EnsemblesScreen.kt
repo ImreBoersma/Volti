@@ -506,7 +506,7 @@ private fun FoundList(files: List<EnsembleFile>, top: (@Composable ColumnScope.(
  * open it.
  */
 @Composable
-private fun FileRow(
+internal fun FileRow(
     file: EnsembleFile,
     new: Boolean,
     folders: String?,
@@ -585,7 +585,7 @@ private fun ImportReplaces(names: List<String>, onReplace: () -> Unit, onKeep: (
 }
 
 @Composable
-private fun DeleteImported(file: EnsembleFile, onDelete: () -> Unit, onCancel: () -> Unit) {
+internal fun DeleteImported(file: EnsembleFile, onDelete: () -> Unit, onCancel: () -> Unit) {
     AlertDialog(
         onDismissRequest = onCancel,
         title = { Text(stringResource(R.string.delete_title, file.shownName)) },

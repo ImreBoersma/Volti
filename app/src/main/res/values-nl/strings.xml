@@ -141,6 +141,10 @@
     <string name="import_pdfs_menu">Pdf\'s</string>
     <string name="import_folder_menu">Een map</string>
     <string name="search_ensemble">Zoeken in dit ensemble</string>
+    <string name="search_every_ensemble">Zoeken in alle ensembles</string>
+    <string name="search">Zoeken</string>
+    <string name="from_every_ensemble">Uit al je ensembles</string>
+    <string name="no_parts_yours">Er zijn nog geen partijen als de jouwe gemarkeerd. Tik in een ensemble op Jouw partij bij de partijen die je speelt.</string>
     <string name="clear">Wissen</string>
     <plurals name="shared_to_import">
         <item quantity="one">%1$s pdf om te importeren in %2$s</item>

@@ -181,6 +181,10 @@ interface EnsembleFileDao {
     @Query("SELECT * FROM ensemble_file WHERE ensembleId = :ensembleId")
     fun shown(ensembleId: Long): Flow<List<EnsembleFile>>
 
+    /** The files of every ensemble: to search them all, and for my parts from all of them. */
+    @Query("SELECT * FROM ensemble_file")
+    fun everywhere(): Flow<List<EnsembleFile>>
+
     @Query("SELECT * FROM ensemble_file WHERE ensembleId = :ensembleId")
     suspend fun all(ensembleId: Long): List<EnsembleFile>
 

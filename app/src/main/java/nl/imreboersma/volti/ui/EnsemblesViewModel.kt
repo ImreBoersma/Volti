@@ -14,7 +14,6 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import nl.imreboersma.volti.EnsembleFiles
 import nl.imreboersma.volti.data.EnsembleRow
@@ -214,8 +213,6 @@ class EnsembleViewModel(app: Application, private val handle: SavedStateHandle) 
         handle[QUERY] = query
     }
 
-    private val _fetching = MutableStateFlow<Set<String>>(emptySet())
-
     /** The files downloading right now, whatever for: the sync, to open one, or because I marked it mine. */
     val downloading: StateFlow<Set<String>> = syncer.downloading
 
@@ -224,39 +221,10 @@ class EnsembleViewModel(app: Application, private val handle: SavedStateHandle) 
     /** Why the last file I tapped didn't open, or what is wrong with the folder I picked to import. */
     val message: StateFlow<EnsembleMessage?> = _message.asStateFlow()
 
-    /**
-     * Opens the newest version on the device, once it is recorded as the one I saw: from then on it is kept, also
-     * while a later sync brings a newer one. One that isn't here is downloaded first, beside any other download: a
-     * file that is here opens meanwhile. One still downloading when another opened opens nothing when it's done (the
-     * screen isn't showing any more). The sync has stopped by the time the reader shows: none runs while reading.
-     */
-    fun open(file: EnsembleFile, onOpen: (uri: String, scoreKey: String) -> Unit) {
-        latest = file.fileId
-        if (file.fileId in _fetching.value) return // A second tap on the same file waits for the first.
-        _message.value = null
-        opening[file.fileId] = viewModelScope.launch {
-            // Through the store's lock also when it is here, so a sync can't delete it between the tap and the reader.
-            if (file.localMd5 == null) _fetching.update { it + file.fileId }
-            val problem = try {
-                syncer.fetch(id, file.fileId, open = true)
-            } finally {
-                _fetching.update { it - file.fileId }
-            }
-            opening.remove(file.fileId)
-            if (file.fileId != latest) return@launch // I tapped another meanwhile: that one opens, this one is here now.
-            val here = db.files().all(id).firstOrNull { it.fileId == file.fileId }?.seenMd5
-            when {
-                problem != null -> _message.value = EnsembleMessage.Open(problem)
-                here != null -> onOpen(Uri.fromFile(syncer.fileFor(here)).toString(), file.scoreKey)
-            }
-        }
-    }
+    private val opener = PartOpener(viewModelScope, db, syncer) { problem -> _message.value = problem?.let(EnsembleMessage::Open) }
 
-    /** The file I tapped last: only it opens, also when another one I tapped finishes downloading first. */
-    private var latest: String? = null
-
-    /** Downloads to open a file, by file id: they stop with the screen, as the sync does. */
-    private val opening = mutableMapOf<String, Job>()
+    /** See [PartOpener.open]. */
+    fun open(file: EnsembleFile, onOpen: (uri: String, scoreKey: String) -> Unit) = opener.open(file, onOpen)
 
     /**
      * PDFs another app shared, copied in already: the batch, to import into the folder I choose here. Kept until the
@@ -386,10 +354,7 @@ class EnsembleViewModel(app: Application, private val handle: SavedStateHandle) 
     /** The screen went away: no sync without it, and what is here now has been looked at. */
     fun left() {
         syncer.stop(owner = this)
-        // Downloads pause while reading: one still going to open a file stops too (its copy is cleaned up).
-        opening.values.toList().forEach { it.cancel() }
-        opening.clear()
-        latest = null
+        opener.stop()
         syncer.looked(id, System.currentTimeMillis())
     }
 

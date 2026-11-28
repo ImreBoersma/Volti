@@ -123,6 +123,15 @@ Built:
 - Every text from `strings.xml`: whole sentences, plurals, one phrase per device, numbers in the language's format.
 - A Dutch translation, and Language in Settings (System, English, Nederlands); tests always run in English.
 
+### Milestone 11: search across ensembles (2026-11-28)
+
+Decisions: a search button on the library opens its own screen; it finds every part in every ensemble, also ones not on the device, mine first, each naming its ensemble (whose name counts as a folder in the search). The same screen without a search is "Your parts": my parts from every ensemble, by name. It doesn't sync: that stays the library's and an ensemble's. A part I tick or untick there keeps its place until I leave, so a slip is undone where it happened.
+
+Built:
+
+- A search icon on the library, and "Your parts" above the ensembles; rows as in an ensemble (download, Your part, Rename, Delete).
+- Opening a part is one piece of code for both screens (`PartOpener`), keyed by ensemble and file, since one Drive file can be in two ensembles.
+
 ## To verify
 
 - ~~On Android 15 and up, `PdfRenderer` is believed to be updated through Google Play system updates.~~ Confirmed 2026-11-25: the tablet's firmware patch is 2025-06-01 (no longer patched), but the MediaProvider module with `PdfRendererPreV` and its own PDFium is on the 2026 Play train. Hence `PdfRendererPreV` on Android 14.
@@ -137,12 +146,12 @@ Built:
   - Milestone 8: a fingering drawn at four times in place at the whole page; sharp at four times; green kept for the next part.
   - Milestone 9: a first sync of a big folder: files open meanwhile, sheets come in one by one.
   - Milestone 10: every screen in Dutch at font scale 2.0. Choices to review: Delete = Verwijderen, Remove = Weghalen, Clear = Wissen; Rename = Hernoemen; "1 partij is waarschijnlijk van jou"; Up to date = Bijgewerkt; Play = Spelen; Undo = Ongedaan maken (long); "Gecontroleerd" for Marks checked; the symbol names (Ademteken, Herstellingsteken, Let op de dirigent, Gum, Kruis, Mol).
+  - Milestone 11: a part found from the library's search and opened; my parts from two ensembles in one list.
 
 ## Later milestones (not planned yet)
 
 - Learn my parts from my corrections. Every suggestion I accept or turn down, and every file I mark by hand, is stored per file already; a later version can learn from those which names mean my part (a new abbreviation, an orchestra's own naming) instead of relying on the fixed word list.
 
-- Search across ensembles, and a list of all my files, local and from every ensemble, in one place.
 - Page-turner pedal: Bluetooth page turners send key presses. (Was milestone 2, step 3; not wanted now.)
 - Play order and jump markers, stored alongside the PDF.
 - System-by-system view.
