@@ -42,6 +42,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.pluralStringResource
@@ -291,7 +292,7 @@ fun HomeScreen(
                         .padding(vertical = 12.dp),
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(ensemble.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                        Text(ensemble.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, maxLines = NAME_LINES, overflow = TextOverflow.Ellipsis)
                         Text(ensemble.instrument, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text(
                             if (ensemble.folderId == null) {
@@ -317,7 +318,7 @@ fun HomeScreen(
                 item { Heading(stringResource(device().pick(R.string.on_this_tablet, R.string.on_this_phone, R.string.on_this_device))) }
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 12.dp)) {
-                        Text(folder.name ?: stringResource(R.string.folder), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                        Text(folder.name ?: stringResource(R.string.folder), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, maxLines = NAME_LINES, overflow = TextOverflow.Ellipsis)
                         Text(stringResource(R.string.old_folder_text))
                         folderProblem?.let {
                             val text = when (it) {

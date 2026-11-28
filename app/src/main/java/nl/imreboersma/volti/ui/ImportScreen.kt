@@ -18,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.pluralStringResource
@@ -80,7 +81,7 @@ fun ImportIntoScreen(
                             .clickable(onClickLabel = stringResource(R.string.import_into, ensemble.name)) { onChoose(ensemble.id) }
                             .padding(vertical = 12.dp),
                     ) {
-                        Text(ensemble.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                        Text(ensemble.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, maxLines = NAME_LINES, overflow = TextOverflow.Ellipsis)
                         Text(ensemble.instrument, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     HorizontalDivider()

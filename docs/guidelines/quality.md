@@ -64,4 +64,4 @@ Google asks apps to keep data across backups and device transfers (`App_Data_Bac
 
 ## Not yet following this
 
-- Names from outside have no line limit in list rows and dialogues (`HomeScreen.kt`, `EnsemblesScreen.kt`, `ImportScreen.kt`, `FileMenu.kt`, `SettingsScreen.kt`); only the setlist screens cap them. See [bugs/triage.md](../bugs/triage.md).
+Nothing known.

@@ -32,6 +32,12 @@ import nl.imreboersma.volti.data.cleanName
 import nl.imreboersma.volti.db.EnsembleFile
 
 /**
+ * The most lines a name from outside Volti takes (a Drive file or folder, a shared PDF): one with line breaks or
+ * thousands of characters mustn't push the parts I need off the stand. The Rename dialogue shows the whole file name.
+ */
+const val NAME_LINES = 2
+
+/**
  * The ⋮ at the end of a file's row: what I can do with it besides opening it, so the row keeps room for its name.
  * [items]: label and action. Drawn, as there is no icon library.
  */
