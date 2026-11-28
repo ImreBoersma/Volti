@@ -8,6 +8,7 @@ import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.Button
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -211,8 +212,15 @@ fun PartsScreen(
             problem?.let { Text(fileProblemText(res, it), color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(bottom = 8.dp)) }
             // A part that isn't here needs Google Drive: the way to sign in, where it was asked for.
             needsConsent?.let { intent ->
-                Button(onClick = { consent.launch(IntentSenderRequest.Builder(intent).build()) }, modifier = Modifier.padding(bottom = 8.dp)) {
-                    Text(stringResource(R.string.sign_in_to_drive))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.padding(bottom = 8.dp),
+                ) {
+                    Text(stringResource(R.string.drive_signed_out), modifier = Modifier.weight(1f, fill = false))
+                    Button(onClick = { consent.launch(IntentSenderRequest.Builder(intent).build()) }) {
+                        Text(stringResource(R.string.sign_in_to_drive))
+                    }
                 }
             }
             renaming?.let { key ->
