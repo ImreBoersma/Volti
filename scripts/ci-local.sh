@@ -41,6 +41,8 @@ for scale in window_animation_scale transition_animation_scale animator_duration
     "$ADB" -s "$SERIAL" shell settings put global "$scale" 0
 done
 "$ADB" -s "$SERIAL" shell settings put secure immersive_mode_confirmations confirmed
+# As CI: no error dialogs, so a launcher that stops responding doesn't take the focus.
+"$ADB" -s "$SERIAL" shell settings put global hide_error_dialogs 1
 
 echo "== Instrumented tests"
 if ! ANDROID_SERIAL="$SERIAL" ./gradlew -q connectedMinifiedAndroidTest; then

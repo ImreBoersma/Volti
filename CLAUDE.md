@@ -39,7 +39,7 @@ scripts/ci-local.sh                         # what CI does, on this Mac: unit te
 
 Every push runs `scripts/ci-local.sh` first through the pre-push hook (`scripts/install-hooks.sh`, once per clone); a push of only Markdown skips it. When `.github/workflows/ci.yml` changes, change the script with it.
 
-A step is done when its "Done when" in `plan.md` is checked on the tablet, not only in tests.
+A step is done when GitHub Actions' CI passes on its commit, both jobs (`check` and `instrumented`). A run that fails means the step isn't done: find out why, fix it, push, and wait for the next run. A run cancelled by a newer push counts through that newer run. The "Done when" in `plan.md` is checked on the tablet when the musician gets to it; it no longer holds a step back.
 
 ## Commits
 

@@ -588,8 +588,9 @@ The instrumented suite passes on the emulator (272 tests). Not yet: reading ever
 
 Per step:
 
-1. Claude writes the code and checks the step's "Done when" on the tablet.
+1. Claude writes the code, and checks it on the emulator (since 2026-11-27; the tablet when asked).
 2. Claude writes tests for the step's logic and runs them on the tablet. Unit tests for pure logic, instrumented tests for anything touching Android (DataStore, ContentResolver, `PdfRenderer`). No tests that drive the system folder picker. A bug fix comes with a test that failed before it. See [testing.md](docs/guidelines/testing.md).
 3. A separate agent reviews the change and names the three most serious issues, without rewrites. It also checks that the tests cover the step's "Done when".
 4. Claude fixes every issue the review finds, without asking first (since 2026-11-25), and reports what was fixed and how.
-5. Commit and push to `main`.
+5. Commit and push to `main`; the pre-push hook runs CI on the Mac first.
+6. Wait for GitHub Actions on that commit. The step is done when it passes; when it fails, find out why, fix it and push again (since 2026-11-28). The "Done when" is checked on the tablet when the musician gets to it.
