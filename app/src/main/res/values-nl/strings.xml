@@ -216,9 +216,12 @@
     <string name="no_ensembles">Nog geen. Voeg er een toe vanuit de bibliotheek.</string>
     <string name="what_you_play">Wat je speelt</string>
     <string name="remove_title">%1$s weghalen?</string>
-    <string name="remove_ensemble_text_tablet">De partijen, en welke daarvan van jou zijn, worden van deze tablet verwijderd. De map in Google Drive blijft zoals hij is.</string>
-    <string name="remove_ensemble_text_phone">De partijen, en welke daarvan van jou zijn, worden van deze telefoon verwijderd. De map in Google Drive blijft zoals hij is.</string>
-    <string name="remove_ensemble_text_device">De partijen, en welke daarvan van jou zijn, worden van dit apparaat verwijderd. De map in Google Drive blijft zoals hij is.</string>
+    <string name="remove_ensemble_text_tablet">De partijen, en welke daarvan van jou zijn, worden van deze tablet verwijderd. De map in Google Drive blijft zoals hij is. Je aantekeningen en namen bij de partijen uit Drive blijven ook: voeg de map opnieuw toe en ze komen terug.</string>
+    <string name="remove_ensemble_text_phone">De partijen, en welke daarvan van jou zijn, worden van deze telefoon verwijderd. De map in Google Drive blijft zoals hij is. Je aantekeningen en namen bij de partijen uit Drive blijven ook: voeg de map opnieuw toe en ze komen terug.</string>
+    <string name="remove_ensemble_text_device">De partijen, en welke daarvan van jou zijn, worden van dit apparaat verwijderd. De map in Google Drive blijft zoals hij is. Je aantekeningen en namen bij de partijen uit Drive blijven ook: voeg de map opnieuw toe en ze komen terug.</string>
+    <string name="remove_imports_text_tablet">De partijen worden van deze tablet verwijderd, met je aantekeningen erop. Importeer ze opnieuw om ze te gebruiken; je aantekeningen komen niet terug.</string>
+    <string name="remove_imports_text_phone">De partijen worden van deze telefoon verwijderd, met je aantekeningen erop. Importeer ze opnieuw om ze te gebruiken; je aantekeningen komen niet terug.</string>
+    <string name="remove_imports_text_device">De partijen worden van dit apparaat verwijderd, met je aantekeningen erop. Importeer ze opnieuw om ze te gebruiken; je aantekeningen komen niet terug.</string>
 
     <!-- The reader. -->
     <string name="next_page">Volgende pagina</string>

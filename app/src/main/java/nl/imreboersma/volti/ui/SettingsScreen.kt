@@ -30,6 +30,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -199,9 +200,15 @@ private fun EnsembleSettings(ensemble: Ensemble, onSave: (Ensemble, String, Stri
     if (confirming) {
         AlertDialog(
             onDismissRequest = { confirming = false },
-            title = { Text(stringResource(R.string.remove_title, ensemble.name)) },
+            title = { Text(stringResource(R.string.remove_title, ensemble.name), maxLines = NAME_LINES, overflow = TextOverflow.Ellipsis) },
             text = {
-                Text(stringResource(device().pick(R.string.remove_ensemble_text_tablet, R.string.remove_ensemble_text_phone, R.string.remove_ensemble_text_device)))
+                // What goes, and what stays to come back: marks on Drive's parts do, imported parts can't.
+                val text = if (ensemble.folderId != null) {
+                    device().pick(R.string.remove_ensemble_text_tablet, R.string.remove_ensemble_text_phone, R.string.remove_ensemble_text_device)
+                } else {
+                    device().pick(R.string.remove_imports_text_tablet, R.string.remove_imports_text_phone, R.string.remove_imports_text_device)
+                }
+                Text(stringResource(text))
             },
             confirmButton = {
                 TextButton(onClick = {

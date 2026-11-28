@@ -235,9 +235,12 @@
     <string name="no_ensembles">None yet. Add one from the library.</string>
     <string name="what_you_play">What you play</string>
     <string name="remove_title">Remove %1$s?</string>
-    <string name="remove_ensemble_text_tablet">Its parts and which of them are yours are deleted from this tablet. The folder in Google Drive stays as it is.</string>
-    <string name="remove_ensemble_text_phone">Its parts and which of them are yours are deleted from this phone. The folder in Google Drive stays as it is.</string>
-    <string name="remove_ensemble_text_device">Its parts and which of them are yours are deleted from this device. The folder in Google Drive stays as it is.</string>
+    <string name="remove_ensemble_text_tablet">Its parts and which of them are yours are deleted from this tablet. The folder in Google Drive stays as it is. Your marks and names on its parts from Drive stay too: add the folder again and they come back.</string>
+    <string name="remove_ensemble_text_phone">Its parts and which of them are yours are deleted from this phone. The folder in Google Drive stays as it is. Your marks and names on its parts from Drive stay too: add the folder again and they come back.</string>
+    <string name="remove_ensemble_text_device">Its parts and which of them are yours are deleted from this device. The folder in Google Drive stays as it is. Your marks and names on its parts from Drive stay too: add the folder again and they come back.</string>
+    <string name="remove_imports_text_tablet">Its parts are deleted from this tablet, with your marks on them. Import them again to use them; your marks don\'t come back.</string>
+    <string name="remove_imports_text_phone">Its parts are deleted from this phone, with your marks on them. Import them again to use them; your marks don\'t come back.</string>
+    <string name="remove_imports_text_device">Its parts are deleted from this device, with your marks on them. Import them again to use them; your marks don\'t come back.</string>
 
     <!-- The reader. -->
     <string name="next_page">Next page</string>

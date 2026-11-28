@@ -60,5 +60,4 @@ All three are in internal storage and excluded from backup and device transfer (
 
 ## Not yet following this
 
-- The delete dialogue for an ensemble (`SettingsScreen.kt`) doesn't say my marks are kept.
 - There are no ink fixtures or a decode test yet.
