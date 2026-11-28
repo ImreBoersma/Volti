@@ -60,4 +60,4 @@ All three are in internal storage and excluded from backup and device transfer (
 
 ## Not yet following this
 
-- There are no ink fixtures or a decode test yet.
+Nothing known.
