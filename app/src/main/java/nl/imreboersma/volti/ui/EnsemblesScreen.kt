@@ -229,8 +229,9 @@ fun EnsembleScreen(
                     Text(
                         (listOfNotNull(ensemble?.instrument) + if (view is EnsembleView.Folder) path else emptyList()).joinToString(" / "),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = NAME_LINES,
-                        overflow = TextOverflow.Ellipsis,
+                        // Cut from the front: the folder I'm in is the end of the path.
+                        maxLines = 1,
+                        overflow = TextOverflow.StartEllipsis,
                     )
                 }
                 Box {

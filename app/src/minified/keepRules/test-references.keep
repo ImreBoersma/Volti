@@ -927,9 +927,13 @@
     #noinspection ShrinkerUnresolvedReference
     androidx.compose.ui.text.TextLayoutInput getLayoutInput();
     #noinspection ShrinkerUnresolvedReference
+    int getLineCount();
+    #noinspection ShrinkerUnresolvedReference
     int getLineEnd$default(androidx.compose.ui.text.TextLayoutResult, int, boolean, int, java.lang.Object);
     #noinspection ShrinkerUnresolvedReference
     int getLineForOffset(int);
+    #noinspection ShrinkerUnresolvedReference
+    boolean isLineEllipsized(int);
 }
 #noinspection ShrinkerUnresolvedReference
 -keep class androidx.compose.ui.text.TextRange {
@@ -1265,13 +1269,35 @@
 #noinspection ShrinkerUnresolvedReference
 -keep class androidx.ink.brush.BrushFamily
 #noinspection ShrinkerUnresolvedReference
--keep class androidx.ink.brush.InputToolType
+-keep class androidx.ink.brush.InputToolType {
+    #noinspection ShrinkerUnresolvedReference
+    androidx.ink.brush.InputToolType STYLUS;
+}
 #noinspection ShrinkerUnresolvedReference
 -keep class androidx.ink.brush.StockBrushes$PressurePenVersion
 #noinspection ShrinkerUnresolvedReference
 -keep class androidx.ink.brush.StockBrushes {
     #noinspection ShrinkerUnresolvedReference
     androidx.ink.brush.BrushFamily pressurePen$default(androidx.ink.brush.StockBrushes$PressurePenVersion, int, java.lang.Object);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.ink.geometry.PartitionedMesh {
+    #noinspection ShrinkerUnresolvedReference
+    int getRenderGroupCount();
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.ink.storage.StrokeInputBatchExtensions {
+    #noinspection ShrinkerUnresolvedReference
+    androidx.ink.strokes.ImmutableStrokeInputBatch decode(androidx.ink.strokes.StrokeInputBatch$Companion, java.io.InputStream);
+    #noinspection ShrinkerUnresolvedReference
+    void encode(androidx.ink.strokes.StrokeInputBatch, java.io.OutputStream);
+}
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.ink.strokes.ImmutableStrokeInputBatch {
+    #noinspection ShrinkerUnresolvedReference
+    int getSize();
+    #noinspection ShrinkerUnresolvedReference
+    androidx.ink.strokes.StrokeInput populate(int, androidx.ink.strokes.StrokeInput);
 }
 #noinspection ShrinkerUnresolvedReference
 -keep class androidx.ink.strokes.MutableStrokeInputBatch {
@@ -1284,6 +1310,8 @@
 -keep class androidx.ink.strokes.Stroke {
     #noinspection ShrinkerUnresolvedReference
     <init>(androidx.ink.brush.Brush, androidx.ink.strokes.StrokeInputBatch);
+    #noinspection ShrinkerUnresolvedReference
+    androidx.ink.geometry.PartitionedMesh getShape();
 }
 #noinspection ShrinkerUnresolvedReference
 -keep class androidx.ink.strokes.StrokeInput$Companion {
@@ -1293,10 +1321,29 @@
 #noinspection ShrinkerUnresolvedReference
 -keep class androidx.ink.strokes.StrokeInput {
     #noinspection ShrinkerUnresolvedReference
+    <init>();
+    #noinspection ShrinkerUnresolvedReference
     androidx.ink.strokes.StrokeInput$Companion Companion;
+    #noinspection ShrinkerUnresolvedReference
+    long getElapsedTimeMillis();
+    #noinspection ShrinkerUnresolvedReference
+    float getOrientationRadians();
+    #noinspection ShrinkerUnresolvedReference
+    float getPressure();
+    #noinspection ShrinkerUnresolvedReference
+    float getTiltRadians();
+    #noinspection ShrinkerUnresolvedReference
+    float getX();
+    #noinspection ShrinkerUnresolvedReference
+    float getY();
 }
 #noinspection ShrinkerUnresolvedReference
--keep class androidx.ink.strokes.StrokeInputBatch
+-keep class androidx.ink.strokes.StrokeInputBatch$Companion
+#noinspection ShrinkerUnresolvedReference
+-keep class androidx.ink.strokes.StrokeInputBatch {
+    #noinspection ShrinkerUnresolvedReference
+    androidx.ink.strokes.StrokeInputBatch$Companion Companion;
+}
 #noinspection ShrinkerUnresolvedReference
 -keep class androidx.lifecycle.Lifecycle$Event {
     #noinspection ShrinkerUnresolvedReference
@@ -3185,6 +3232,8 @@
     #noinspection ShrinkerUnresolvedReference
     kotlinx.coroutines.flow.Flow everywhere();
     #noinspection ShrinkerUnresolvedReference
+    java.lang.Object forgetName(java.lang.String, kotlin.coroutines.Continuation);
+    #noinspection ShrinkerUnresolvedReference
     java.lang.Object forgetUnused(long, kotlin.coroutines.Continuation);
     #noinspection ShrinkerUnresolvedReference
     java.lang.Object opened(long, java.lang.String, java.lang.String, kotlin.coroutines.Continuation);
@@ -3325,6 +3374,8 @@
     kotlinx.coroutines.Deferred receive$default(nl.imreboersma.volti.drive.Syncer, java.util.List, java.util.List, boolean, java.lang.Long, kotlin.jvm.functions.Function2, int, java.lang.Object);
     #noinspection ShrinkerUnresolvedReference
     java.lang.Object received(java.lang.String, kotlin.coroutines.Continuation);
+    #noinspection ShrinkerUnresolvedReference
+    java.lang.Object remove(nl.imreboersma.volti.db.Ensemble, kotlin.coroutines.Continuation);
 }
 #noinspection ShrinkerUnresolvedReference
 -keep class nl.imreboersma.volti.render.IsolatedRendererKt {

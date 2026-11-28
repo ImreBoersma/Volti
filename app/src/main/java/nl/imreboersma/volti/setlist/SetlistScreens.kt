@@ -1,5 +1,6 @@
 package nl.imreboersma.volti.setlist
 
+import nl.imreboersma.volti.ui.NAME_LINES
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -399,9 +400,9 @@ private fun AddPieces(candidates: List<EnsembleFile>, onAdd: (List<String>) -> U
                         ) {
                             Checkbox(checked = on, onCheckedChange = null)
                             Column(modifier = Modifier.padding(start = 8.dp)) {
-                                Text(file.shownName)
+                                Text(file.shownName, maxLines = NAME_LINES, overflow = TextOverflow.Ellipsis)
                                 if (file.folders.isNotEmpty()) {
-                                    Text(file.folders.joinToString(" / "), style = MaterialTheme.typography.bodySmall)
+                                    Text(file.folders.joinToString(" / "), style = MaterialTheme.typography.bodySmall, maxLines = NAME_LINES, overflow = TextOverflow.Ellipsis)
                                 }
                             }
                         }
