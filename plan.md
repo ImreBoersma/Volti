@@ -143,7 +143,6 @@ Built:
 - Learn my parts from my corrections. Every suggestion I accept or turn down, and every file I mark by hand, is stored per file already; a later version can learn from those which names mean my part (a new abbreviation, an orchestra's own naming) instead of relying on the fixed word list.
 
 - Search across ensembles, and a list of all my files, local and from every ensemble, in one place.
-- Remember the page per score, also across process death. (Was milestone 2, step 2; not wanted now.)
 - Page-turner pedal: Bluetooth page turners send key presses. (Was milestone 2, step 3; not wanted now.)
 - Play order and jump markers, stored alongside the PDF.
 - System-by-system view.
@@ -153,6 +152,7 @@ Built:
 
 - IMSLP catalogue browsing.
 - On-device optical music recognition.
+- Remembering the page per score (was milestone 2, step 2).
 
 ## Reference
 
