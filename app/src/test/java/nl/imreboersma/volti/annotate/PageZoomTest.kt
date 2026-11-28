@@ -48,4 +48,21 @@ class PageZoomTest {
         zoom.transform(Offset(500f, 800f), Offset.Zero, 2f, 1000f, 1600f)
         assertEquals(2f, zoom.scale)
     }
+
+    @Test
+    fun withoutFingersItZoomsTwiceThenFourTimesAroundTheMiddle() {
+        val zoom = PageZoom()
+        zoom.measured(1000f, 1600f)
+        val middle = Offset(500f, 800f)
+        zoom.zoomIn()
+        assertEquals(2f, zoom.scale)
+        assertEquals(middle, shown(zoom, middle)) // The middle of the page stays in the middle.
+        zoom.zoomIn()
+        assertEquals(MAX_ZOOM, zoom.scale)
+        assertEquals(middle, shown(zoom, middle))
+        zoom.zoomIn()
+        assertEquals(MAX_ZOOM, zoom.scale) // No further.
+        zoom.reset()
+        assertEquals(1f, zoom.scale)
+    }
 }

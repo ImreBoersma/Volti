@@ -154,8 +154,14 @@ class PdfStore(private val dir: File, private val freeBytes: () -> Long) {
         }
     }
 
-    /** A [receive]d copy, by its file name. */
-    fun incoming(name: String) = File(incoming, File(name).name)
+    /**
+     * A [receive]d copy, or an import's list, by its file name. The folder is there also when nothing was copied: a
+     * share that couldn't be read still has a list, saying so.
+     */
+    fun incoming(name: String): File {
+        incoming.mkdirs()
+        return File(incoming, File(name).name)
+    }
 
     /** Copies from before [olderThan]: never imported, never let go. */
     fun clearIncoming(olderThan: Long) {

@@ -104,7 +104,8 @@ fun importProgressText(res: Resources, progress: ImportProgress): String = when 
 }
 
 /** Per PDF that an import couldn't take in, why, in my terms: one sentence each. */
-fun notImportedText(res: Resources, problems: List<Pair<String, Rejection>>, device: Device) = problems.joinToString("\n") { (name, why) ->
+fun notImportedText(res: Resources, problems: List<Pair<String, Rejection>>, device: Device) = problems.joinToString("\n") { (raw, why) ->
+    val name = inSentence(raw)
     when (why) {
         Rejection.TooLarge -> res.getString(R.string.not_imported_too_large, name, count(res, (MAX_PDF_BYTES / 1024 / 1024).toInt()))
         Rejection.NotAPdf, Rejection.WrongChecksum -> res.getString(R.string.not_imported_not_a_pdf, name)

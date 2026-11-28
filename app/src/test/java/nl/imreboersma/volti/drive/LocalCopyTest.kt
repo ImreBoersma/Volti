@@ -222,4 +222,12 @@ class LocalCopyTest {
         store.keepOnly(setOf(v2))
         assertEquals(listOf("$v2.pdf"), dir.list()!!.toList())
     }
+
+    /** A share that couldn't be read copies nothing: its list (of what couldn't be read) is still written. */
+    @Test
+    fun anImportsListCanBeWrittenBeforeAnythingWasCopied() {
+        val store = PdfStore(tmp.newFolder("fresh")) { Long.MAX_VALUE }
+        store.incoming("batch-1.tmp").writeText("{}")
+        assertTrue(store.incoming("batch-1.tmp").isFile)
+    }
 }

@@ -298,10 +298,10 @@ private fun InkInput(pageIndex: Int, geometry: PageGeometry, viewModel: Annotati
 
 /**
  * The reader's annotation controls: a corner button to start, then a toolbar with the pen's colours, the eraser,
- * undo and done. While the toolbar is out, a finger draws.
+ * zoom, undo and done. While the toolbar is out, a finger draws. [zoom]: the one two fingers change too.
  */
 @Composable
-fun BoxScope.AnnotationControls(viewModel: AnnotationViewModel, onOpenPrevious: (uri: String) -> Unit) {
+fun BoxScope.AnnotationControls(viewModel: AnnotationViewModel, zoom: PageZoom, onOpenPrevious: (uri: String) -> Unit) {
     val annotating by viewModel.annotating.collectAsStateWithLifecycle()
     val change by viewModel.change.collectAsStateWithLifecycle()
     val notSaved by MarkWrites.problem.collectAsStateWithLifecycle()
@@ -463,6 +463,9 @@ fun BoxScope.AnnotationControls(viewModel: AnnotationViewModel, onOpenPrevious: 
                 },
                 label = { Text(stringResource(R.string.eraser)) },
             )
+            // What two fingers do, for who can't use them: TalkBack, a keyboard, a switch (android.md).
+            TextButton(onClick = zoom::zoomIn, enabled = zoom.allowed && zoom.scale < MAX_ZOOM) { Text(stringResource(R.string.zoom_in), color = colors.message) }
+            TextButton(onClick = zoom::reset, enabled = zoom.zoomed) { Text(stringResource(R.string.whole_page), color = colors.message) }
             TextButton(onClick = viewModel::undo, enabled = canUndo) { Text(stringResource(R.string.undo), color = colors.message) }
             TextButton(onClick = { atTop = !atTop }) { Text(stringResource(if (atTop) R.string.move_down else R.string.move_up), color = colors.message) }
             TextButton(onClick = {

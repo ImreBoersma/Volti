@@ -58,3 +58,31 @@ fun cleanName(fileName: String): String {
     val dashed = if (" - " in name) name else name.replace(Regex("""(?<!\d)\s*-\s*|\s*-\s*(?!\d)"""), " - ")
     return dashed.replace(Regex("""\s+"""), " ").trim()
 }
+
+/** A part and the name of the ensemble it is in: how a list across ensembles shows it. */
+data class PartIn(val file: EnsembleFile, val ensemble: String)
+
+/**
+ * The parts in every ensemble that match [query], as an ensemble's own search does, its name counting as one more
+ * folder on the way ("harmonie farandole"). Mine first: those are what I look for most. Then by name. [mine]: whether
+ * a part counts as mine here (see [myParts]).
+ */
+fun searchEverywhere(parts: List<PartIn>, query: String, mine: (EnsembleFile) -> Boolean = { it.mine }): List<PartIn> {
+    val words = searchWords(query)
+    val found = parts.filter { matchesWords(words, (listOf(it.ensemble) + it.file.folders + it.file.name + listOfNotNull(it.file.displayName)).map(::searchable)) }
+    return byName(found).sortedByDescending { mine(it.file) }
+}
+
+/**
+ * My parts from every ensemble, by name. [mine]: whether a part counts as mine here; the screen keeps one I untick
+ * where it was until I leave, so a slip of the finger doesn't take it out from under me.
+ */
+fun myParts(parts: List<PartIn>, mine: (EnsembleFile) -> Boolean = { it.mine }): List<PartIn> = byName(parts.filter { mine(it.file) })
+
+/** By the name it shows, then its ensemble and folder: the same part in two ensembles stays together. */
+private fun byName(parts: List<PartIn>): List<PartIn> {
+    val order = NaturalOrder()
+    return parts.sortedWith(
+        compareBy<PartIn, String>(order) { it.file.shownName }.thenBy(order) { it.ensemble }.thenBy(order) { it.file.folders.joinToString("\u0000") },
+    )
+}

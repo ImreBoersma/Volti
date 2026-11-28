@@ -148,6 +148,10 @@
     <string name="import_pdfs_menu">PDFs</string>
     <string name="import_folder_menu">A folder</string>
     <string name="search_ensemble">Search this ensemble</string>
+    <string name="search_every_ensemble">Search every ensemble</string>
+    <string name="search">Search</string>
+    <string name="from_every_ensemble">From every ensemble</string>
+    <string name="no_parts_yours">No parts are marked as yours yet. In an ensemble, tap Your part next to the parts you play.</string>
     <string name="clear">Clear</string>
     <!-- %2$s: the ensemble's name, or the folder path in it. -->
     <plurals name="shared_to_import">
@@ -231,9 +235,12 @@
     <string name="no_ensembles">None yet. Add one from the library.</string>
     <string name="what_you_play">What you play</string>
     <string name="remove_title">Remove %1$s?</string>
-    <string name="remove_ensemble_text_tablet">Its parts and which of them are yours are deleted from this tablet. The folder in Google Drive stays as it is.</string>
-    <string name="remove_ensemble_text_phone">Its parts and which of them are yours are deleted from this phone. The folder in Google Drive stays as it is.</string>
-    <string name="remove_ensemble_text_device">Its parts and which of them are yours are deleted from this device. The folder in Google Drive stays as it is.</string>
+    <string name="remove_ensemble_text_tablet">Its parts and which of them are yours are deleted from this tablet. The folder in Google Drive stays as it is. Your marks and names on its parts from Drive stay too: add the folder again and they come back.</string>
+    <string name="remove_ensemble_text_phone">Its parts and which of them are yours are deleted from this phone. The folder in Google Drive stays as it is. Your marks and names on its parts from Drive stay too: add the folder again and they come back.</string>
+    <string name="remove_ensemble_text_device">Its parts and which of them are yours are deleted from this device. The folder in Google Drive stays as it is. Your marks and names on its parts from Drive stay too: add the folder again and they come back.</string>
+    <string name="remove_imports_text_tablet">Parts you imported are deleted from this tablet, with your marks on them. To use them again, import them again.</string>
+    <string name="remove_imports_text_phone">Parts you imported are deleted from this phone, with your marks on them. To use them again, import them again.</string>
+    <string name="remove_imports_text_device">Parts you imported are deleted from this device, with your marks on them. To use them again, import them again.</string>
 
     <!-- The reader. -->
     <string name="next_page">Next page</string>
@@ -260,6 +267,8 @@
     <string name="symbols">Symbols</string>
     <string name="eraser">Eraser</string>
     <string name="undo">Undo</string>
+    <string name="zoom_in">Zoom in</string>
+    <string name="whole_page">Whole page</string>
     <string name="done">Done</string>
     <string name="part_changed">This part changed since you made your marks. Check that they still fit.</string>
     <string name="previous_version">Previous version</string>

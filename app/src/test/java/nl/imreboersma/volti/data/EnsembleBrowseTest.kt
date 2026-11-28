@@ -97,4 +97,37 @@ class EnsembleBrowseTest {
         val named = file.copy(displayName = "Bizet - Farandole")
         assertEquals("Farandole - Hoorn in F", nl.imreboersma.volti.ui.chosenName(named, "Farandole - Hoorn in F"))
     }
+
+    @Test
+    fun everyEnsembleIsSearchedWithMyPartsFirstAndItsNameAsAFolder() {
+        val harmonie = files.map { PartIn(it, "Harmonie") }
+        val bigBand = PartIn(pdf("Despacito - Trompet 1.pdf").copy(ensembleId = 2, mine = true), "Big Band")
+        val all = harmonie + bigBand
+        // Mine first, then by name.
+        assertEquals(
+            listOf("Despacito - Trompet 1.pdf", "Despacito - Hoorn 2.pdf"),
+            searchEverywhere(all, "despacito").map { it.file.name },
+        )
+        // The ensemble's name narrows it down like a folder.
+        assertEquals(listOf("Despacito - Trompet 1.pdf"), searchEverywhere(all, "big despacito").map { it.file.name })
+        assertEquals(listOf("Hymne.pdf"), searchEverywhere(all, "harmonie concert").map { it.file.name })
+        assertEquals(emptyList<PartIn>(), searchEverywhere(all, "   "))
+    }
+
+    @Test
+    fun myPartsFromEveryEnsembleByTheNameTheyShow() {
+        val a = PartIn(pdf("Zomer.pdf").copy(mine = true, displayName = "Avond"), "Harmonie")
+        val b = PartIn(pdf("Bolero.pdf").copy(ensembleId = 2, mine = true), "Big Band")
+        val notMine = PartIn(pdf("Alles.pdf"), "Harmonie")
+        assertEquals(listOf(a, b), myParts(listOf(b, notMine, a)))
+    }
+
+    @Test
+    fun aPartKeepsItsPlaceAsTheScreenSaysItIsMine() {
+        val unticked = PartIn(pdf("Bolero.pdf"), "Harmonie") // Was mine when the screen opened.
+        val other = PartIn(pdf("Alles.pdf"), "Harmonie")
+        val wasMine = { file: EnsembleFile -> file == unticked.file }
+        assertEquals(listOf(unticked), myParts(listOf(other, unticked), wasMine))
+        assertEquals(listOf(unticked, other), searchEverywhere(listOf(other, unticked), "pdf", wasMine))
+    }
 }

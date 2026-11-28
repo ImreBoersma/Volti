@@ -1,5 +1,7 @@
 package nl.imreboersma.volti.ui
 
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,6 +32,19 @@ import androidx.compose.ui.unit.dp
 import nl.imreboersma.volti.R
 import nl.imreboersma.volti.data.cleanName
 import nl.imreboersma.volti.db.EnsembleFile
+
+/**
+ * The most lines a name from outside Volti takes (a Drive file or folder, a shared PDF): one with line breaks or
+ * thousands of characters mustn't push the parts I need off the stand. The Rename dialogue shows the whole file name.
+ */
+const val NAME_LINES = 2
+
+/** The most characters of a name from outside inside a sentence ("Bolero.pdf wasn't imported: …"). */
+const val NAME_CHARS = 80
+
+/** A name from outside as part of a sentence: on one line, and cut off after [NAME_CHARS]. */
+fun inSentence(name: String): String =
+    name.replace(Regex("""\s+"""), " ").trim().let { if (it.length > NAME_CHARS) it.take(NAME_CHARS - 1) + "…" else it }
 
 /**
  * The ⋮ at the end of a file's row: what I can do with it besides opening it, so the row keeps room for its name.
@@ -68,7 +83,8 @@ fun RenameFile(file: EnsembleFile, onSave: (String?) -> Unit, onCancel: () -> Un
         onDismissRequest = onCancel,
         title = { Text(stringResource(R.string.rename)) },
         text = {
-            Column {
+            // Scrolls: a file name of thousands of characters mustn't push the buttons below out of reach.
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },

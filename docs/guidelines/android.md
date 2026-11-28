@@ -82,6 +82,6 @@ Check new screens with TalkBack and the Accessibility Scanner on the tablet.
 
 ## Not yet following this
 
-- Zooming in to annotate is only by gesture (two fingers). It is a help for the pen, which TalkBack users don't write with; a button would still be the rule.
+- Zoomed in to annotate, the page only moves by gesture (two fingers). Zoom in and Whole page are buttons, but without fingers only the middle of the page can be enlarged. Decided with the musician on 2026-11-28 to leave it so for now.
 
 Verified on the emulator only; check pedal, TalkBack and the edge stroke on the tablet.

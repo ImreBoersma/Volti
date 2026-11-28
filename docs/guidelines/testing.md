@@ -59,6 +59,4 @@ The budgets are in `plan.md`, Priorities. They are measured by hand, not in a te
 
 ## Not yet following this
 
-- `ExampleUnitTest.kt` and `ExampleInstrumentedTest.kt` are the project template's and test nothing.
-- No ink fixtures or decode test (see [data.md](data.md)).
 - Cold start since milestone 3 is measured on the emulator and a Fairphone 6, not on the tablet (`plan.md`, milestone 3).

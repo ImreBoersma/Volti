@@ -12,6 +12,8 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.layout.onSizeChanged
 
 /** The most the page is enlarged while annotating: a note head about the size of the pen's tip. */
 const val MAX_ZOOM = 4f
@@ -53,6 +55,22 @@ class PageZoom {
         offset = Offset(moved.x.coerceIn(width - width * next, 0f), moved.y.coerceIn(height - height * next, 0f))
     }
 
+    /** The box the page shows in, as last laid out: what [zoomIn] zooms around the middle of. */
+    private var area = Size.Zero
+
+    fun measured(width: Float, height: Float) {
+        area = Size(width, height)
+    }
+
+    /**
+     * Zoom in without fingers (TalkBack, a keyboard, a switch): twice, then [MAX_ZOOM] times, around the middle of what
+     * shows. Moving a zoomed page stays a gesture.
+     */
+    fun zoomIn() {
+        val next = if (scale < 2f) 2f else MAX_ZOOM
+        transform(Offset(area.width / 2, area.height / 2), Offset.Zero, next / scale, area.width, area.height)
+    }
+
     /** Back to the whole page. */
     fun reset() {
         scale = 1f
@@ -64,7 +82,9 @@ class PageZoom {
  * While [enabled] (annotating), two fingers enlarge and move the page: taken before the page and its marks see them,
  * so they neither draw nor turn a page. Not with a pen on the glass: a resting hand mustn't move the music under it.
  */
-fun Modifier.zoomToAnnotate(zoom: PageZoom, enabled: Boolean) = pointerInput(enabled) {
+fun Modifier.zoomToAnnotate(zoom: PageZoom, enabled: Boolean) = onSizeChanged {
+    zoom.measured(it.width.toFloat(), it.height.toFloat())
+}.pointerInput(enabled) {
     if (!enabled) return@pointerInput
     awaitEachGesture {
         var penDown = false

@@ -53,6 +53,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
@@ -224,10 +225,13 @@ fun EnsembleScreen(
                     },
                 )
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(ensemble?.name.orEmpty(), style = MaterialTheme.typography.headlineLarge)
+                    Text(ensemble?.name.orEmpty(), style = MaterialTheme.typography.headlineLarge, maxLines = NAME_LINES, overflow = TextOverflow.Ellipsis)
                     Text(
                         (listOfNotNull(ensemble?.instrument) + if (view is EnsembleView.Folder) path else emptyList()).joinToString(" / "),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        // Cut from the front: the folder I'm in is the end of the path.
+                        maxLines = 1,
+                        overflow = TextOverflow.StartEllipsis,
                     )
                 }
                 Box {
@@ -286,6 +290,8 @@ fun EnsembleScreen(
                         Text(
                             pluralStringResource(R.plurals.shared_to_import, shared.size, count(res, shared.size), where),
                             modifier = Modifier.weight(1f, fill = false),
+                            maxLines = NAME_LINES + 1, // The sentence around the folder's name.
+                            overflow = TextOverflow.Ellipsis,
                         )
                         Button(onClick = { viewModel.place(into) }) { Text(stringResource(R.string.import_here)) }
                         TextButton(onClick = viewModel::dontPlace) { Text(stringResource(R.string.cancel)) }
@@ -477,6 +483,8 @@ private fun RowList(
                 is EnsembleRow.Folder -> Text(
                     text = row.name + "/",
                     style = MaterialTheme.typography.bodyLarge,
+                    maxLines = NAME_LINES,
+                    overflow = TextOverflow.Ellipsis,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -506,7 +514,7 @@ private fun FoundList(files: List<EnsembleFile>, top: (@Composable ColumnScope.(
  * open it.
  */
 @Composable
-private fun FileRow(
+internal fun FileRow(
     file: EnsembleFile,
     new: Boolean,
     folders: String?,
@@ -529,8 +537,10 @@ private fun FileRow(
                 file.shownName,
                 style = MaterialTheme.typography.bodyLarge,
                 color = if (downloaded) Color.Unspecified else MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = NAME_LINES,
+                overflow = TextOverflow.Ellipsis,
             )
-            folders?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+            folders?.let { Text(it, style = MaterialTheme.typography.bodySmall, maxLines = NAME_LINES, overflow = TextOverflow.Ellipsis) }
         }
         when {
             download == Download.Now -> Row(verticalAlignment = Alignment.CenterVertically) {
@@ -571,6 +581,8 @@ private fun ImportReplaces(names: List<String>, onReplace: () -> Unit, onKeep: (
                 } else {
                     pluralStringResource(R.plurals.replaces_many, names.size, count(LocalResources.current, names.size))
                 },
+                maxLines = NAME_LINES,
+                overflow = TextOverflow.Ellipsis,
             )
         },
         text = { Text(stringResource(R.string.replaces_text)) },
@@ -585,10 +597,10 @@ private fun ImportReplaces(names: List<String>, onReplace: () -> Unit, onKeep: (
 }
 
 @Composable
-private fun DeleteImported(file: EnsembleFile, onDelete: () -> Unit, onCancel: () -> Unit) {
+internal fun DeleteImported(file: EnsembleFile, onDelete: () -> Unit, onCancel: () -> Unit) {
     AlertDialog(
         onDismissRequest = onCancel,
-        title = { Text(stringResource(R.string.delete_title, file.shownName)) },
+        title = { Text(stringResource(R.string.delete_title, file.shownName), maxLines = NAME_LINES, overflow = TextOverflow.Ellipsis) },
         text = { Text(stringResource(R.string.delete_imported_text)) },
         confirmButton = { TextButton(onClick = onDelete) { Text(stringResource(R.string.delete)) } },
         dismissButton = { TextButton(onClick = onCancel) { Text(stringResource(R.string.cancel)) } },
@@ -618,8 +630,8 @@ private fun ReviewSuggestions(suggestions: List<EnsembleFile>, onDone: (Set<Stri
                     ) {
                         Checkbox(checked = on, onCheckedChange = null)
                         Column(modifier = Modifier.padding(start = 8.dp)) {
-                            Text(file.shownName)
-                            if (file.folders.isNotEmpty()) Text(file.folders.joinToString(" / "), style = MaterialTheme.typography.bodySmall)
+                            Text(file.shownName, maxLines = NAME_LINES, overflow = TextOverflow.Ellipsis)
+                            if (file.folders.isNotEmpty()) Text(file.folders.joinToString(" / "), style = MaterialTheme.typography.bodySmall, maxLines = NAME_LINES, overflow = TextOverflow.Ellipsis)
                         }
                     }
                 }

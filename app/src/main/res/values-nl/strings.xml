@@ -141,6 +141,10 @@
     <string name="import_pdfs_menu">Pdf\'s</string>
     <string name="import_folder_menu">Een map</string>
     <string name="search_ensemble">Zoeken in dit ensemble</string>
+    <string name="search_every_ensemble">Zoeken in alle ensembles</string>
+    <string name="search">Zoeken</string>
+    <string name="from_every_ensemble">Uit al je ensembles</string>
+    <string name="no_parts_yours">Er zijn nog geen partijen als de jouwe gemarkeerd. Tik in een ensemble op Jouw partij bij de partijen die je speelt.</string>
     <string name="clear">Wissen</string>
     <plurals name="shared_to_import">
         <item quantity="one">%1$s pdf om te importeren in %2$s</item>
@@ -212,9 +216,12 @@
     <string name="no_ensembles">Nog geen. Voeg er een toe vanuit de bibliotheek.</string>
     <string name="what_you_play">Wat je speelt</string>
     <string name="remove_title">%1$s weghalen?</string>
-    <string name="remove_ensemble_text_tablet">De partijen, en welke daarvan van jou zijn, worden van deze tablet verwijderd. De map in Google Drive blijft zoals hij is.</string>
-    <string name="remove_ensemble_text_phone">De partijen, en welke daarvan van jou zijn, worden van deze telefoon verwijderd. De map in Google Drive blijft zoals hij is.</string>
-    <string name="remove_ensemble_text_device">De partijen, en welke daarvan van jou zijn, worden van dit apparaat verwijderd. De map in Google Drive blijft zoals hij is.</string>
+    <string name="remove_ensemble_text_tablet">De partijen, en welke daarvan van jou zijn, worden van deze tablet verwijderd. De map in Google Drive blijft zoals hij is. Je aantekeningen en namen bij de partijen uit Drive blijven ook: voeg de map opnieuw toe en ze komen terug.</string>
+    <string name="remove_ensemble_text_phone">De partijen, en welke daarvan van jou zijn, worden van deze telefoon verwijderd. De map in Google Drive blijft zoals hij is. Je aantekeningen en namen bij de partijen uit Drive blijven ook: voeg de map opnieuw toe en ze komen terug.</string>
+    <string name="remove_ensemble_text_device">De partijen, en welke daarvan van jou zijn, worden van dit apparaat verwijderd. De map in Google Drive blijft zoals hij is. Je aantekeningen en namen bij de partijen uit Drive blijven ook: voeg de map opnieuw toe en ze komen terug.</string>
+    <string name="remove_imports_text_tablet">Partijen die je hebt geïmporteerd worden van deze tablet verwijderd, met je aantekeningen erop. Importeer ze opnieuw om ze weer te gebruiken.</string>
+    <string name="remove_imports_text_phone">Partijen die je hebt geïmporteerd worden van deze telefoon verwijderd, met je aantekeningen erop. Importeer ze opnieuw om ze weer te gebruiken.</string>
+    <string name="remove_imports_text_device">Partijen die je hebt geïmporteerd worden van dit apparaat verwijderd, met je aantekeningen erop. Importeer ze opnieuw om ze weer te gebruiken.</string>
 
     <!-- The reader. -->
     <string name="next_page">Volgende pagina</string>
@@ -238,6 +245,8 @@
     <string name="symbols">Symbolen</string>
     <string name="eraser">Gum</string>
     <string name="undo">Ongedaan maken</string>
+    <string name="zoom_in">Inzoomen</string>
+    <string name="whole_page">Hele pagina</string>
     <string name="done">Klaar</string>
     <string name="part_changed">Deze partij is veranderd sinds je je aantekeningen maakte. Kijk of ze nog kloppen.</string>
     <string name="previous_version">Vorige versie</string>

@@ -27,6 +27,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.addPathNodes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.TextButton
@@ -36,6 +42,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.pluralStringResource
@@ -202,6 +209,7 @@ fun HomeScreen(
     onAddEnsemble: () -> Unit,
     onImportOldFolder: (batch: String) -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenParts: (search: Boolean) -> Unit,
     viewModel: HomeViewModel = viewModel(),
 ) {
     val ensembles by viewModel.ensembles.collectAsStateWithLifecycle()
@@ -240,6 +248,11 @@ fun HomeScreen(
             item {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(R.string.library), style = MaterialTheme.typography.headlineLarge, modifier = Modifier.weight(1f))
+                    // Through every part in every ensemble: the search an ensemble has, for all of them.
+                    // Only the icon: with two labelled buttons the title runs out of room on a phone, in Dutch, at large text.
+                    IconButton(onClick = { onOpenParts(true) }, modifier = Modifier.padding(end = 8.dp)) {
+                        Icon(Magnifier, contentDescription = stringResource(R.string.search))
+                    }
                     OutlinedButton(onClick = onOpenSettings) { Text(stringResource(R.string.settings)) }
                 }
             }
@@ -254,6 +267,21 @@ fun HomeScreen(
                     }
                 }
             }
+            // My parts from every ensemble in one list, above the ensembles they come from.
+            if (!ensembles.isNullOrEmpty()) {
+                item(key = "parts") {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onOpenParts(false) }
+                            .padding(vertical = 12.dp),
+                    ) {
+                        Text(stringResource(R.string.your_parts), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.from_every_ensemble), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    HorizontalDivider()
+                }
+            }
             items(ensembles.orEmpty(), key = { it.id }) { ensemble ->
                 val new = newFiles[ensemble.id] ?: 0
                 Row(
@@ -264,7 +292,7 @@ fun HomeScreen(
                         .padding(vertical = 12.dp),
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(ensemble.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                        Text(ensemble.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, maxLines = NAME_LINES, overflow = TextOverflow.Ellipsis)
                         Text(ensemble.instrument, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text(
                             if (ensemble.folderId == null) {
@@ -290,7 +318,7 @@ fun HomeScreen(
                 item { Heading(stringResource(device().pick(R.string.on_this_tablet, R.string.on_this_phone, R.string.on_this_device))) }
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 12.dp)) {
-                        Text(folder.name ?: stringResource(R.string.folder), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                        Text(folder.name ?: stringResource(R.string.folder), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, maxLines = NAME_LINES, overflow = TextOverflow.Ellipsis)
                         Text(stringResource(R.string.old_folder_text))
                         folderProblem?.let {
                             val text = when (it) {
@@ -329,3 +357,15 @@ private fun Heading(text: String) = Text(
     color = MaterialTheme.colorScheme.onSurfaceVariant,
     modifier = Modifier.padding(top = 32.dp, bottom = 4.dp),
 )
+
+/** Material's "search" magnifier: no icon library for it, as for the back arrow. */
+private val Magnifier: ImageVector = ImageVector.Builder("Search", 24.dp, 24.dp, 24f, 24f)
+    .addPath(
+        addPathNodes(
+            "M15.5,14h-0.79l-0.28,-0.27C15.41,12.59 16,11.11 16,9.5 16,5.91 13.09,3 9.5,3S3,5.91 3,9.5 5.91,16 9.5,16" +
+                "c1.61,0 3.09,-0.59 4.23,-1.57l0.27,0.28v0.79l5,4.99L20.49,19l-4.99,-5zM9.5,14C7.01,14 5,11.99 5,9.5" +
+                "S7.01,5 9.5,5 14,7.01 14,9.5 11.99,14 9.5,14z",
+        ),
+        fill = SolidColor(Color.Black),
+    )
+    .build()
