@@ -223,4 +223,27 @@ class ImportTest {
         assertTrue(runBlocking { db.annotations().symbolsForScore(file.scoreKey) }.isEmpty())
         assertTrue("the PDF went with it", !syncer.fileFor(file.md5).exists())
     }
+
+    /** A removed ensemble's imports can't come back, so neither do their marks and names: they go, not linger. */
+    @Test
+    fun aRemovedEnsembleTakesItsImportsMarksAndNamesButNotDrives() {
+        val ensemble = ensemble()
+        import(ensemble, "Gone.pdf", pdf(pages = 1))
+        val imported = files(ensemble).single()
+        val drive = imported.copy(fileId = "drive-" + System.nanoTime(), imported = false) // A Drive part beside it.
+        runBlocking {
+            db.files().save(listOf(drive))
+            listOf(imported, drive).forEach {
+                db.annotations().addSymbols(listOf(AnnotationSymbol("s-" + it.fileId, it.scoreKey, 0, "Fermata", 1f, 1f, 0)))
+                db.files().rename(it.fileId, "Mine")
+            }
+            syncer.remove(db.ensembles().get(ensemble)!!)
+        }
+        assertTrue("an import's marks went", runBlocking { db.annotations().symbolsForScore(imported.scoreKey) }.isEmpty())
+        assertFalse("a Drive part's marks stay for when the folder comes back", runBlocking { db.annotations().symbolsForScore(drive.scoreKey) }.isEmpty())
+        runBlocking { // Not left behind by this test.
+            db.annotations().removeScore(drive.scoreKey)
+            db.files().forgetName(drive.scoreKey)
+        }
+    }
 }

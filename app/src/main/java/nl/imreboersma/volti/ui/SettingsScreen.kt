@@ -50,6 +50,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.map
 import nl.imreboersma.volti.data.ReaderSettings
 import nl.imreboersma.volti.data.ReaderSettingsStore
 import nl.imreboersma.volti.db.Ensemble
@@ -66,6 +67,10 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
 
     val ensembles: StateFlow<List<Ensemble>?> =
         dao.all().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** The ensembles holding parts I imported: removing one says those go for good. */
+    val withImports: StateFlow<Set<Long>> = VoltiDatabase.get(app).files().withImports().map { it.toSet() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
 
     fun setCropMargins(on: Boolean) {
         viewModelScope.launch { readerSettings.setCropMargins(on) }
@@ -92,6 +97,7 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
 fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = viewModel()) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val ensembles by viewModel.ensembles.collectAsStateWithLifecycle()
+    val withImports by viewModel.withImports.collectAsStateWithLifecycle()
 
     Scaffold(modifier = Modifier.fillMaxSize()) { padding ->
         Column(
@@ -131,7 +137,7 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = viewModel(
                     item { Text(stringResource(R.string.no_ensembles), color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 }
                 items(ensembles.orEmpty(), key = { it.id }) { ensemble ->
-                    EnsembleSettings(ensemble, onSave = viewModel::rename, onRemove = viewModel::remove)
+                    EnsembleSettings(ensemble, hasImports = ensemble.id in withImports, onSave = viewModel::rename, onRemove = viewModel::remove)
                     HorizontalDivider()
                 }
             }
@@ -166,7 +172,7 @@ private fun SwitchRow(title: String, detail: String, checked: Boolean, onChange:
 }
 
 @Composable
-private fun EnsembleSettings(ensemble: Ensemble, onSave: (Ensemble, String, String) -> Unit, onRemove: (Ensemble) -> Unit) {
+private fun EnsembleSettings(ensemble: Ensemble, hasImports: Boolean, onSave: (Ensemble, String, String) -> Unit, onRemove: (Ensemble) -> Unit) {
     var name by rememberSaveable(ensemble.id, ensemble.name) { mutableStateOf(ensemble.name) }
     var instrument by rememberSaveable(ensemble.id, ensemble.instrument) { mutableStateOf(ensemble.instrument) }
     var confirming by rememberSaveable { mutableStateOf(false) }
@@ -203,12 +209,10 @@ private fun EnsembleSettings(ensemble: Ensemble, onSave: (Ensemble, String, Stri
             title = { Text(stringResource(R.string.remove_title, ensemble.name), maxLines = NAME_LINES, overflow = TextOverflow.Ellipsis) },
             text = {
                 // What goes, and what stays to come back: marks on Drive's parts do, imported parts can't.
-                val text = if (ensemble.folderId != null) {
-                    device().pick(R.string.remove_ensemble_text_tablet, R.string.remove_ensemble_text_phone, R.string.remove_ensemble_text_device)
-                } else {
-                    device().pick(R.string.remove_imports_text_tablet, R.string.remove_imports_text_phone, R.string.remove_imports_text_device)
-                }
-                Text(stringResource(text))
+                val device = device()
+                val drive = stringResource(device.pick(R.string.remove_ensemble_text_tablet, R.string.remove_ensemble_text_phone, R.string.remove_ensemble_text_device))
+                val imports = stringResource(device.pick(R.string.remove_imports_text_tablet, R.string.remove_imports_text_phone, R.string.remove_imports_text_device))
+                Text(listOfNotNull(drive.takeIf { ensemble.folderId != null }, imports.takeIf { hasImports || ensemble.folderId == null }).joinToString("\n\n"))
             },
             confirmButton = {
                 TextButton(onClick = {

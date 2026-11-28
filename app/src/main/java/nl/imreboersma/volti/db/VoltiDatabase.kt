@@ -181,6 +181,10 @@ interface EnsembleFileDao {
     @Query("SELECT * FROM ensemble_file WHERE ensembleId = :ensembleId")
     fun shown(ensembleId: Long): Flow<List<EnsembleFile>>
 
+    /** The ensembles holding parts I imported: removing one deletes those for good. */
+    @Query("SELECT DISTINCT ensembleId FROM ensemble_file WHERE imported = 1")
+    fun withImports(): Flow<List<Long>>
+
     /** The files of every ensemble: to search them all, and for my parts from all of them. */
     @Query("SELECT * FROM ensemble_file")
     fun everywhere(): Flow<List<EnsembleFile>>
@@ -302,6 +306,18 @@ abstract class VoltiDatabase : RoomDatabase() {
         setlists().removeEverywhere(file.ensembleId, file.fileId)
         annotations().removeScore(file.scoreKey)
         files().forgetName(file.scoreKey)
+    }
+
+    /**
+     * An ensemble goes, with its files. Its imports can't come back (imported again, a PDF gets a new id), so their
+     * marks and names go too; a Drive part's stay, for when its folder is added again.
+     */
+    suspend fun removeEnsemble(ensemble: Ensemble) = withTransaction {
+        files().all(ensemble.id).filter { it.imported }.forEach {
+            annotations().removeScore(it.scoreKey)
+            files().forgetName(it.scoreKey)
+        }
+        ensembles().remove(ensemble)
     }
 
     companion object {

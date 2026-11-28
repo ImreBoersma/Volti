@@ -472,8 +472,9 @@ class Syncer private constructor(context: Context) {
     /** Deletes the ensemble, and the PDFs only it needed. */
     suspend fun remove(ensemble: Ensemble) {
         job?.cancel()
+        MarkWrites.flush() // A mark on one of its imports still on its way would land after its marks are gone.
         storeLock.withLock {
-            db.ensembles().remove(ensemble) // Its files go with it.
+            db.removeEnsemble(ensemble)
             cleanUp()
         }
     }
