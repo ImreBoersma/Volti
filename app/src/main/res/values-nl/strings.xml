@@ -245,6 +245,8 @@
     <string name="symbols">Symbolen</string>
     <string name="eraser">Gum</string>
     <string name="undo">Ongedaan maken</string>
+    <string name="zoom_in">Inzoomen</string>
+    <string name="whole_page">Hele pagina</string>
     <string name="done">Klaar</string>
     <string name="part_changed">Deze partij is veranderd sinds je je aantekeningen maakte. Kijk of ze nog kloppen.</string>
     <string name="previous_version">Vorige versie</string>

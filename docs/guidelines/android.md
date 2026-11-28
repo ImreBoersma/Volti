@@ -82,6 +82,6 @@ Check new screens with TalkBack and the Accessibility Scanner on the tablet.
 
 ## Not yet following this
 
-- Zooming in to annotate is only by gesture (two fingers). It is a help for the pen, which TalkBack users don't write with; a button would still be the rule.
+Nothing known.
 
 Verified on the emulator only; check pedal, TalkBack and the edge stroke on the tablet.

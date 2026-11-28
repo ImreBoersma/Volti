@@ -333,6 +333,7 @@ fun VoltiApp(navController: NavHostController = rememberNavController(), shared:
                 controls = {
                     AnnotationControls(
                         annotations,
+                        zoom,
                         onOpenPrevious = { uri ->
                             if (entry.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
                                 // To look at only: not as a piece of a setlist, and from its start.

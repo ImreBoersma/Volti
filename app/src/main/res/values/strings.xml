@@ -267,6 +267,8 @@
     <string name="symbols">Symbols</string>
     <string name="eraser">Eraser</string>
     <string name="undo">Undo</string>
+    <string name="zoom_in">Zoom in</string>
+    <string name="whole_page">Whole page</string>
     <string name="done">Done</string>
     <string name="part_changed">This part changed since you made your marks. Check that they still fit.</string>
     <string name="previous_version">Previous version</string>

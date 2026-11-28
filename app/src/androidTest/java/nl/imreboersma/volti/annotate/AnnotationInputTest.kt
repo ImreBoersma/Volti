@@ -15,6 +15,7 @@ import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onRoot
@@ -256,5 +257,19 @@ class AnnotationInputTest {
         finished()
         assertTrue("not zoomed", !zoomedIn())
         assertEquals("one stroke, the pen's", 1, strokes())
+    }
+
+    /** For who can't pinch (TalkBack, a keyboard, a switch): the toolbar zooms in and back to the whole page. */
+    @Test
+    fun theToolbarZoomsInAndBackToTheWholePage() {
+        startAnnotating()
+        compose.onNodeWithText("Zoom in").performClick()
+        compose.waitUntil(5_000) { zoomedIn() }
+        compose.onNodeWithText("Zoom in").performClick() // Four times: then no further.
+        compose.waitUntil(5_000) { runCatching { compose.onNodeWithText("Zoom in").assertIsNotEnabled() }.isSuccess }
+        compose.onNodeWithText("Whole page").performClick()
+        compose.waitUntil(5_000) { !zoomedIn() }
+        compose.onNodeWithText("Whole page").assertIsNotEnabled()
+        assertEquals("nothing drawn", 0, strokes())
     }
 }
